@@ -29,6 +29,7 @@ export function BrandOnboardingForm({ initialContactName, initialEmail }: BrandO
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState("");
   const [savedCompany, setSavedCompany] = useState("");
+  const [savedUsername, setSavedUsername] = useState("");
   const [form, setForm] = useState<FormState>({
     companyName: "",
     contactName: initialContactName,
@@ -57,7 +58,7 @@ export function BrandOnboardingForm({ initialContactName, initialEmail }: BrandO
         body: JSON.stringify(form),
       });
 
-      const result = (await response.json().catch(() => ({}))) as { error?: string; companyName?: string };
+      const result = (await response.json().catch(() => ({}))) as { error?: string; companyName?: string; username?: string };
 
       if (!response.ok) {
         setError(result.error ?? "Could not save your brand profile.");
@@ -65,6 +66,7 @@ export function BrandOnboardingForm({ initialContactName, initialEmail }: BrandO
       }
 
       setSavedCompany(result.companyName ?? form.companyName);
+      setSavedUsername(result.username ?? "");
       router.refresh();
     } catch {
       setError("Could not reach the server. Please try again.");
@@ -83,20 +85,29 @@ export function BrandOnboardingForm({ initialContactName, initialEmail }: BrandO
         <p className="mx-auto mt-3 max-w-xl text-sm leading-6 text-[var(--text-secondary)]">
           {savedCompany} is ready in CreatorBridge. You can browse creators whenever you are ready.
         </p>
-        <Link
-          href="/creators"
-          className="focus-ring mt-6 inline-flex items-center justify-center gap-2 rounded-[8px] bg-[var(--accent)] px-5 py-3 text-sm font-semibold text-white"
-        >
-          Browse Creators
-        </Link>
+        <div className="mt-6 flex flex-col justify-center gap-3 sm:flex-row">
+          {savedUsername ? (
+            <Link href={`/brands/${savedUsername}`} className="bridge-button-secondary">
+              View Brand Profile
+            </Link>
+          ) : null}
+          <Link href="/creators" className="bridge-button-primary">
+            Browse Creators
+          </Link>
+        </div>
       </div>
     );
   }
 
   return (
-    <form onSubmit={onSubmit} className="space-y-6">
-      {error ? <div className="rounded-[8px] border border-red-900 bg-red-950/40 px-4 py-3 text-sm text-red-200">{error}</div> : null}
+    <form onSubmit={onSubmit} aria-busy={isSaving} className="space-y-6">
+      {error ? (
+        <div role="alert" className="rounded-[8px] border border-red-900 bg-red-950/40 px-4 py-3 text-sm text-red-200">
+          {error}
+        </div>
+      ) : null}
 
+      <fieldset disabled={isSaving} className="min-w-0 space-y-6 border-0 p-0">
       <section className="bridge-card p-5">
         <h2 className="font-display text-xl font-bold">Brand basics</h2>
         <div className="mt-5 grid gap-4 md:grid-cols-2">
@@ -146,15 +157,16 @@ export function BrandOnboardingForm({ initialContactName, initialEmail }: BrandO
           </label>
           <label className="md:col-span-2">
             <span className="bridge-label">Notes</span>
-            <textarea value={form.notes} onChange={(event) => setField("notes", event.target.value)} className="bridge-input mt-2 min-h-28" placeholder="Creator categories, markets, or internal context." />
-          </label>
-        </div>
+          <textarea value={form.notes} onChange={(event) => setField("notes", event.target.value)} className="bridge-input mt-2 min-h-28" placeholder="Creator categories, markets, or internal context." />
+        </label>
+      </div>
       </section>
+      </fieldset>
 
       <button
         type="submit"
         disabled={isSaving}
-        className="focus-ring inline-flex w-full items-center justify-center gap-2 rounded-[8px] bg-[var(--accent)] px-6 py-4 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
+        className="bridge-button-primary w-full py-4"
       >
         {isSaving ? <Loader2 size={17} className="animate-spin" /> : <Building2 size={17} />}
         {isSaving ? "Saving Profile" : "Save Brand Profile"}

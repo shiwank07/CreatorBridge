@@ -89,10 +89,7 @@ export function BrandInquiryForm({ creatorUsername = "" }: BrandInquiryFormProps
         <p className="mx-auto mt-3 max-w-xl text-sm leading-6 text-[var(--text-secondary)]">
           Your campaign request has been received. The CreatorBridge team can now review the brief and follow up.
         </p>
-        <Link
-          href="/creators"
-          className="focus-ring mt-6 inline-flex items-center justify-center gap-2 rounded-[8px] bg-[var(--accent)] px-5 py-3 text-sm font-semibold text-white"
-        >
+        <Link href="/creators" className="bridge-button-primary mt-6">
           Browse More Creators
         </Link>
       </div>
@@ -100,8 +97,12 @@ export function BrandInquiryForm({ creatorUsername = "" }: BrandInquiryFormProps
   }
 
   return (
-    <form onSubmit={onSubmit} className="bridge-card p-5">
-      {error ? <div className="mb-5 rounded-[8px] border border-red-900 bg-red-950/40 px-4 py-3 text-sm text-red-200">{error}</div> : null}
+    <form onSubmit={onSubmit} aria-busy={isSaving} className="bridge-card p-5">
+      {error ? (
+        <div role="alert" className="mb-5 rounded-[8px] border border-red-900 bg-red-950/40 px-4 py-3 text-sm text-red-200">
+          {error}
+        </div>
+      ) : null}
 
       {creatorUsername ? (
         <div className="mb-5 rounded-[8px] border border-violet-800 bg-violet-950/40 px-4 py-3 text-sm text-violet-100">
@@ -109,6 +110,7 @@ export function BrandInquiryForm({ creatorUsername = "" }: BrandInquiryFormProps
         </div>
       ) : null}
 
+      <fieldset disabled={isSaving} className="min-w-0 border-0 p-0">
       <div className="grid gap-4 md:grid-cols-2">
         <label>
           <span className="bridge-label">Company name</span>
@@ -204,11 +206,12 @@ export function BrandInquiryForm({ creatorUsername = "" }: BrandInquiryFormProps
       <button
         type="submit"
         disabled={isSaving}
-        className="focus-ring mt-6 inline-flex w-full items-center justify-center gap-2 rounded-[8px] bg-[var(--accent)] px-6 py-4 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
+        className="bridge-button-primary mt-6 w-full py-4"
       >
         {isSaving ? <Loader2 size={17} className="animate-spin" /> : <Send size={17} />}
         {isSaving ? "Submitting Inquiry" : "Submit Brand Inquiry"}
       </button>
+      </fieldset>
     </form>
   );
 }

@@ -1,14 +1,27 @@
 import { SignUp } from "@clerk/nextjs";
 
 import { AuthSetupNotice } from "@/components/shared/auth-setup-notice";
+import { getRedirectParam, safeInternalRedirect } from "@/lib/auth-redirect";
 import { hasClerkKeys } from "@/lib/clerk-config";
 
-export default function SignUpPage() {
+type AuthSearchParams = Promise<Record<string, string | string[] | undefined>>;
+
+export default async function SignUpPage({ searchParams }: { searchParams: AuthSearchParams }) {
   if (!hasClerkKeys()) return <AuthSetupNotice />;
+
+  const params = await searchParams;
+  const requestedRedirect = getRedirectParam(params);
+  const redirectUrl = safeInternalRedirect(requestedRedirect, "/onboarding?role=creator");
 
   return (
     <main className="flex min-h-screen items-center justify-center px-4 py-12">
-      <SignUp routing="path" path="/sign-up" />
+      <SignUp
+        routing="path"
+        path="/sign-up"
+        signInUrl={`/sign-in?redirect_url=${encodeURIComponent(redirectUrl)}`}
+        fallbackRedirectUrl={redirectUrl}
+        forceRedirectUrl={requestedRedirect ? redirectUrl : undefined}
+      />
     </main>
   );
 }

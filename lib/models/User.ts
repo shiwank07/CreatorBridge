@@ -12,6 +12,9 @@ export interface IUser extends Document {
   subscriptionExpiry: Date | null;
   isFeatured: boolean;
   isVerified: boolean;
+  trustReviewStatus: "clear" | "needs_review";
+  trustReviewNote?: string;
+  lastTrustReviewedAt?: Date | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -34,6 +37,9 @@ const UserSchema = new Schema<IUser>(
     subscriptionExpiry: { type: Date, default: null },
     isFeatured: { type: Boolean, default: false },
     isVerified: { type: Boolean, default: false },
+    trustReviewStatus: { type: String, enum: ["clear", "needs_review"], default: "clear", index: true },
+    trustReviewNote: { type: String, maxlength: 500, default: "" },
+    lastTrustReviewedAt: { type: Date, default: null },
   },
   { timestamps: true },
 );

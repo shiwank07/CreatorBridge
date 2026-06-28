@@ -1,6 +1,6 @@
 import mongoose, { type Document, type Model, Schema } from "mongoose";
 
-export type VerificationStatus = "unverified" | "ownership_verified" | "stats_verified" | "rejected";
+export type VerificationStatus = "unverified" | "pending_ownership" | "ownership_verified" | "stats_verified" | "rejected";
 
 export interface ICreatorProfile extends Document {
   userId: mongoose.Types.ObjectId;
@@ -16,6 +16,12 @@ export interface ICreatorProfile extends Document {
   verifiedSubscribers?: number;
   verificationCode?: string;
   verificationNote?: string;
+  verificationSubmittedAt?: Date | null;
+  verificationReviewedAt?: Date | null;
+  verificationReviewedByAdminId?: string;
+  verificationRejectedReason?: string;
+  verificationCodeExpiresAt?: Date | null;
+  normalizedYoutubeChannelKey?: string;
   lastVerifiedAt?: Date | null;
   avgViews?: number;
   totalVideos?: number;
@@ -48,7 +54,7 @@ const CreatorProfileSchema = new Schema<ICreatorProfile>(
     subscribers: { type: Number, default: 0, min: 0 },
     verificationStatus: {
       type: String,
-      enum: ["unverified", "ownership_verified", "stats_verified", "rejected"],
+      enum: ["unverified", "pending_ownership", "ownership_verified", "stats_verified", "rejected"],
       default: "unverified",
       index: true,
     },
@@ -56,6 +62,12 @@ const CreatorProfileSchema = new Schema<ICreatorProfile>(
     verifiedSubscribers: { type: Number, default: 0, min: 0 },
     verificationCode: { type: String, default: "" },
     verificationNote: { type: String, maxlength: 500, default: "" },
+    verificationSubmittedAt: { type: Date, default: null },
+    verificationReviewedAt: { type: Date, default: null },
+    verificationReviewedByAdminId: { type: String, default: "" },
+    verificationRejectedReason: { type: String, maxlength: 500, default: "" },
+    verificationCodeExpiresAt: { type: Date, default: null },
+    normalizedYoutubeChannelKey: { type: String, default: "", index: true },
     lastVerifiedAt: { type: Date, default: null },
     avgViews: { type: Number, default: 0, min: 0 },
     totalVideos: { type: Number, default: 0, min: 0 },

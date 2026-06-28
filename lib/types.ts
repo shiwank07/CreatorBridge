@@ -1,5 +1,6 @@
 export type Role = "creator" | "brand" | "agency" | "talent";
-export type VerificationStatus = "unverified" | "ownership_verified" | "stats_verified" | "rejected";
+export type VerificationStatus = "unverified" | "pending_ownership" | "ownership_verified" | "stats_verified" | "rejected";
+export type BrandVerificationStatus = "unverified" | "pending" | "verified" | "rejected";
 
 export type CreatorCardData = {
   id: string;
@@ -41,8 +42,38 @@ export type CreatorVerificationData = {
   verificationStatus: VerificationStatus;
   verificationCode?: string;
   verificationNote?: string;
+  verificationRejectedReason?: string;
+  verificationSubmittedAt?: string;
+  verificationReviewedAt?: string;
+  verificationCodeExpiresAt?: string;
   lastVerifiedAt?: string;
   createdAt?: string;
+};
+
+export type BrandProfileData = {
+  id: string;
+  username: string;
+  companyName: string;
+  contactName: string;
+  contactRole?: string;
+  website?: string;
+  industry: string;
+  companySize?: string;
+  country?: string;
+  verificationStatus: BrandVerificationStatus;
+  verificationNote?: string;
+  createdAt?: string;
+};
+
+export type BrandVerificationData = BrandProfileData & {
+  contactEmail: string;
+  companyDomain?: string;
+  normalizedWebsiteDomain?: string;
+  verificationMethod: "work_email_domain" | "website_code" | "manual";
+  verificationCode?: string;
+  verificationSubmittedAt?: string;
+  verificationReviewedAt?: string;
+  rejectionReason?: string;
 };
 
 export type BrandInquiryData = {
@@ -58,6 +89,6 @@ export type BrandInquiryData = {
   timeline: string;
   message?: string;
   creatorUsername?: string;
-  status: "new" | "reviewed" | "contacted" | "closed";
+  status: "new" | "reviewed" | "contacted" | "sent_to_creator" | "creator_interested" | "creator_declined" | "rejected" | "closed";
   createdAt?: string;
 };

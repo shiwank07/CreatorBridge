@@ -3,20 +3,23 @@
 @tailwind utilities;
 
 :root {
-  --bg-base: #0a0a0f;
-  --bg-surface: #111118;
-  --bg-elevated: #1a1a26;
-  --border: #2a2a3a;
-  --border-accent: #7c3aed;
+  --bg-base: #08090d;
+  --bg-surface: #11131a;
+  --bg-elevated: #181b24;
+  --bg-wash: #0d1118;
+  --border: #2a3140;
+  --border-accent: #67e8f9;
   --accent: #7c3aed;
-  --accent-light: #a855f7;
-  --accent-glow: rgba(124, 58, 237, 0.2);
-  --text-primary: #f0eeff;
-  --text-secondary: #a2a2bf;
-  --text-muted: #6f6f8f;
+  --accent-light: #67e8f9;
+  --accent-glow: rgba(103, 232, 249, 0.18);
+  --text-primary: #f7f3ee;
+  --text-secondary: #abb5c7;
+  --text-muted: #717d91;
   --green: #22c55e;
   --red: #ef4444;
-  --yellow: #eab308;
+  --yellow: #f59e0b;
+  --cyan: #67e8f9;
+  --rose: #fb7185;
   --font-display: "Plus Jakarta Sans";
   --font-body: "Inter";
   --font-mono: "JetBrains Mono";
@@ -35,7 +38,9 @@ html {
 body {
   min-height: 100%;
   margin: 0;
-  background: linear-gradient(180deg, #0a0a0f 0%, #0d0d14 45%, #0a0a0f 100%);
+  background:
+    linear-gradient(180deg, rgba(8, 9, 13, 0.92) 0%, rgba(13, 17, 24, 0.98) 48%, #08090d 100%),
+    #08090d;
   color: var(--text-primary);
   font-family: var(--font-body), ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 }
@@ -62,15 +67,15 @@ textarea {
 }
 
 .bridge-card {
-  @apply rounded-[8px] border border-[var(--border)] bg-[var(--bg-surface)] transition-all duration-300;
+  @apply rounded-[8px] border border-[var(--border)] bg-[rgba(17,19,26,0.88)] shadow-[0_18px_50px_rgba(0,0,0,0.18)] transition-all duration-300;
 }
 
 .bridge-card-hover {
-  @apply hover:border-[var(--border-accent)] hover:shadow-glow;
+  @apply hover:-translate-y-0.5 hover:border-[var(--border-accent)] hover:shadow-glow;
 }
 
 .bridge-input {
-  @apply focus-ring w-full rounded-[8px] border border-[var(--border)] bg-[#0d0d14] px-4 py-3 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)];
+  @apply focus-ring w-full rounded-[8px] border border-[var(--border)] bg-[#0b0f16] px-4 py-3 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)] transition-colors disabled:cursor-not-allowed disabled:opacity-70;
 }
 
 .bridge-label {
@@ -79,4 +84,337 @@ textarea {
 
 .bridge-muted {
   @apply text-sm text-[var(--text-secondary)];
+}
+
+.bridge-button-primary {
+  @apply focus-ring inline-flex items-center justify-center gap-2 rounded-[8px] bg-[var(--accent)] px-5 py-3 text-sm font-semibold text-white shadow-[0_12px_28px_rgba(124,58,237,0.24)] transition hover:-translate-y-0.5 hover:bg-violet-500 disabled:cursor-not-allowed disabled:opacity-60;
+}
+
+.bridge-button-secondary {
+  @apply focus-ring inline-flex items-center justify-center gap-2 rounded-[8px] border border-[var(--border)] bg-[rgba(17,19,26,0.72)] px-5 py-3 text-sm font-semibold text-[var(--text-primary)] transition hover:-translate-y-0.5 hover:border-[var(--border-accent)] hover:bg-[var(--bg-elevated)];
+}
+
+.bridge-section {
+  @apply mx-auto max-w-7xl px-4 py-14 sm:px-6 sm:py-16 lg:px-8;
+}
+
+.bridge-eyebrow {
+  @apply text-sm font-semibold uppercase text-[var(--cyan)];
+}
+
+.bridge-panel {
+  @apply rounded-[8px] border border-[var(--border)] bg-[rgba(8,11,17,0.76)];
+}
+
+.animate-rise {
+  animation: rise-in 600ms ease-out both;
+}
+
+.animate-float-slow {
+  animation: float-slow 8s ease-in-out infinite;
+}
+
+.surface-grid {
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.035) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.035) 1px, transparent 1px);
+  background-size: 44px 44px;
+}
+
+.creator-directory-shell {
+  position: relative;
+  min-height: 100vh;
+  overflow: hidden;
+  background:
+    radial-gradient(ellipse at 20% 0%, rgba(124, 58, 237, 0.18), transparent 36%),
+    radial-gradient(ellipse at 85% 8%, rgba(103, 232, 249, 0.14), transparent 34%),
+    linear-gradient(180deg, #05050d 0%, #08090d 42%, #05050d 100%);
+}
+
+.creator-directory-shell::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.028) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.028) 1px, transparent 1px);
+  background-size: 72px 72px;
+  mask-image: linear-gradient(to bottom, black, transparent 72%);
+}
+
+.creator-directory-hero {
+  min-height: 620px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  background:
+    linear-gradient(135deg, rgba(10, 10, 24, 0.98), rgba(5, 7, 18, 0.94)),
+    #05050d;
+}
+
+.creator-grid-field {
+  position: absolute;
+  inset: 0;
+  opacity: 0.58;
+  background-image:
+    linear-gradient(rgba(103, 232, 249, 0.08) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(124, 58, 237, 0.12) 1px, transparent 1px);
+  background-size: 52px 52px;
+  animation: grid-shift 22s linear infinite;
+  mask-image: linear-gradient(to bottom, black 0%, black 62%, transparent 100%);
+}
+
+.creator-aurora-field {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    linear-gradient(115deg, transparent 8%, rgba(124, 58, 237, 0.18) 24%, transparent 42%),
+    linear-gradient(245deg, transparent 10%, rgba(103, 232, 249, 0.14) 32%, transparent 58%),
+    radial-gradient(ellipse at 50% 100%, rgba(59, 130, 246, 0.14), transparent 54%);
+  filter: blur(0.2px);
+}
+
+.creator-particle {
+  position: absolute;
+  width: 3px;
+  height: 3px;
+  border-radius: 999px;
+  background: rgba(214, 244, 255, 0.86);
+  box-shadow:
+    0 0 16px rgba(103, 232, 249, 0.9),
+    0 0 36px rgba(124, 58, 237, 0.38);
+  animation: particle-drift 10s ease-in-out infinite;
+}
+
+.creator-particle-a {
+  left: 16%;
+  top: 28%;
+}
+
+.creator-particle-b {
+  right: 22%;
+  top: 18%;
+  animation-delay: -3s;
+}
+
+.creator-particle-c {
+  right: 38%;
+  bottom: 30%;
+  animation-delay: -6s;
+}
+
+.creator-command-panel,
+.creator-search-console,
+.creator-premium-card,
+.creator-stat-card,
+.creator-result-pill {
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.074), rgba(255, 255, 255, 0.036));
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.08),
+    0 24px 80px rgba(0, 0, 0, 0.28);
+  backdrop-filter: blur(22px);
+}
+
+.creator-command-panel {
+  position: relative;
+  overflow: hidden;
+}
+
+.creator-command-panel::before,
+.creator-search-console::before,
+.creator-premium-card::before,
+.creator-stat-card::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0;
+  background: linear-gradient(120deg, transparent, rgba(103, 232, 249, 0.1), transparent);
+  transition: opacity 240ms ease;
+}
+
+.creator-command-panel:hover::before,
+.creator-search-console:hover::before,
+.creator-premium-card:hover::before,
+.creator-stat-card:hover::before {
+  opacity: 1;
+}
+
+.creator-search-console {
+  position: relative;
+  overflow: hidden;
+}
+
+.creator-filter-field {
+  display: block;
+  min-width: 0;
+}
+
+.creator-filter-label {
+  display: block;
+  color: rgba(247, 243, 238, 0.88);
+  font-size: 0.76rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.creator-filter-input {
+  width: 100%;
+  min-height: 48px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(5, 8, 18, 0.72);
+  padding: 0.75rem 1rem;
+  color: var(--text-primary);
+  font-size: 0.9rem;
+  outline: none;
+  transition:
+    border-color 180ms ease,
+    box-shadow 180ms ease,
+    background 180ms ease;
+}
+
+.creator-filter-input:focus {
+  border-color: rgba(103, 232, 249, 0.56);
+  background: rgba(8, 13, 28, 0.9);
+  box-shadow: 0 0 0 3px rgba(103, 232, 249, 0.12);
+}
+
+.creator-filter-input::placeholder {
+  color: var(--text-muted);
+}
+
+.creator-filter-toggle {
+  display: inline-flex;
+  min-height: 48px;
+  align-items: center;
+  gap: 0.75rem;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(5, 8, 18, 0.72);
+  padding: 0.75rem 1rem;
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+  font-weight: 700;
+}
+
+.creator-stat-card {
+  position: relative;
+  overflow: hidden;
+  padding: 1rem;
+  animation: stat-rise 700ms ease-out both;
+}
+
+.creator-stat-card:nth-child(2) {
+  animation-delay: 80ms;
+}
+
+.creator-stat-card:nth-child(3) {
+  animation-delay: 160ms;
+}
+
+.creator-stat-card:nth-child(4) {
+  animation-delay: 240ms;
+}
+
+.creator-result-pill {
+  display: inline-flex;
+  width: fit-content;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.75rem 1rem;
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+}
+
+.creator-premium-card {
+  position: relative;
+  transform: translateZ(0);
+  transition:
+    transform 220ms ease,
+    border-color 220ms ease,
+    box-shadow 220ms ease;
+}
+
+.creator-premium-card:hover {
+  transform: translateY(-6px) scale(1.012);
+  border-color: rgba(103, 232, 249, 0.44);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.1),
+    0 28px 80px rgba(0, 0, 0, 0.34),
+    0 0 44px rgba(124, 58, 237, 0.18);
+}
+
+.creator-card-grid {
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.1) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.1) 1px, transparent 1px);
+  background-size: 24px 24px;
+  opacity: 0.34;
+}
+
+@keyframes rise-in {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes grid-shift {
+  from {
+    background-position: 0 0;
+  }
+  to {
+    background-position: 104px 52px;
+  }
+}
+
+@keyframes particle-drift {
+  0%,
+  100% {
+    opacity: 0.38;
+    transform: translate3d(0, 0, 0);
+  }
+  50% {
+    opacity: 1;
+    transform: translate3d(18px, -26px, 0);
+  }
+}
+
+@keyframes stat-rise {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes float-slow {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-8px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  ::before,
+  ::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 0.001ms !important;
+  }
 }

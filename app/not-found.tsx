@@ -8,12 +8,14 @@ export default function NotFound() {
       <p className="mt-4 text-[var(--text-secondary)]">
         Try browsing the creator directory or heading back to the homepage.
       </p>
-      <Link
-        href="/creators"
-        className="focus-ring mt-8 rounded-[8px] border border-[var(--border)] px-5 py-3 text-sm font-semibold text-[var(--text-primary)]"
-      >
-        Browse Creators
-      </Link>
+      <div className="mt-8 flex flex-col gap-3 sm:flex-row">
+        <Link href="/creators" className="bridge-button-primary">
+          Browse Creators
+        </Link>
+        <Link href="/" className="bridge-button-secondary">
+          Go Home
+        </Link>
+      </div>
     </main>
   );
 }

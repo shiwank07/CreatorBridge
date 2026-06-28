@@ -1,5 +1,4 @@
 import { auth, currentUser } from "@clerk/nextjs/server";
-import { randomInt } from "crypto";
 import { NextResponse } from "next/server";
 
 import { handleRouteError, parseJsonBody } from "@/lib/api-errors";
@@ -8,18 +7,7 @@ import { hasClerkKeys } from "@/lib/clerk-config";
 import { CreatorProfile } from "@/lib/models/CreatorProfile";
 import { User } from "@/lib/models/User";
 import { creatorOnboardingSchema } from "@/lib/validators/creator";
-
-const VERIFICATION_CODE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
-
-function createVerificationCode() {
-  let suffix = "";
-
-  for (let index = 0; index < 5; index += 1) {
-    suffix += VERIFICATION_CODE_ALPHABET[randomInt(VERIFICATION_CODE_ALPHABET.length)];
-  }
-
-  return `CB-${suffix}`;
-}
+import { createVerificationCode, normalizeYoutubeChannelKey, verificationCodeExpiry } from "@/lib/verification-helpers";
 
 async function generateUniqueVerificationCode() {
   for (let attempt = 0; attempt < 25; attempt += 1) {
@@ -92,9 +80,25 @@ export async function POST(req: Request) {
 
     const existingProfile = await CreatorProfile.findOne({ userId: user._id });
     const hasYoutubeUrl = Boolean(parsed.data.youtubeUrl);
+    const youtubeChanged = Boolean(
+      existingProfile &&
+        (existingProfile.youtubeUrl !== parsed.data.youtubeUrl || existingProfile.youtubeHandle !== parsed.data.youtubeHandle),
+    );
     const verificationCode = hasYoutubeUrl
-      ? existingProfile?.verificationCode || (await generateUniqueVerificationCode())
+      ? youtubeChanged || !existingProfile?.verificationCode
+        ? await generateUniqueVerificationCode()
+        : existingProfile.verificationCode
       : "";
+    const verificationStatus = hasYoutubeUrl
+      ? youtubeChanged
+        ? "unverified"
+        : existingProfile?.verificationStatus ?? "unverified"
+      : "unverified";
+    const verificationCodeExpiresAt = hasYoutubeUrl
+      ? youtubeChanged || !existingProfile?.verificationCodeExpiresAt
+        ? verificationCodeExpiry()
+        : existingProfile.verificationCodeExpiresAt
+      : null;
 
     await CreatorProfile.findOneAndUpdate(
       { userId: user._id },
@@ -108,12 +112,18 @@ export async function POST(req: Request) {
           youtubeHandle: parsed.data.youtubeHandle,
           subscribers: parsed.data.subscribers,
           claimedSubscribers: parsed.data.subscribers,
-          verificationStatus: hasYoutubeUrl ? existingProfile?.verificationStatus ?? "unverified" : "unverified",
+          verificationStatus,
           verificationCode,
+          verificationCodeExpiresAt,
+          normalizedYoutubeChannelKey: normalizeYoutubeChannelKey(parsed.data.youtubeUrl, parsed.data.youtubeHandle),
           ...(!hasYoutubeUrl
             ? {
                 verifiedSubscribers: 0,
                 verificationNote: "",
+                verificationSubmittedAt: null,
+                verificationReviewedAt: null,
+                verificationReviewedByAdminId: "",
+                verificationRejectedReason: "",
                 lastVerifiedAt: null,
               }
             : {}),
@@ -130,6 +140,10 @@ export async function POST(req: Request) {
       },
       { upsert: true, new: true },
     );
+
+    if (youtubeChanged || !hasYoutubeUrl) {
+      await User.updateOne({ _id: user._id }, { $set: { isVerified: false } });
+    }
 
     return NextResponse.json({
       ok: true,

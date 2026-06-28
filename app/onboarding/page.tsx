@@ -1,6 +1,7 @@
 import { currentUser } from "@clerk/nextjs/server";
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { Building2, UserPlus } from "lucide-react";
 
 import { BrandOnboardingForm } from "@/components/forms/brand-onboarding-form";
 import { CreatorOnboardingForm } from "@/components/forms/creator-onboarding-form";
@@ -13,6 +14,7 @@ import { generateUsername } from "@/lib/slug";
 export const dynamic = "force-dynamic";
 
 type OnboardingSearchParams = Promise<Record<string, string | string[] | undefined>>;
+type OnboardingRole = "creator" | "brand";
 
 function readParam(value: string | string[] | undefined) {
   return Array.isArray(value) ? value[0] : value;
@@ -22,7 +24,8 @@ export default async function OnboardingPage({ searchParams }: { searchParams: O
   if (!hasClerkKeys()) return <AuthSetupNotice />;
 
   const params = await searchParams;
-  const selectedRole = readParam(params.role) === "brand" ? "brand" : "creator";
+  const requestedRole = readParam(params.role);
+  let selectedRole: OnboardingRole = requestedRole === "brand" ? "brand" : "creator";
   const clerkUser = await currentUser();
   if (!clerkUser) redirect("/sign-in");
 
@@ -37,7 +40,10 @@ export default async function OnboardingPage({ searchParams }: { searchParams: O
     try {
       await connectDB();
       const dbUser = await User.findOne({ clerkId: clerkUser.id });
-      if (selectedRole === "creator" && dbUser?.onboardingComplete) completedCreatorUsername = dbUser.username;
+      if (!requestedRole && dbUser?.role === "brand") selectedRole = "brand";
+      if (selectedRole === "creator" && dbUser?.role === "creator" && dbUser?.onboardingComplete) {
+        completedCreatorUsername = dbUser.username;
+      }
       if (dbUser?.username) initialUsername = dbUser.username;
     } catch (error) {
       console.error("Onboarding database preload failed", error);
@@ -48,38 +54,44 @@ export default async function OnboardingPage({ searchParams }: { searchParams: O
   if (completedCreatorUsername) redirect(`/creators/${completedCreatorUsername}`);
 
   return (
-    <main className="mx-auto max-w-5xl px-4 py-10 sm:px-6 lg:px-8">
-      <div className="mb-8">
-        <p className="text-sm font-semibold uppercase text-violet-300">Onboarding</p>
-        <h1 className="mt-3 font-display text-4xl font-black">
-          {selectedRole === "creator" ? "Build your public creator profile" : "Create your brand profile"}
-        </h1>
-        <p className="mt-3 max-w-2xl text-sm leading-6 text-[var(--text-secondary)]">
-          {selectedRole === "creator"
-            ? "Give brands the essentials they need to understand your audience, content style, pricing, and availability."
-            : "Add your company and contact details so your brand account is ready."}
-        </p>
-        <div className="mt-6 flex flex-wrap gap-3">
-          <Link
-            href="/onboarding?role=creator"
-            className={`focus-ring inline-flex items-center justify-center rounded-[8px] border px-4 py-3 text-sm font-semibold ${
-              selectedRole === "creator"
-                ? "border-violet-700 bg-violet-950 text-violet-100"
-                : "border-[var(--border)] text-[var(--text-secondary)]"
-            }`}
-          >
-            I&apos;m a Creator
-          </Link>
-          <Link
-            href="/onboarding?role=brand"
-            className={`focus-ring inline-flex items-center justify-center rounded-[8px] border px-4 py-3 text-sm font-semibold ${
-              selectedRole === "brand"
-                ? "border-emerald-800 bg-emerald-950 text-emerald-100"
-                : "border-[var(--border)] text-[var(--text-secondary)]"
-            }`}
-          >
-            I&apos;m a Brand
-          </Link>
+    <main className="bridge-section max-w-6xl py-10">
+      <div className="mb-8 grid gap-6 lg:grid-cols-[1fr_320px] lg:items-end">
+        <div>
+          <p className="bridge-eyebrow">Onboarding</p>
+          <h1 className="mt-3 font-display text-4xl font-black">
+            {selectedRole === "creator" ? "Build your public creator profile" : "Create your brand profile"}
+          </h1>
+          <p className="mt-3 max-w-2xl text-sm leading-6 text-[var(--text-secondary)]">
+            {selectedRole === "creator"
+              ? "Give brands the essentials they need to understand your audience, content style, pricing, and availability."
+              : "Add your company and contact details so your brand account is ready."}
+          </p>
+        </div>
+        <div className="bridge-card p-3">
+          <div className="grid grid-cols-2 gap-2">
+            <Link
+              href="/onboarding?role=creator"
+              className={`focus-ring inline-flex items-center justify-center gap-2 rounded-[8px] border px-4 py-3 text-sm font-semibold ${
+                selectedRole === "creator"
+                  ? "border-violet-700 bg-violet-950 text-violet-100"
+                  : "border-[var(--border)] text-[var(--text-secondary)]"
+              }`}
+            >
+              <UserPlus size={16} />
+              I&apos;m a Creator
+            </Link>
+            <Link
+              href="/onboarding?role=brand"
+              className={`focus-ring inline-flex items-center justify-center gap-2 rounded-[8px] border px-4 py-3 text-sm font-semibold ${
+                selectedRole === "brand"
+                  ? "border-emerald-800 bg-emerald-950 text-emerald-100"
+                  : "border-[var(--border)] text-[var(--text-secondary)]"
+              }`}
+            >
+              <Building2 size={16} />
+              I&apos;m a Brand
+            </Link>
+          </div>
         </div>
       </div>
       {databaseWarning ? (

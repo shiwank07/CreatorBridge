@@ -12,3 +12,9 @@ export const creatorVerificationUpdateSchema = z.object({
   verifiedSubscribers: z.coerce.number().int().nonnegative().optional(),
   note: z.string().trim().max(500).optional().default(""),
 });
+
+export const brandVerificationUpdateSchema = z.object({
+  username: z.string().min(1),
+  action: z.enum(["approve", "reject"]),
+  note: z.string().trim().max(500).optional().default(""),
+});

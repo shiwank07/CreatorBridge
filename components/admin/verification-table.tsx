@@ -17,6 +17,7 @@ type VerificationAction = "approve_ownership" | "approve_stats" | "reject";
 function statusLabel(status: CreatorVerificationData["verificationStatus"]) {
   const labels = {
     unverified: "Unverified",
+    pending_ownership: "Pending ownership",
     ownership_verified: "Ownership verified",
     stats_verified: "Stats verified",
     rejected: "Rejected",
@@ -134,7 +135,7 @@ export function VerificationTable({ creators }: VerificationTableProps) {
                 </td>
                 <td className="px-4 py-4">
                   <div className="space-y-3">
-                    <Badge tone={creator.verificationStatus === "ownership_verified" ? "green" : "neutral"}>
+                    <Badge tone={creator.verificationStatus === "ownership_verified" ? "green" : creator.verificationStatus === "pending_ownership" ? "yellow" : "neutral"}>
                       {statusLabel(creator.verificationStatus)}
                     </Badge>
                     <div>

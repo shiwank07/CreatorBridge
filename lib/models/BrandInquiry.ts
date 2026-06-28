@@ -1,6 +1,10 @@
 import mongoose, { type Document, type Model, Schema } from "mongoose";
 
 export interface IBrandInquiry extends Document {
+  brandUserId?: mongoose.Types.ObjectId;
+  brandProfileId?: mongoose.Types.ObjectId;
+  creatorUserId?: mongoose.Types.ObjectId;
+  creatorProfileId?: mongoose.Types.ObjectId;
   companyName: string;
   contactName: string;
   email: string;
@@ -13,13 +17,27 @@ export interface IBrandInquiry extends Document {
   message?: string;
   creatorUsername?: string;
   createdByClerkId?: string;
-  status: "new" | "reviewed" | "contacted" | "closed";
+  source: "general_form" | "creator_profile";
+  status: "new" | "reviewed" | "contacted" | "sent_to_creator" | "creator_interested" | "creator_declined" | "rejected" | "closed";
+  adminOwnerId?: string;
+  adminNote?: string;
+  reviewedAt?: Date | null;
+  sentToCreatorAt?: Date | null;
+  creatorResponseAt?: Date | null;
+  creatorResponseNote?: string;
+  closedAt?: Date | null;
+  ipHash?: string;
+  userAgentHash?: string;
   createdAt: Date;
   updatedAt: Date;
 }
 
 const BrandInquirySchema = new Schema<IBrandInquiry>(
   {
+    brandUserId: { type: Schema.Types.ObjectId, ref: "User", default: null, index: true },
+    brandProfileId: { type: Schema.Types.ObjectId, ref: "BrandProfile", default: null, index: true },
+    creatorUserId: { type: Schema.Types.ObjectId, ref: "User", default: null, index: true },
+    creatorProfileId: { type: Schema.Types.ObjectId, ref: "CreatorProfile", default: null, index: true },
     companyName: { type: String, required: true, trim: true },
     contactName: { type: String, required: true, trim: true },
     email: { type: String, required: true, lowercase: true, trim: true },
@@ -32,12 +50,22 @@ const BrandInquirySchema = new Schema<IBrandInquiry>(
     message: { type: String, default: "", maxlength: 1500 },
     creatorUsername: { type: String, default: "" },
     createdByClerkId: { type: String, default: "" },
+    source: { type: String, enum: ["general_form", "creator_profile"], default: "general_form", index: true },
     status: {
       type: String,
-      enum: ["new", "reviewed", "contacted", "closed"],
+      enum: ["new", "reviewed", "contacted", "sent_to_creator", "creator_interested", "creator_declined", "rejected", "closed"],
       default: "new",
       index: true,
     },
+    adminOwnerId: { type: String, default: "" },
+    adminNote: { type: String, maxlength: 1000, default: "" },
+    reviewedAt: { type: Date, default: null },
+    sentToCreatorAt: { type: Date, default: null },
+    creatorResponseAt: { type: Date, default: null },
+    creatorResponseNote: { type: String, maxlength: 1000, default: "" },
+    closedAt: { type: Date, default: null },
+    ipHash: { type: String, default: "" },
+    userAgentHash: { type: String, default: "" },
   },
   { timestamps: true },
 );

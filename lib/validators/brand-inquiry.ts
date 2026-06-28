@@ -21,7 +21,7 @@ export const brandInquirySchema = z.object({
 
 export const inquiryStatusSchema = z.object({
   id: z.string().min(1),
-  status: z.enum(["new", "reviewed", "contacted", "closed"]),
+  status: z.enum(["new", "reviewed", "contacted", "sent_to_creator", "creator_interested", "creator_declined", "rejected", "closed"]),
 });
 
 export type BrandInquiryInput = z.infer<typeof brandInquirySchema>;

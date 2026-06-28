@@ -12,6 +12,7 @@ export default async function AdminPage() {
     { label: "Featured", value: metrics.featuredCreators, icon: Crown },
     { label: "Verified", value: metrics.verifiedCreators, icon: BadgeCheck },
     { label: "Pending Verification", value: metrics.pendingVerifications, icon: ShieldCheck },
+    { label: "Pending Brands", value: metrics.pendingBrandVerifications, icon: ShieldCheck },
     { label: "Open Inquiries", value: metrics.openInquiries, icon: ClipboardList },
   ];
 
@@ -27,7 +28,7 @@ export default async function AdminPage() {
         </div>
       </div>
 
-      <div className="mt-8 grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+      <div className="mt-8 grid gap-4 md:grid-cols-2 xl:grid-cols-6">
         {cards.map((card) => {
           const Icon = card.icon;
           return (
@@ -40,7 +41,7 @@ export default async function AdminPage() {
         })}
       </div>
 
-      <div className="mt-8 grid gap-4 md:grid-cols-3">
+      <div className="mt-8 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <Link href="/admin/creators" className="bridge-card bridge-card-hover p-5">
           <h2 className="font-display text-xl font-bold">Creator Controls</h2>
           <p className="mt-3 text-sm leading-6 text-[var(--text-secondary)]">Manage featured placement and creator profile visibility in public discovery.</p>
@@ -54,6 +55,14 @@ export default async function AdminPage() {
           <p className="mt-3 text-sm leading-6 text-[var(--text-secondary)]">Review YouTube ownership codes and manually approve claimed subscriber stats.</p>
           <span className="mt-5 inline-flex items-center gap-2 text-sm font-semibold text-violet-300">
             Open verification
+            <ArrowRight size={16} />
+          </span>
+        </Link>
+        <Link href="/admin/brand-verifications" className="bridge-card bridge-card-hover p-5">
+          <h2 className="font-display text-xl font-bold">Brand Verification</h2>
+          <p className="mt-3 text-sm leading-6 text-[var(--text-secondary)]">Review company websites, domains, and contact details before approving brand badges.</p>
+          <span className="mt-5 inline-flex items-center gap-2 text-sm font-semibold text-violet-300">
+            Open brands
             <ArrowRight size={16} />
           </span>
         </Link>

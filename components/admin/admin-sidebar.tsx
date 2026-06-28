@@ -5,6 +5,7 @@ const links = [
   { href: "/admin", label: "Overview", icon: LayoutDashboard },
   { href: "/admin/creators", label: "Creators", icon: Users },
   { href: "/admin/verification", label: "Verification", icon: ShieldCheck },
+  { href: "/admin/brand-verifications", label: "Brands", icon: ShieldCheck },
   { href: "/admin/inquiries", label: "Inquiries", icon: ClipboardList },
 ];
 

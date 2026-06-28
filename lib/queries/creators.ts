@@ -41,6 +41,10 @@ type CreatorDocumentWithUser = {
   createdAt?: Date;
 };
 
+function escapeRegex(value: string) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
 export const demoCreators: CreatorCardData[] = [
   {
     id: "demo-1",
@@ -239,7 +243,7 @@ function filterDemoCreators(filters: CreatorFilters) {
 
   if (search) {
     result = result.filter((creator) =>
-      [creator.name, creator.username, creator.bio, creator.niche.join(" ")]
+      [creator.name, creator.username, creator.bio, creator.niche.join(" "), creator.country, creator.languages.join(" ")]
         .join(" ")
         .toLowerCase()
         .includes(search),
@@ -288,7 +292,20 @@ function sortCreators(creators: CreatorCardData[], sort?: string) {
     return result.sort((a, b) => (a.sponsorshipRate ?? 0) - (b.sponsorshipRate ?? 0));
   }
 
-  return result.sort((a, b) => Number(b.isFeatured) - Number(a.isFeatured));
+  if (sort === "rate-high") {
+    return result.sort((a, b) => (b.sponsorshipRate ?? 0) - (a.sponsorshipRate ?? 0));
+  }
+
+  if (sort === "newest") {
+    return result.sort((a, b) => new Date(b.createdAt ?? 0).getTime() - new Date(a.createdAt ?? 0).getTime());
+  }
+
+  return result.sort(
+    (a, b) =>
+      Number(b.isFeatured) - Number(a.isFeatured) ||
+      Number(b.isVerified) - Number(a.isVerified) ||
+      (b.subscribers ?? 0) - (a.subscribers ?? 0),
+  );
 }
 
 export async function getCreators(filters: CreatorFilters = {}): Promise<CreatorCardData[]> {
@@ -309,7 +326,7 @@ export async function getCreators(filters: CreatorFilters = {}): Promise<Creator
     if (filters.platform === "podcast") andClauses.push({ podcastUrl: { $ne: "" } });
 
     if (filters.search) {
-      const regex = new RegExp(filters.search, "i");
+      const regex = new RegExp(escapeRegex(filters.search.trim()), "i");
       const users = await User.find({
         $or: [{ name: regex }, { username: regex }],
       })
@@ -324,15 +341,15 @@ export async function getCreators(filters: CreatorFilters = {}): Promise<Creator
     if (andClauses.length > 0) profileQuery.$and = andClauses;
 
     const docs = await CreatorProfile.find(profileQuery)
-      .populate("userId")
-      .limit(filters.limit ?? 24)
+      .populate({ path: "userId", match: { role: "creator", onboardingComplete: true } })
+      .limit(Math.max(filters.limit ?? 24, 100))
       .exec();
 
     const creators = docs
       .filter((doc) => Boolean(doc.userId))
       .map((doc) => mapCreator(doc as unknown as CreatorDocumentWithUser));
 
-    return sortCreators(creators, filters.sort);
+    return sortCreators(creators, filters.sort).slice(0, filters.limit ?? 24);
   } catch {
     return filterDemoCreators(filters);
   }
@@ -350,10 +367,12 @@ export async function getCreatorByUsername(username: string): Promise<CreatorCar
 
   try {
     await connectDB();
-    const user = await User.findOne({ username: username.toLowerCase() });
+    const user = await User.findOne({ username: username.toLowerCase(), role: "creator", onboardingComplete: true });
     if (!user) return null;
 
-    const profile = await CreatorProfile.findOne({ userId: user._id }).populate("userId").exec();
+    const profile = await CreatorProfile.findOne({ userId: user._id })
+      .populate({ path: "userId", match: { role: "creator", onboardingComplete: true } })
+      .exec();
     if (!profile) return null;
 
     return mapCreator(profile as unknown as CreatorDocumentWithUser);

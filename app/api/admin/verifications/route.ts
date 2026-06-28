@@ -43,6 +43,9 @@ export async function PATCH(req: Request) {
     const verificationNote = parsed.data.note;
     const update: Record<string, unknown> = {
       verificationNote,
+      verificationReviewedAt: now,
+      verificationReviewedByAdminId: admin.userId ?? "",
+      verificationRejectedReason: "",
       lastVerifiedAt: now,
     };
 
@@ -57,6 +60,7 @@ export async function PATCH(req: Request) {
 
     if (parsed.data.action === "reject") {
       update.verificationStatus = "rejected";
+      update.verificationRejectedReason = verificationNote;
     }
 
     await CreatorProfile.updateOne({ _id: profile._id }, { $set: update });

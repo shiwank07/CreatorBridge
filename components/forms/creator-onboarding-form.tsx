@@ -156,10 +156,7 @@ export function CreatorOnboardingForm({ initialName, initialUsername, initialAva
         <p className="mx-auto mt-4 max-w-xl text-sm leading-6 text-[var(--text-secondary)]">
           Add this code temporarily to your YouTube channel About section, then submit for review.
         </p>
-        <Link
-          href={`/creators/${savedUsername}`}
-          className="focus-ring mt-6 inline-flex items-center justify-center gap-2 rounded-[8px] bg-[var(--accent)] px-5 py-3 text-sm font-semibold text-white"
-        >
+        <Link href={`/creators/${savedUsername}`} className="bridge-button-primary mt-6">
           View Public Profile
         </Link>
       </div>
@@ -167,9 +164,14 @@ export function CreatorOnboardingForm({ initialName, initialUsername, initialAva
   }
 
   return (
-    <form onSubmit={onSubmit} className="space-y-6">
-      {error ? <div className="rounded-[8px] border border-red-900 bg-red-950/40 px-4 py-3 text-sm text-red-200">{error}</div> : null}
+    <form onSubmit={onSubmit} aria-busy={isSaving} className="space-y-6">
+      {error ? (
+        <div role="alert" className="rounded-[8px] border border-red-900 bg-red-950/40 px-4 py-3 text-sm text-red-200">
+          {error}
+        </div>
+      ) : null}
 
+      <fieldset disabled={isSaving} className="min-w-0 space-y-6 border-0 p-0">
       <section className="bridge-card p-5">
         <h2 className="font-display text-xl font-bold">Profile basics</h2>
         <div className="mt-5 grid gap-4 md:grid-cols-2">
@@ -309,11 +311,12 @@ export function CreatorOnboardingForm({ initialName, initialUsername, initialAva
           Show me as open to brand deals
         </label>
       </section>
+      </fieldset>
 
       <button
         type="submit"
         disabled={isSaving}
-        className="focus-ring inline-flex w-full items-center justify-center gap-2 rounded-[8px] bg-[var(--accent)] px-6 py-4 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
+        className="bridge-button-primary w-full py-4"
       >
         {isSaving ? <Loader2 size={17} className="animate-spin" /> : <UserPlus size={17} />}
         {isSaving ? "Saving Profile" : "Publish Creator Profile"}
