@@ -21,7 +21,7 @@ export function FeaturedCreators({ creators }: FeaturedCreatorsProps) {
             Compare audience fit, creative niche, base rates, and availability before sending a campaign inquiry.
           </p>
         </div>
-        <Link href="/creators" className="bridge-button-secondary">
+        <Link href="/creators" className="bridge-button-secondary w-full md:w-auto">
           Browse directory
           <ArrowRight size={16} />
         </Link>

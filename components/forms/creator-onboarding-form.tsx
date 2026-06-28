@@ -156,7 +156,7 @@ export function CreatorOnboardingForm({ initialName, initialUsername, initialAva
         <p className="mx-auto mt-4 max-w-xl text-sm leading-6 text-[var(--text-secondary)]">
           Add this code temporarily to your YouTube channel About section, then submit for review.
         </p>
-        <Link href={`/creators/${savedUsername}`} className="bridge-button-primary mt-6">
+        <Link href={`/creators/${savedUsername}`} className="bridge-button-primary mt-6 w-full sm:w-auto">
           View Public Profile
         </Link>
       </div>
@@ -174,7 +174,7 @@ export function CreatorOnboardingForm({ initialName, initialUsername, initialAva
       <fieldset disabled={isSaving} className="min-w-0 space-y-6 border-0 p-0">
       <section className="bridge-card p-5">
         <h2 className="font-display text-xl font-bold">Profile basics</h2>
-        <div className="mt-5 grid gap-4 md:grid-cols-2">
+        <div className="mt-5 grid gap-4 lg:grid-cols-2">
           <label>
             <span className="bridge-label">Creator name</span>
             <input value={form.name} onChange={(event) => setField("name", event.target.value)} className="bridge-input mt-2" required />
@@ -188,11 +188,11 @@ export function CreatorOnboardingForm({ initialName, initialUsername, initialAva
               required
             />
           </label>
-          <label className="md:col-span-2">
+          <label className="lg:col-span-2">
             <span className="bridge-label">Profile photo URL</span>
             <input value={form.avatar} onChange={(event) => setField("avatar", event.target.value)} className="bridge-input mt-2" placeholder="https://..." />
           </label>
-          <label className="md:col-span-2">
+          <label className="lg:col-span-2">
             <span className="bridge-label">Bio</span>
             <textarea
               value={form.bio}
@@ -225,7 +225,7 @@ export function CreatorOnboardingForm({ initialName, initialUsername, initialAva
             );
           })}
         </div>
-        <div className="mt-5 grid gap-4 md:grid-cols-2">
+        <div className="mt-5 grid gap-4 lg:grid-cols-2">
           <label>
             <span className="bridge-label">Country</span>
             <input value={form.country} onChange={(event) => setField("country", event.target.value)} className="bridge-input mt-2" required />
@@ -239,7 +239,7 @@ export function CreatorOnboardingForm({ initialName, initialUsername, initialAva
 
       <section className="bridge-card p-5">
         <h2 className="font-display text-xl font-bold">Platform stats</h2>
-        <div className="mt-5 grid gap-4 md:grid-cols-2">
+        <div className="mt-5 grid gap-4 lg:grid-cols-2">
           <label>
             <span className="bridge-label">YouTube URL</span>
             <input value={form.youtubeUrl} onChange={(event) => setField("youtubeUrl", event.target.value)} className="bridge-input mt-2" placeholder="https://youtube.com/..." />
@@ -264,7 +264,7 @@ export function CreatorOnboardingForm({ initialName, initialUsername, initialAva
             <span className="bridge-label">Instagram followers</span>
             <input value={form.instagramFollowers} onChange={(event) => setField("instagramFollowers", event.target.value)} className="bridge-input mt-2" inputMode="numeric" />
           </label>
-          <label className="md:col-span-2">
+          <label className="lg:col-span-2">
             <span className="bridge-label">Podcast URL</span>
             <input value={form.podcastUrl} onChange={(event) => setField("podcastUrl", event.target.value)} className="bridge-input mt-2" placeholder="https://..." />
           </label>
@@ -282,7 +282,7 @@ export function CreatorOnboardingForm({ initialName, initialUsername, initialAva
 
       <section className="bridge-card p-5">
         <h2 className="font-display text-xl font-bold">Rates and proof</h2>
-        <div className="mt-5 grid gap-4 md:grid-cols-2">
+        <div className="mt-5 grid gap-4 lg:grid-cols-2">
           <label>
             <span className="bridge-label">Base sponsorship rate in INR</span>
             <input value={form.sponsorshipRate} onChange={(event) => setField("sponsorshipRate", event.target.value)} className="bridge-input mt-2" inputMode="numeric" />

@@ -6,6 +6,7 @@ import { Camera, ExternalLink, Languages, MapPin, Radio, Send, ShieldCheck, Tags
 import { CreatorProfileHeader } from "@/components/creators/creator-profile-header";
 import { StatBox } from "@/components/creators/stat-box";
 import { Badge } from "@/components/shared/badge";
+import { Navbar } from "@/components/shared/navbar";
 import { formatINR, formatNumber } from "@/lib/format";
 import { creatorMetaDescription, getCreatorByUsername } from "@/lib/queries/creators";
 import { getPublicSubscriberCount, hasVerifiedStats } from "@/lib/verification";
@@ -68,12 +69,14 @@ export default async function CreatorProfilePage({ params }: { params: CreatorPr
   };
 
   return (
-    <main>
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(schema) }} />
-      <CreatorProfileHeader creator={creator} />
+    <>
+      <Navbar />
+      <main>
+        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(schema) }} />
+        <CreatorProfileHeader creator={creator} />
 
-      <div className="bridge-section grid gap-6 py-10 lg:grid-cols-[1fr_340px]">
-        <div className="space-y-6">
+        <div className="bridge-section grid gap-6 py-8 sm:py-10 lg:grid-cols-[1fr_340px]">
+          <div className="space-y-6">
           <section className="bridge-card p-5">
             <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
               <div>
@@ -210,8 +213,9 @@ export default async function CreatorProfilePage({ params }: { params: CreatorPr
               <p className="mt-3 text-sm leading-6 text-[var(--text-secondary)]">Platform links will appear after the creator adds them.</p>
             )}
           </div>
-        </aside>
-      </div>
-    </main>
+          </aside>
+        </div>
+      </main>
+    </>
   );
 }

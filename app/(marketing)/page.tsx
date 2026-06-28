@@ -31,7 +31,7 @@ export default async function HomePage() {
               <li>2. Browse creators by niche, platform, rate, and availability.</li>
               <li>3. Send an inquiry for admin review and outreach.</li>
             </ol>
-            <Link href={authHref("/sign-up", "/onboarding?role=brand")} className="bridge-button-secondary mt-6">
+            <Link href={authHref("/sign-up", "/onboarding?role=brand")} className="bridge-button-secondary mt-6 w-full sm:w-auto">
               Create Brand Profile
               <ArrowRight size={16} />
             </Link>
@@ -46,7 +46,7 @@ export default async function HomePage() {
               <li>2. Publish your public profile with stats and sample work.</li>
               <li>3. Get discovered by brands looking for campaign partners.</li>
             </ol>
-            <Link href={authHref("/sign-up", "/onboarding?role=creator")} className="bridge-button-primary mt-6">
+            <Link href={authHref("/sign-up", "/onboarding?role=creator")} className="bridge-button-primary mt-6 w-full sm:w-auto">
               List Your Profile
               <ArrowRight size={16} />
             </Link>
@@ -63,14 +63,14 @@ export default async function HomePage() {
               <p className="bridge-eyebrow">Niche Categories</p>
               <h2 className="mt-3 font-display text-3xl font-bold">Find creators by audience fit</h2>
             </div>
-            <Link href="/creators" className="bridge-button-primary">
+            <Link href="/creators" className="bridge-button-primary w-full md:w-auto">
               <Search size={16} />
               Search Directory
             </Link>
           </div>
           <div className="mt-8 flex flex-wrap gap-2">
             {NICHES.map((niche) => (
-              <Link key={niche} href={`/creators?niche=${encodeURIComponent(niche)}`}>
+            <Link key={niche} href={`/creators?niche=${encodeURIComponent(niche)}`}>
                 <Badge tone="neutral" className="transition hover:border-[var(--border-accent)] hover:text-[var(--text-primary)]">
                   {niche}
                 </Badge>
@@ -101,11 +101,11 @@ export default async function HomePage() {
         <div className="mt-12 border-t border-[var(--border)] pt-10 text-center">
           <h2 className="font-display text-3xl font-bold">Ready to grow?</h2>
           <div className="mt-6 flex flex-col justify-center gap-3 sm:flex-row">
-            <Link href={authHref("/sign-up", "/onboarding?role=creator")} className="bridge-button-primary">
+            <Link href={authHref("/sign-up", "/onboarding?role=creator")} className="bridge-button-primary w-full sm:w-auto">
               <UserPlus size={17} />
               List Your Profile Free
             </Link>
-            <Link href="/campaign-inquiry" className="bridge-button-secondary">
+            <Link href="/campaign-inquiry" className="bridge-button-secondary w-full sm:w-auto">
               Post a Campaign Inquiry
               <ArrowRight size={17} />
             </Link>

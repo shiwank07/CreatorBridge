@@ -89,7 +89,7 @@ export function BrandInquiryForm({ creatorUsername = "" }: BrandInquiryFormProps
         <p className="mx-auto mt-3 max-w-xl text-sm leading-6 text-[var(--text-secondary)]">
           Your campaign request has been received. The CreatorBridge team can now review the brief and follow up.
         </p>
-        <Link href="/creators" className="bridge-button-primary mt-6">
+        <Link href="/creators" className="bridge-button-primary mt-6 w-full sm:w-auto">
           Browse More Creators
         </Link>
       </div>
@@ -111,7 +111,7 @@ export function BrandInquiryForm({ creatorUsername = "" }: BrandInquiryFormProps
       ) : null}
 
       <fieldset disabled={isSaving} className="min-w-0 border-0 p-0">
-      <div className="grid gap-4 md:grid-cols-2">
+      <div className="grid gap-4 lg:grid-cols-2">
         <label>
           <span className="bridge-label">Company name</span>
           <input value={form.companyName} onChange={(event) => setField("companyName", event.target.value)} className="bridge-input mt-2" required />
@@ -128,7 +128,7 @@ export function BrandInquiryForm({ creatorUsername = "" }: BrandInquiryFormProps
           <span className="bridge-label">Website</span>
           <input value={form.website} onChange={(event) => setField("website", event.target.value)} className="bridge-input mt-2" placeholder="https://..." />
         </label>
-        <label className="md:col-span-2">
+        <label className="lg:col-span-2">
           <span className="bridge-label">Campaign goal</span>
           <textarea
             value={form.campaignGoal}
@@ -182,7 +182,7 @@ export function BrandInquiryForm({ creatorUsername = "" }: BrandInquiryFormProps
         </div>
       </div>
 
-      <div className="mt-6 grid gap-4 md:grid-cols-2">
+      <div className="mt-6 grid gap-4 lg:grid-cols-2">
         <label>
           <span className="bridge-label">Budget range</span>
           <select value={form.budgetRange} onChange={(event) => setField("budgetRange", event.target.value)} className="bridge-input mt-2">
@@ -197,7 +197,7 @@ export function BrandInquiryForm({ creatorUsername = "" }: BrandInquiryFormProps
           <span className="bridge-label">Timeline</span>
           <input value={form.timeline} onChange={(event) => setField("timeline", event.target.value)} className="bridge-input mt-2" placeholder="Launch in 3 weeks" required />
         </label>
-        <label className="md:col-span-2">
+        <label className="lg:col-span-2">
           <span className="bridge-label">Extra notes</span>
           <textarea value={form.message} onChange={(event) => setField("message", event.target.value)} className="bridge-input mt-2 min-h-24" placeholder="Creator preferences, location, examples, or constraints." />
         </label>

@@ -33,16 +33,33 @@ html {
   min-height: 100%;
   background: var(--bg-base);
   color: var(--text-primary);
+  overflow-x: hidden;
+  scroll-behavior: smooth;
 }
 
 body {
   min-height: 100%;
   margin: 0;
+  overflow-x: hidden;
   background:
     linear-gradient(180deg, rgba(8, 9, 13, 0.92) 0%, rgba(13, 17, 24, 0.98) 48%, #08090d 100%),
     #08090d;
   color: var(--text-primary);
   font-family: var(--font-body), ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+.ambient-noise {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  opacity: 0.14;
+  mix-blend-mode: screen;
+  background-image:
+    radial-gradient(circle at 18% 22%, rgba(103, 232, 249, 0.16) 0 1px, transparent 1px),
+    radial-gradient(circle at 76% 68%, rgba(251, 113, 133, 0.12) 0 1px, transparent 1px),
+    linear-gradient(rgba(255, 255, 255, 0.025) 1px, transparent 1px);
+  background-size: 120px 120px, 170px 170px, 3px 3px;
 }
 
 a {
@@ -68,6 +85,13 @@ textarea {
 
 .bridge-card {
   @apply rounded-[8px] border border-[var(--border)] bg-[rgba(17,19,26,0.88)] shadow-[0_18px_50px_rgba(0,0,0,0.18)] transition-all duration-300;
+  position: relative;
+  transform: translateZ(0);
+  transition:
+    transform 220ms ease,
+    border-color 220ms ease,
+    box-shadow 220ms ease,
+    background 220ms ease;
 }
 
 .bridge-card-hover {
@@ -76,6 +100,13 @@ textarea {
 
 .bridge-input {
   @apply focus-ring w-full rounded-[8px] border border-[var(--border)] bg-[#0b0f16] px-4 py-3 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)] transition-colors disabled:cursor-not-allowed disabled:opacity-70;
+}
+
+.bridge-input:focus {
+  border-color: rgba(103, 232, 249, 0.58);
+  box-shadow:
+    0 0 0 3px rgba(103, 232, 249, 0.12),
+    0 0 26px rgba(124, 58, 237, 0.1);
 }
 
 .bridge-label {
@@ -88,14 +119,33 @@ textarea {
 
 .bridge-button-primary {
   @apply focus-ring inline-flex items-center justify-center gap-2 rounded-[8px] bg-[var(--accent)] px-5 py-3 text-sm font-semibold text-white shadow-[0_12px_28px_rgba(124,58,237,0.24)] transition hover:-translate-y-0.5 hover:bg-violet-500 disabled:cursor-not-allowed disabled:opacity-60;
+  transform: translateZ(0);
 }
 
 .bridge-button-secondary {
   @apply focus-ring inline-flex items-center justify-center gap-2 rounded-[8px] border border-[var(--border)] bg-[rgba(17,19,26,0.72)] px-5 py-3 text-sm font-semibold text-[var(--text-primary)] transition hover:-translate-y-0.5 hover:border-[var(--border-accent)] hover:bg-[var(--bg-elevated)];
+  transform: translateZ(0);
+}
+
+.bridge-button-primary:hover {
+  box-shadow:
+    0 16px 34px rgba(124, 58, 237, 0.34),
+    0 0 30px rgba(103, 232, 249, 0.16);
+}
+
+.bridge-button-secondary:hover {
+  box-shadow:
+    0 14px 32px rgba(0, 0, 0, 0.26),
+    0 0 24px rgba(103, 232, 249, 0.12);
+}
+
+.bridge-button-primary:active,
+.bridge-button-secondary:active {
+  transform: translateY(1px) scale(0.985);
 }
 
 .bridge-section {
-  @apply mx-auto max-w-7xl px-4 py-14 sm:px-6 sm:py-16 lg:px-8;
+  @apply mx-auto max-w-7xl px-4 py-10 sm:px-6 sm:py-14 lg:px-8 lg:py-16;
 }
 
 .bridge-eyebrow {
@@ -104,10 +154,42 @@ textarea {
 
 .bridge-panel {
   @apply rounded-[8px] border border-[var(--border)] bg-[rgba(8,11,17,0.76)];
+  position: relative;
+  transform: translateZ(0);
+  transition:
+    transform 220ms ease,
+    border-color 220ms ease,
+    box-shadow 220ms ease,
+    background 220ms ease;
 }
 
-.animate-rise {
-  animation: rise-in 600ms ease-out both;
+.bridge-card::after,
+.bridge-panel::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  opacity: 0;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.08),
+    0 0 34px rgba(103, 232, 249, 0.1);
+  transition: opacity 220ms ease;
+}
+
+.bridge-card:hover::after,
+.bridge-panel:hover::after {
+  opacity: 1;
+}
+
+.bridge-panel:hover,
+.premium-card-load:hover {
+  border-color: rgba(103, 232, 249, 0.32);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.08),
+    0 18px 42px rgba(0, 0, 0, 0.22),
+    0 0 28px rgba(103, 232, 249, 0.1);
+  transform: translateY(-3px);
 }
 
 .animate-float-slow {
@@ -119,6 +201,106 @@ textarea {
     linear-gradient(rgba(255, 255, 255, 0.035) 1px, transparent 1px),
     linear-gradient(90deg, rgba(255, 255, 255, 0.035) 1px, transparent 1px);
   background-size: 44px 44px;
+}
+
+.hero-abstract {
+  position: relative;
+  background:
+    radial-gradient(ellipse at 28% 0%, rgba(124, 58, 237, 0.2), transparent 45%),
+    radial-gradient(ellipse at 82% 16%, rgba(103, 232, 249, 0.14), transparent 42%),
+    linear-gradient(180deg, rgba(5, 5, 13, 0.98), rgba(8, 9, 13, 0.95));
+}
+
+.hero-abstract .bridge-section {
+  position: relative;
+  z-index: 1;
+}
+
+.hero-abstract .bridge-section::before,
+.hero-abstract .bridge-section::after {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  width: 4px;
+  height: 4px;
+  border-radius: 999px;
+  pointer-events: none;
+  background: rgba(214, 244, 255, 0.82);
+  box-shadow:
+    0 0 18px rgba(103, 232, 249, 0.86),
+    48px 82px 0 rgba(124, 58, 237, 0.48),
+    168px 26px 0 rgba(103, 232, 249, 0.34),
+    280px 128px 0 rgba(251, 113, 133, 0.24);
+  animation: particle-drift 12s ease-in-out infinite;
+}
+
+.hero-abstract .bridge-section::before {
+  left: 12%;
+  top: 18%;
+}
+
+.hero-abstract .bridge-section::after {
+  right: 18%;
+  top: 20%;
+  animation-delay: -5s;
+}
+
+.hero-abstract::before,
+.hero-abstract::after {
+  content: "";
+  position: absolute;
+  width: 34rem;
+  height: 34rem;
+  border-radius: 999px;
+  pointer-events: none;
+  filter: blur(58px);
+  opacity: 0.34;
+  animation: blob-drift 16s ease-in-out infinite, glow-pulse 8s ease-in-out infinite;
+}
+
+.hero-abstract::before {
+  right: -14rem;
+  top: 8rem;
+  background: radial-gradient(circle, rgba(103, 232, 249, 0.36), transparent 62%);
+}
+
+.hero-abstract::after {
+  bottom: -16rem;
+  left: -13rem;
+  background: radial-gradient(circle, rgba(251, 113, 133, 0.22), transparent 62%);
+  animation-delay: -7s;
+}
+
+.hero-copy-load > * {
+  animation: hero-fade-up 720ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.hero-copy-load > :nth-child(2) {
+  animation-delay: 90ms;
+}
+
+.hero-copy-load > :nth-child(3) {
+  animation-delay: 160ms;
+}
+
+.hero-copy-load > :nth-child(4) {
+  animation-delay: 220ms;
+}
+
+.hero-copy-load > :nth-child(5) {
+  animation-delay: 290ms;
+}
+
+.hero-copy-load > :nth-child(n + 6) {
+  animation-delay: 360ms;
+}
+
+.hero-panel-load {
+  animation: hero-fade-up 820ms cubic-bezier(0.22, 1, 0.36, 1) 220ms both;
+}
+
+.premium-card-load {
+  animation: hero-fade-up 680ms cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
 .creator-directory-shell {
@@ -144,7 +326,7 @@ textarea {
 }
 
 .creator-directory-hero {
-  min-height: 620px;
+  min-height: 560px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
   background:
     linear-gradient(135deg, rgba(10, 10, 24, 0.98), rgba(5, 7, 18, 0.94)),
@@ -208,6 +390,7 @@ textarea {
 .creator-premium-card,
 .creator-stat-card,
 .creator-result-pill {
+  position: relative;
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 8px;
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.074), rgba(255, 255, 255, 0.036));
@@ -276,10 +459,16 @@ textarea {
     background 180ms ease;
 }
 
+.creator-filter-field .relative .creator-filter-input {
+  padding-left: 2.5rem;
+}
+
 .creator-filter-input:focus {
   border-color: rgba(103, 232, 249, 0.56);
   background: rgba(8, 13, 28, 0.9);
-  box-shadow: 0 0 0 3px rgba(103, 232, 249, 0.12);
+  box-shadow:
+    0 0 0 3px rgba(103, 232, 249, 0.14),
+    0 0 28px rgba(124, 58, 237, 0.14);
 }
 
 .creator-filter-input::placeholder {
@@ -298,25 +487,76 @@ textarea {
   color: var(--text-secondary);
   font-size: 0.9rem;
   font-weight: 700;
+  transition:
+    border-color 180ms ease,
+    box-shadow 180ms ease,
+    background 180ms ease,
+    color 180ms ease;
+}
+
+.creator-filter-toggle:hover,
+.creator-filter-toggle:focus-within {
+  border-color: rgba(103, 232, 249, 0.46);
+  background: rgba(8, 13, 28, 0.9);
+  color: var(--text-primary);
+  box-shadow: 0 0 28px rgba(103, 232, 249, 0.1);
 }
 
 .creator-stat-card {
   position: relative;
   overflow: hidden;
   padding: 1rem;
+  transition:
+    transform 220ms ease,
+    border-color 220ms ease,
+    box-shadow 220ms ease;
+}
+
+.creator-stat-card:hover {
+  transform: translateY(-4px);
+  border-color: rgba(103, 232, 249, 0.38);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.1),
+    0 24px 62px rgba(0, 0, 0, 0.3),
+    0 0 34px rgba(124, 58, 237, 0.14);
+}
+
+.premium-stat-card {
+  position: relative;
+  border-radius: 8px;
+  transition:
+    transform 220ms ease,
+    box-shadow 220ms ease,
+    background 220ms ease;
+}
+
+.premium-stat-card:hover {
+  transform: translateY(-3px);
+  background: rgba(255, 255, 255, 0.035);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.07),
+    0 18px 40px rgba(0, 0, 0, 0.22),
+    0 0 28px rgba(103, 232, 249, 0.1);
+}
+
+.animate-stat-up {
   animation: stat-rise 700ms ease-out both;
 }
 
-.creator-stat-card:nth-child(2) {
-  animation-delay: 80ms;
+.stat-delay-1 {
+  animation-delay: 0ms;
 }
 
-.creator-stat-card:nth-child(3) {
-  animation-delay: 160ms;
+.stat-delay-2 {
+  animation-delay: 90ms;
 }
 
-.creator-stat-card:nth-child(4) {
-  animation-delay: 240ms;
+.stat-delay-3 {
+  animation-delay: 180ms;
+}
+
+.stat-delay-4 {
+  animation-delay: 270ms;
 }
 
 .creator-result-pill {
@@ -355,15 +595,20 @@ textarea {
   opacity: 0.34;
 }
 
-@keyframes rise-in {
-  from {
-    opacity: 0;
-    transform: translateY(16px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+.hero-signal-panel {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.074), rgba(255, 255, 255, 0.036));
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.08),
+    0 24px 80px rgba(0, 0, 0, 0.28);
+  backdrop-filter: blur(22px);
+}
+
+.animate-menu-slide-in {
+  animation: menu-slide-in 220ms ease-out both;
 }
 
 @keyframes grid-shift {
@@ -387,6 +632,17 @@ textarea {
   }
 }
 
+@keyframes hero-fade-up {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 18px, 0);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
 @keyframes stat-rise {
   from {
     opacity: 0;
@@ -395,6 +651,17 @@ textarea {
   to {
     opacity: 1;
     transform: translateY(0);
+  }
+}
+
+@keyframes menu-slide-in {
+  from {
+    opacity: 0;
+    transform: translateX(24px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
   }
 }
 
@@ -408,6 +675,26 @@ textarea {
   }
 }
 
+@keyframes blob-drift {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  50% {
+    transform: translate3d(22px, -18px, 0) scale(1.08);
+  }
+}
+
+@keyframes glow-pulse {
+  0%,
+  100% {
+    opacity: 0.24;
+  }
+  50% {
+    opacity: 0.4;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   ::before,
@@ -416,5 +703,31 @@ textarea {
     animation-iteration-count: 1 !important;
     scroll-behavior: auto !important;
     transition-duration: 0.001ms !important;
+  }
+}
+
+@media (max-width: 767px) {
+  .bridge-card,
+  .bridge-panel,
+  .creator-search-console,
+  .creator-premium-card,
+  .creator-stat-card,
+  .creator-command-panel,
+  .hero-signal-panel {
+    max-width: 100%;
+  }
+
+  .bridge-input,
+  .creator-filter-input {
+    min-height: 46px;
+    font-size: 0.95rem;
+  }
+
+  .creator-directory-hero {
+    min-height: auto;
+  }
+
+  .creator-premium-card:hover {
+    transform: none;
   }
 }

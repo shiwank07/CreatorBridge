@@ -87,11 +87,11 @@ export function BrandOnboardingForm({ initialContactName, initialEmail }: BrandO
         </p>
         <div className="mt-6 flex flex-col justify-center gap-3 sm:flex-row">
           {savedUsername ? (
-            <Link href={`/brands/${savedUsername}`} className="bridge-button-secondary">
+            <Link href={`/brands/${savedUsername}`} className="bridge-button-secondary w-full sm:w-auto">
               View Brand Profile
             </Link>
           ) : null}
-          <Link href="/creators" className="bridge-button-primary">
+          <Link href="/creators" className="bridge-button-primary w-full sm:w-auto">
             Browse Creators
           </Link>
         </div>
@@ -110,7 +110,7 @@ export function BrandOnboardingForm({ initialContactName, initialEmail }: BrandO
       <fieldset disabled={isSaving} className="min-w-0 space-y-6 border-0 p-0">
       <section className="bridge-card p-5">
         <h2 className="font-display text-xl font-bold">Brand basics</h2>
-        <div className="mt-5 grid gap-4 md:grid-cols-2">
+        <div className="mt-5 grid gap-4 lg:grid-cols-2">
           <label>
             <span className="bridge-label">Company name</span>
             <input value={form.companyName} onChange={(event) => setField("companyName", event.target.value)} className="bridge-input mt-2" required />
@@ -133,7 +133,7 @@ export function BrandOnboardingForm({ initialContactName, initialEmail }: BrandO
               ))}
             </select>
           </label>
-          <label className="md:col-span-2">
+          <label className="lg:col-span-2">
             <span className="bridge-label">Country</span>
             <input value={form.country} onChange={(event) => setField("country", event.target.value)} className="bridge-input mt-2" required />
           </label>
@@ -142,7 +142,7 @@ export function BrandOnboardingForm({ initialContactName, initialEmail }: BrandO
 
       <section className="bridge-card p-5">
         <h2 className="font-display text-xl font-bold">Contact details</h2>
-        <div className="mt-5 grid gap-4 md:grid-cols-2">
+        <div className="mt-5 grid gap-4 lg:grid-cols-2">
           <label>
             <span className="bridge-label">Contact name</span>
             <input value={form.contactName} onChange={(event) => setField("contactName", event.target.value)} className="bridge-input mt-2" required />
@@ -151,11 +151,11 @@ export function BrandOnboardingForm({ initialContactName, initialEmail }: BrandO
             <span className="bridge-label">Role</span>
             <input value={form.contactRole} onChange={(event) => setField("contactRole", event.target.value)} className="bridge-input mt-2" placeholder="Growth lead" />
           </label>
-          <label className="md:col-span-2">
+          <label className="lg:col-span-2">
             <span className="bridge-label">Work email</span>
             <input type="email" value={form.contactEmail} onChange={(event) => setField("contactEmail", event.target.value)} className="bridge-input mt-2" required />
           </label>
-          <label className="md:col-span-2">
+          <label className="lg:col-span-2">
             <span className="bridge-label">Notes</span>
           <textarea value={form.notes} onChange={(event) => setField("notes", event.target.value)} className="bridge-input mt-2 min-h-28" placeholder="Creator categories, markets, or internal context." />
         </label>

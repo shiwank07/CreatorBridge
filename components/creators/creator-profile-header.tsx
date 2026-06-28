@@ -30,7 +30,7 @@ export function CreatorProfileHeader({ creator }: CreatorProfileHeaderProps) {
             </div>
             <div className="min-w-0">
               <div className="flex flex-wrap items-center gap-3">
-                <h1 className="font-display text-4xl font-black leading-tight md:text-5xl">{creator.name}</h1>
+                <h1 className="font-display text-3xl font-black leading-tight sm:text-4xl md:text-5xl">{creator.name}</h1>
                 {creator.isVerified ? (
                   <Badge tone="green">
                     <BadgeCheck size={13} />

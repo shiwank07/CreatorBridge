@@ -35,24 +35,29 @@ export function BrandVerificationTable({ brands }: BrandVerificationTableProps) 
     setError("");
     setSavingKey(`${brand.username}:${action}`);
 
-    const response = await fetch("/api/admin/brand-verifications", {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        username: brand.username,
-        action,
-        note: notes[brand.username] ?? "",
-      }),
-    });
-    const result = (await response.json()) as { error?: string };
-    setSavingKey("");
+    try {
+      const response = await fetch("/api/admin/brand-verifications", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          username: brand.username,
+          action,
+          note: notes[brand.username] ?? "",
+        }),
+      });
+      const result = (await response.json().catch(() => ({}))) as { error?: string };
 
-    if (!response.ok) {
-      setError(result.error ?? "Could not update brand verification.");
-      return;
+      if (!response.ok) {
+        setError(result.error ?? "Could not update brand verification.");
+        return;
+      }
+
+      setRows((current) => current.filter((row) => row.username !== brand.username));
+    } catch {
+      setError("Could not reach the server. Please try again.");
+    } finally {
+      setSavingKey("");
     }
-
-    setRows((current) => current.filter((row) => row.username !== brand.username));
   }
 
   return (

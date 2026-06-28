@@ -10,7 +10,20 @@ type InquiryTableProps = {
   inquiries: BrandInquiryData[];
 };
 
-const statuses: BrandInquiryData["status"][] = ["new", "reviewed", "contacted", "closed"];
+const statuses: BrandInquiryData["status"][] = [
+  "new",
+  "reviewed",
+  "contacted",
+  "sent_to_creator",
+  "creator_interested",
+  "creator_declined",
+  "rejected",
+  "closed",
+];
+
+function statusLabel(status: BrandInquiryData["status"]) {
+  return status.replaceAll("_", " ");
+}
 
 export function InquiryTable({ inquiries }: InquiryTableProps) {
   const [rows, setRows] = useState(inquiries);
@@ -18,19 +31,23 @@ export function InquiryTable({ inquiries }: InquiryTableProps) {
 
   async function updateStatus(id: string, status: BrandInquiryData["status"]) {
     setError("");
-    const response = await fetch("/api/admin/inquiries", {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id, status }),
-    });
-    const result = (await response.json()) as { error?: string };
+    try {
+      const response = await fetch("/api/admin/inquiries", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id, status }),
+      });
+      const result = (await response.json().catch(() => ({}))) as { error?: string };
 
-    if (!response.ok) {
-      setError(result.error ?? "Could not update inquiry.");
-      return;
+      if (!response.ok) {
+        setError(result.error ?? "Could not update inquiry.");
+        return;
+      }
+
+      setRows((current) => current.map((inquiry) => (inquiry.id === id ? { ...inquiry, status } : inquiry)));
+    } catch {
+      setError("Could not reach the server. Please try again.");
     }
-
-    setRows((current) => current.map((inquiry) => (inquiry.id === id ? { ...inquiry, status } : inquiry)));
   }
 
   return (
@@ -76,7 +93,7 @@ export function InquiryTable({ inquiries }: InquiryTableProps) {
                   >
                     {statuses.map((status) => (
                       <option key={status} value={status}>
-                        {status}
+                        {statusLabel(status)}
                       </option>
                     ))}
                   </select>

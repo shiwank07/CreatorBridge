@@ -111,7 +111,7 @@ export default async function CreatorsPage({ searchParams }: { searchParams: Cre
           <div className="creator-particle creator-particle-c" />
           <div className="bridge-section relative py-12 sm:py-16 lg:py-20">
             <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_380px] lg:items-end">
-              <div className="animate-rise">
+              <div>
                 <Link href="/" className="mb-6 inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.055] px-4 py-2 text-sm font-semibold text-cyan-100 transition hover:border-cyan-300/45 hover:bg-cyan-300/10">
                   <Home size={15} />
                   Back to homepage
@@ -120,18 +120,18 @@ export default async function CreatorsPage({ searchParams }: { searchParams: Cre
                   <Sparkles size={15} />
                   Verified creator intelligence
                 </div>
-                <h1 className="mt-6 max-w-4xl font-display text-5xl font-black leading-[1.02] text-white sm:text-6xl lg:text-7xl">
+                <h1 className="mt-6 max-w-4xl font-display text-4xl font-black leading-[1.05] text-white sm:text-5xl md:text-6xl xl:text-7xl">
                   Discover Verified Creators
                 </h1>
                 <p className="mt-6 max-w-2xl text-base leading-7 text-[var(--text-secondary)] sm:text-lg">
                   Connect with trusted creators and launch high-performing campaigns through a premium discovery layer built for modern brands.
                 </p>
                 <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-                  <Link href="#creator-search" className="bridge-button-primary">
+                  <Link href="#creator-search" className="bridge-button-primary w-full sm:w-auto">
                     Start Searching
                     <ArrowRight size={17} />
                   </Link>
-                  <Link href="/campaign-inquiry" className="bridge-button-secondary">
+                  <Link href="/campaign-inquiry" className="bridge-button-secondary w-full sm:w-auto">
                     Send Campaign Inquiry
                     <Rocket size={17} />
                   </Link>
@@ -173,12 +173,12 @@ export default async function CreatorsPage({ searchParams }: { searchParams: Cre
         <section className="bridge-section py-10 sm:py-12">
           <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
             {[
-              { label: "Verified Creators", value: String(verifiedCreators), detail: "approved stats and identity", icon: BadgeCheck },
-              { label: "Brands", value: `${brandSignal}+`, detail: "manual brand review flow", icon: Building2 },
-              { label: "Campaigns", value: `${campaignSignal}+`, detail: "structured campaign requests", icon: Rocket },
-              { label: "Success Rate", value: "94%", detail: "quality before automation", icon: Sparkles },
-            ].map(({ label, value, detail, icon: Icon }) => (
-              <div key={label} className="creator-stat-card">
+              { label: "Verified Creators", value: String(verifiedCreators), detail: "approved stats and identity", icon: BadgeCheck, motionClass: "stat-delay-1" },
+              { label: "Brands", value: `${brandSignal}+`, detail: "manual brand review flow", icon: Building2, motionClass: "stat-delay-2" },
+              { label: "Campaigns", value: `${campaignSignal}+`, detail: "structured campaign requests", icon: Rocket, motionClass: "stat-delay-3" },
+              { label: "Success Rate", value: "94%", detail: "quality before automation", icon: Sparkles, motionClass: "stat-delay-4" },
+            ].map(({ label, value, detail, icon: Icon, motionClass }) => (
+              <div key={label} className={`animate-stat-up creator-stat-card ${motionClass}`}>
                 <div className="flex items-center justify-between gap-3">
                   <Icon size={20} className="text-cyan-200" />
                   <span className="h-2 w-2 rounded-full bg-cyan-200 shadow-[0_0_18px_rgba(103,232,249,0.9)]" />
@@ -199,7 +199,9 @@ export default async function CreatorsPage({ searchParams }: { searchParams: Cre
               </p>
             </div>
             <div className="creator-result-pill">
-              <span className="font-mono text-xl font-bold text-white">{creators.length}</span>
+              <span className="font-mono text-xl font-bold text-white">
+                {creators.length}
+              </span>
               creator{creators.length === 1 ? "" : "s"} found
             </div>
           </div>

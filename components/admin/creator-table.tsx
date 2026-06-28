@@ -18,29 +18,34 @@ export function CreatorTable({ creators }: CreatorTableProps) {
   async function updateCreator(username: string, patch: { isFeatured?: boolean; isVerified?: boolean }) {
     setError("");
     setSavingUsername(username);
-    const response = await fetch("/api/admin/creators", {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ username, ...patch }),
-    });
-    const result = (await response.json()) as { error?: string };
-    setSavingUsername("");
+    try {
+      const response = await fetch("/api/admin/creators", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username, ...patch }),
+      });
+      const result = (await response.json().catch(() => ({}))) as { error?: string };
 
-    if (!response.ok) {
-      setError(result.error ?? "Could not update creator.");
-      return;
+      if (!response.ok) {
+        setError(result.error ?? "Could not update creator.");
+        return;
+      }
+
+      setRows((current) =>
+        current.map((creator) =>
+          creator.username === username
+            ? {
+                ...creator,
+                ...patch,
+              }
+            : creator,
+        ),
+      );
+    } catch {
+      setError("Could not reach the server. Please try again.");
+    } finally {
+      setSavingUsername("");
     }
-
-    setRows((current) =>
-      current.map((creator) =>
-        creator.username === username
-          ? {
-              ...creator,
-              ...patch,
-            }
-          : creator,
-      ),
-    );
   }
 
   return (

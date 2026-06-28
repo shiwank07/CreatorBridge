@@ -61,35 +61,40 @@ export function VerificationTable({ creators }: VerificationTableProps) {
       body.verifiedSubscribers = Number(verifiedCounts[creator.username] || creator.claimedSubscribers || 0);
     }
 
-    const response = await fetch("/api/admin/verifications", {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
-    });
-    const result = (await response.json()) as { error?: string };
-    setSavingKey("");
+    try {
+      const response = await fetch("/api/admin/verifications", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      const result = (await response.json().catch(() => ({}))) as { error?: string };
 
-    if (!response.ok) {
-      setError(result.error ?? "Could not update verification.");
-      return;
+      if (!response.ok) {
+        setError(result.error ?? "Could not update verification.");
+        return;
+      }
+
+      if (action === "approve_ownership") {
+        setRows((current) =>
+          current.map((row) =>
+            row.username === creator.username
+              ? {
+                  ...row,
+                  verificationStatus: "ownership_verified",
+                  verificationNote: notes[creator.username] ?? "",
+                }
+              : row,
+          ),
+        );
+        return;
+      }
+
+      setRows((current) => current.filter((row) => row.username !== creator.username));
+    } catch {
+      setError("Could not reach the server. Please try again.");
+    } finally {
+      setSavingKey("");
     }
-
-    if (action === "approve_ownership") {
-      setRows((current) =>
-        current.map((row) =>
-          row.username === creator.username
-            ? {
-                ...row,
-                verificationStatus: "ownership_verified",
-                verificationNote: notes[creator.username] ?? "",
-              }
-            : row,
-        ),
-      );
-      return;
-    }
-
-    setRows((current) => current.filter((row) => row.username !== creator.username));
   }
 
   return (

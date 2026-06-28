@@ -19,8 +19,11 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   const html = (
-    <html lang="en" className="dark" suppressHydrationWarning>
-      <body>{children}</body>
+    <html lang="en" className="dark">
+      <body>
+        <div aria-hidden="true" className="ambient-noise" />
+        {children}
+      </body>
     </html>
   );
 

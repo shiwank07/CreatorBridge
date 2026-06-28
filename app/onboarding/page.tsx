@@ -6,6 +6,7 @@ import { Building2, UserPlus } from "lucide-react";
 import { BrandOnboardingForm } from "@/components/forms/brand-onboarding-form";
 import { CreatorOnboardingForm } from "@/components/forms/creator-onboarding-form";
 import { AuthSetupNotice } from "@/components/shared/auth-setup-notice";
+import { Navbar } from "@/components/shared/navbar";
 import { hasClerkKeys } from "@/lib/clerk-config";
 import { connectDB, hasMongoUri } from "@/lib/db";
 import { User } from "@/lib/models/User";
@@ -54,11 +55,13 @@ export default async function OnboardingPage({ searchParams }: { searchParams: O
   if (completedCreatorUsername) redirect(`/creators/${completedCreatorUsername}`);
 
   return (
-    <main className="bridge-section max-w-6xl py-10">
+    <>
+      <Navbar />
+      <main className="bridge-section max-w-6xl py-8 sm:py-10">
       <div className="mb-8 grid gap-6 lg:grid-cols-[1fr_320px] lg:items-end">
         <div>
           <p className="bridge-eyebrow">Onboarding</p>
-          <h1 className="mt-3 font-display text-4xl font-black">
+          <h1 className="mt-3 font-display text-3xl font-black leading-tight sm:text-4xl">
             {selectedRole === "creator" ? "Build your public creator profile" : "Create your brand profile"}
           </h1>
           <p className="mt-3 max-w-2xl text-sm leading-6 text-[var(--text-secondary)]">
@@ -68,10 +71,10 @@ export default async function OnboardingPage({ searchParams }: { searchParams: O
           </p>
         </div>
         <div className="bridge-card p-3">
-          <div className="grid grid-cols-2 gap-2">
+          <div className="grid gap-2 sm:grid-cols-2">
             <Link
               href="/onboarding?role=creator"
-              className={`focus-ring inline-flex items-center justify-center gap-2 rounded-[8px] border px-4 py-3 text-sm font-semibold ${
+              className={`focus-ring inline-flex items-center justify-center gap-2 rounded-[8px] border px-4 py-3 text-sm font-semibold transition hover:-translate-y-0.5 hover:border-cyan-300/40 ${
                 selectedRole === "creator"
                   ? "border-violet-700 bg-violet-950 text-violet-100"
                   : "border-[var(--border)] text-[var(--text-secondary)]"
@@ -82,7 +85,7 @@ export default async function OnboardingPage({ searchParams }: { searchParams: O
             </Link>
             <Link
               href="/onboarding?role=brand"
-              className={`focus-ring inline-flex items-center justify-center gap-2 rounded-[8px] border px-4 py-3 text-sm font-semibold ${
+              className={`focus-ring inline-flex items-center justify-center gap-2 rounded-[8px] border px-4 py-3 text-sm font-semibold transition hover:-translate-y-0.5 hover:border-cyan-300/40 ${
                 selectedRole === "brand"
                   ? "border-emerald-800 bg-emerald-950 text-emerald-100"
                   : "border-[var(--border)] text-[var(--text-secondary)]"
@@ -104,6 +107,7 @@ export default async function OnboardingPage({ searchParams }: { searchParams: O
       ) : (
         <BrandOnboardingForm initialContactName={fallbackName} initialEmail={email} />
       )}
-    </main>
+      </main>
+    </>
   );
 }
