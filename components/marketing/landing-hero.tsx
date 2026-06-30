@@ -4,7 +4,11 @@ import { ArrowRight, BadgeCheck, CircuitBoard, RadioTower, Search, UserPlus, Zap
 import { Badge } from "@/components/shared/badge";
 import { authHref } from "@/lib/auth-redirect";
 
-export function LandingHero() {
+type LandingHeroProps = {
+  viewerRole?: "creator" | "brand";
+};
+
+export function LandingHero({ viewerRole }: LandingHeroProps) {
   return (
     <section className="hero-abstract relative isolate overflow-hidden border-b border-[var(--border)]">
       <div className="creator-grid-field" />
@@ -25,18 +29,22 @@ export function LandingHero() {
               Where brands meet campaign-ready creators.
             </p>
             <p className="mt-5 max-w-2xl text-sm leading-7 text-[var(--text-secondary)] sm:text-base md:text-lg">
-              Discover public creator profiles, compare audience stats, and send cleaner campaign inquiries without the DM chaos.
+              Discover public creator profiles, compare audience stats, and start cleaner collaboration requests without the DM chaos.
             </p>
 
             <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
-              <Link href={authHref("/sign-up", "/onboarding?role=creator")} className="bridge-button-primary w-full sm:w-auto">
-                <UserPlus size={17} />
-                I&apos;m a Creator
-              </Link>
-              <Link href={authHref("/sign-up", "/onboarding?role=brand")} className="bridge-button-secondary w-full sm:w-auto">
-                <ArrowRight size={17} />
-                I&apos;m a Brand
-              </Link>
+              {viewerRole !== "brand" ? (
+                <Link href={viewerRole === "creator" ? "/dashboard/creator" : authHref("/sign-up", "/onboarding?role=creator")} className="bridge-button-primary w-full sm:w-auto">
+                  <UserPlus size={17} />
+                  {viewerRole === "creator" ? "Creator Dashboard" : "I'm a Creator"}
+                </Link>
+              ) : null}
+              {viewerRole !== "creator" ? (
+                <Link href={viewerRole === "brand" ? "/dashboard/brand" : authHref("/sign-up", "/onboarding?role=brand")} className="bridge-button-secondary w-full sm:w-auto">
+                  <ArrowRight size={17} />
+                  {viewerRole === "brand" ? "Brand Dashboard" : "I'm a Brand"}
+                </Link>
+              ) : null}
               <Link href="/creators" className="bridge-button-secondary w-full sm:w-auto">
                 <Search size={17} />
                 Browse Creators
@@ -47,7 +55,7 @@ export function LandingHero() {
               {[
                 ["Verified stats", "Profiles show claimed and reviewed audience context"],
                 ["Fast discovery", "Filter by niche, platform, rate, and availability"],
-                ["Cleaner briefs", "Inquiry forms capture campaign basics upfront"],
+                ["Cleaner briefs", "Collaboration requests capture campaign basics upfront"],
               ].map(([title, copy]) => (
                 <div key={title} className="bridge-panel premium-card-load p-3">
                   <BadgeCheck size={16} className="text-[var(--cyan)]" />

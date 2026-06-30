@@ -25,7 +25,7 @@ export default function PricingPage() {
               Plans are coming soon.
             </h1>
             <p className="mx-auto mt-5 max-w-xl text-base leading-7 text-[var(--text-secondary)]">
-              CreatorBridge is currently focused on verified discovery, brand inquiries, and trust workflows before paid plans are introduced.
+              CreatorBridge is currently focused on verified discovery, collaboration requests, and trust workflows before paid plans are introduced.
             </p>
             <div className="mt-8 flex flex-col justify-center gap-3 sm:flex-row">
               <Link href="/creators" className="bridge-button-primary">

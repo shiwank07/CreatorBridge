@@ -27,15 +27,15 @@ export async function PATCH(req: Request) {
     const body = await parseJsonBody(req);
     const parsed = inquiryStatusSchema.safeParse(body);
     if (!parsed.success) {
-      return NextResponse.json({ error: parsed.error.issues[0]?.message ?? "Invalid inquiry update." }, { status: 400 });
+      return NextResponse.json({ error: parsed.error.issues[0]?.message ?? "Invalid collaboration update." }, { status: 400 });
     }
 
     await connectDB();
     const updated = await BrandInquiry.findByIdAndUpdate(parsed.data.id, { $set: { status: parsed.data.status } }, { new: true });
-    if (!updated) return NextResponse.json({ error: "Inquiry not found." }, { status: 404 });
+    if (!updated) return NextResponse.json({ error: "Collaboration not found." }, { status: 404 });
 
     return NextResponse.json({ ok: true });
   } catch (error) {
-    return handleRouteError(error, "Admin inquiry update failed", "Could not update inquiry.");
+    return handleRouteError(error, "Admin collaboration update failed", "Could not update the collaboration.");
   }
 }

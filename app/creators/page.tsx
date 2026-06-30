@@ -7,6 +7,8 @@ import { CreatorDirectoryFilters } from "@/components/creators/creator-directory
 import { Badge } from "@/components/shared/badge";
 import { EmptyState } from "@/components/shared/empty-state";
 import { Navbar } from "@/components/shared/navbar";
+import { authHref } from "@/lib/auth-redirect";
+import { getCurrentAppUser } from "@/lib/current-user";
 import { formatNumber } from "@/lib/format";
 import { getCreators } from "@/lib/queries/creators";
 import { type CreatorCardData } from "@/lib/types";
@@ -69,6 +71,8 @@ function matchesPriceRange(creator: CreatorCardData, range?: string) {
 
 export default async function CreatorsPage({ searchParams }: { searchParams: CreatorSearchParams }) {
   const params = await searchParams;
+  const viewer = await getCurrentAppUser();
+  const viewerRole = viewer?.onboardingComplete && (viewer.role === "creator" || viewer.role === "brand") ? viewer.role : undefined;
   const filters = {
     search: readParam(params.q),
     niche: readParam(params.niche),
@@ -131,10 +135,12 @@ export default async function CreatorsPage({ searchParams }: { searchParams: Cre
                     Start Searching
                     <ArrowRight size={17} />
                   </Link>
-                  <Link href="/campaign-inquiry" className="bridge-button-secondary w-full sm:w-auto">
-                    Send Campaign Inquiry
-                    <Rocket size={17} />
-                  </Link>
+                  {viewerRole !== "creator" ? (
+                    <Link href={viewerRole === "brand" ? "#creator-search" : authHref("/sign-up", "/onboarding?role=brand")} className="bridge-button-secondary w-full sm:w-auto">
+                      {viewerRole === "brand" ? "Choose a Creator" : "Join as Brand"}
+                      <Rocket size={17} />
+                    </Link>
+                  ) : null}
                 </div>
               </div>
 
@@ -150,7 +156,7 @@ export default async function CreatorsPage({ searchParams }: { searchParams: Cre
                   {[
                     { label: "Verified creator graph", value: `${verifiedCreators}/${creators.length}`, icon: BadgeCheck },
                     { label: "Visible audience reach", value: formatNumber(totalReach), icon: Zap },
-                    { label: "Brand-safe inquiries", value: "Manual review", icon: Building2 },
+                    { label: "Brand-safe requests", value: "Manual review", icon: Building2 },
                   ].map(({ label, value, icon: Icon }) => (
                     <div key={label} className="flex items-center justify-between gap-4 rounded-[8px] border border-white/10 bg-white/[0.045] px-4 py-3">
                       <span className="flex items-center gap-3 text-sm text-[var(--text-secondary)]">
@@ -175,7 +181,7 @@ export default async function CreatorsPage({ searchParams }: { searchParams: Cre
             {[
               { label: "Verified Creators", value: String(verifiedCreators), detail: "approved stats and identity", icon: BadgeCheck, motionClass: "stat-delay-1" },
               { label: "Brands", value: `${brandSignal}+`, detail: "manual brand review flow", icon: Building2, motionClass: "stat-delay-2" },
-              { label: "Campaigns", value: `${campaignSignal}+`, detail: "structured campaign requests", icon: Rocket, motionClass: "stat-delay-3" },
+              { label: "Collaborations", value: `${campaignSignal}+`, detail: "structured collaboration requests", icon: Rocket, motionClass: "stat-delay-3" },
               { label: "Success Rate", value: "94%", detail: "quality before automation", icon: Sparkles, motionClass: "stat-delay-4" },
             ].map(({ label, value, detail, icon: Icon, motionClass }) => (
               <div key={label} className={`animate-stat-up creator-stat-card ${motionClass}`}>
@@ -222,7 +228,7 @@ export default async function CreatorsPage({ searchParams }: { searchParams: Cre
           {visibleCreators.length > 0 ? (
             <section className="mt-6 grid gap-5 md:grid-cols-2 xl:grid-cols-3">
               {visibleCreators.map((creator) => (
-                <CreatorCard key={creator.id} creator={creator} />
+                <CreatorCard key={creator.id} creator={creator} viewerRole={viewerRole} />
               ))}
             </section>
           ) : (

@@ -5,6 +5,7 @@ import { BadgeCheck, Building2, ExternalLink, MapPin } from "lucide-react";
 
 import { Badge } from "@/components/shared/badge";
 import { Navbar } from "@/components/shared/navbar";
+import { getCurrentAppUser } from "@/lib/current-user";
 import { getBrandByUsername } from "@/lib/queries/brands";
 
 export const dynamic = "force-dynamic";
@@ -39,10 +40,12 @@ export async function generateMetadata({ params }: { params: BrandProfileParams 
 export default async function BrandProfilePage({ params }: { params: BrandProfileParams }) {
   const { username } = await params;
   const brand = await getBrandByUsername(username);
+  const viewer = await getCurrentAppUser();
 
   if (!brand) notFound();
 
   const isVerified = brand.verificationStatus === "verified";
+  const isOwner = viewer?.role === "brand" && viewer.username === brand.username;
 
   return (
     <>
@@ -82,6 +85,7 @@ export default async function BrandProfilePage({ params }: { params: BrandProfil
         </header>
 
         <div className="bridge-section grid gap-6 py-8 sm:py-10 lg:grid-cols-[1fr_320px]">
+          <div className="space-y-6">
           <section className="bridge-card p-5">
             <h2 className="font-display text-2xl font-bold">Brand Details</h2>
             <div className="mt-5 grid gap-3 sm:grid-cols-2">
@@ -97,7 +101,45 @@ export default async function BrandProfilePage({ params }: { params: BrandProfil
             </div>
           </section>
 
+          <section className="bridge-card p-5">
+            <h2 className="font-display text-2xl font-bold">Collaboration Profile</h2>
+            <div className="mt-5 grid gap-3 sm:grid-cols-3">
+              <div className="bridge-panel p-3">
+                <p className="text-xs text-[var(--text-secondary)]">Industry</p>
+                <p className="mt-1 font-semibold">{brand.industry}</p>
+              </div>
+              <div className="bridge-panel p-3">
+                <p className="text-xs text-[var(--text-secondary)]">Location</p>
+                <p className="mt-1 font-semibold">{brand.country || "Not listed"}</p>
+              </div>
+              <div className="bridge-panel p-3">
+                <p className="text-xs text-[var(--text-secondary)]">Trust status</p>
+                <p className="mt-1 font-semibold">{isVerified ? "Verified" : "Pending review"}</p>
+              </div>
+            </div>
+            {brand.verificationNote ? (
+              <p className="mt-4 rounded-[8px] border border-white/10 bg-white/[0.035] px-4 py-3 text-sm leading-6 text-[var(--text-secondary)]">
+                {brand.verificationNote}
+              </p>
+            ) : null}
+          </section>
+          </div>
+
           <aside className="space-y-4 lg:sticky lg:top-24 lg:self-start">
+            {isOwner ? (
+              <div className="bridge-card p-5">
+                <h2 className="font-display text-xl font-bold">Brand workspace</h2>
+                <p className="mt-3 text-sm leading-6 text-[var(--text-secondary)]">
+                  Manage your brand profile, sent collaborations, and proof review from the brand dashboard.
+                </p>
+                <Link href="/onboarding?role=brand" className="bridge-button-secondary mt-5 w-full">
+                  Edit Brand Profile
+                </Link>
+                <Link href="/dashboard/brand" className="bridge-button-primary mt-3 w-full">
+                  View Dashboard
+                </Link>
+              </div>
+            ) : null}
             <div className="bridge-card p-5">
               <h2 className="font-display text-xl font-bold">Verification</h2>
               <div className="mt-4">

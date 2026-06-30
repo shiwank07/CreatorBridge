@@ -1,5 +1,7 @@
 import mongoose, { type Document, type Model, Schema } from "mongoose";
 
+import { BRAND_INQUIRY_STATUS_VALUES, type BrandInquiryStatus } from "@/lib/collaborations";
+
 export interface IBrandInquiry extends Document {
   brandUserId?: mongoose.Types.ObjectId;
   brandProfileId?: mongoose.Types.ObjectId;
@@ -10,6 +12,7 @@ export interface IBrandInquiry extends Document {
   email: string;
   website?: string;
   campaignGoal: string;
+  deliverables: string[];
   targetNiches: string[];
   targetPlatforms: string[];
   budgetRange: string;
@@ -18,7 +21,20 @@ export interface IBrandInquiry extends Document {
   creatorUsername?: string;
   createdByClerkId?: string;
   source: "general_form" | "creator_profile";
-  status: "new" | "reviewed" | "contacted" | "sent_to_creator" | "creator_interested" | "creator_declined" | "rejected" | "closed";
+  status: BrandInquiryStatus;
+  deliveryProof?: {
+    videoUrl?: string;
+    timestampStart?: string;
+    timestampEnd?: string;
+    notes?: string;
+    screenshotUrl?: string;
+    referenceLink?: string;
+    submittedAt?: Date | null;
+    reviewedAt?: Date | null;
+    reviewNote?: string;
+    issueNote?: string;
+    issueReportedAt?: Date | null;
+  };
   adminOwnerId?: string;
   adminNote?: string;
   reviewedAt?: Date | null;
@@ -43,6 +59,7 @@ const BrandInquirySchema = new Schema<IBrandInquiry>(
     email: { type: String, required: true, lowercase: true, trim: true },
     website: { type: String, default: "" },
     campaignGoal: { type: String, required: true, maxlength: 1000 },
+    deliverables: [{ type: String }],
     targetNiches: [{ type: String }],
     targetPlatforms: [{ type: String }],
     budgetRange: { type: String, required: true },
@@ -53,9 +70,22 @@ const BrandInquirySchema = new Schema<IBrandInquiry>(
     source: { type: String, enum: ["general_form", "creator_profile"], default: "general_form", index: true },
     status: {
       type: String,
-      enum: ["new", "reviewed", "contacted", "sent_to_creator", "creator_interested", "creator_declined", "rejected", "closed"],
+      enum: BRAND_INQUIRY_STATUS_VALUES,
       default: "new",
       index: true,
+    },
+    deliveryProof: {
+      videoUrl: { type: String, trim: true, default: "" },
+      timestampStart: { type: String, trim: true, maxlength: 40, default: "" },
+      timestampEnd: { type: String, trim: true, maxlength: 40, default: "" },
+      notes: { type: String, trim: true, maxlength: 1000, default: "" },
+      screenshotUrl: { type: String, trim: true, default: "" },
+      referenceLink: { type: String, trim: true, default: "" },
+      submittedAt: { type: Date, default: null },
+      reviewedAt: { type: Date, default: null },
+      reviewNote: { type: String, trim: true, maxlength: 1000, default: "" },
+      issueNote: { type: String, trim: true, maxlength: 1000, default: "" },
+      issueReportedAt: { type: Date, default: null },
     },
     adminOwnerId: { type: String, default: "" },
     adminNote: { type: String, maxlength: 1000, default: "" },

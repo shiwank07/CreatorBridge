@@ -4,26 +4,13 @@ import { useState } from "react";
 import Link from "next/link";
 import { ExternalLink } from "lucide-react";
 
+import { CollaborationTimeline } from "@/components/collaborations/collaboration-timeline";
+import { COLLABORATION_STATUSES, collaborationStatusLabel } from "@/lib/collaborations";
 import { type BrandInquiryData } from "@/lib/types";
 
 type InquiryTableProps = {
   inquiries: BrandInquiryData[];
 };
-
-const statuses: BrandInquiryData["status"][] = [
-  "new",
-  "reviewed",
-  "contacted",
-  "sent_to_creator",
-  "creator_interested",
-  "creator_declined",
-  "rejected",
-  "closed",
-];
-
-function statusLabel(status: BrandInquiryData["status"]) {
-  return status.replaceAll("_", " ");
-}
 
 export function InquiryTable({ inquiries }: InquiryTableProps) {
   const [rows, setRows] = useState(inquiries);
@@ -40,7 +27,7 @@ export function InquiryTable({ inquiries }: InquiryTableProps) {
       const result = (await response.json().catch(() => ({}))) as { error?: string };
 
       if (!response.ok) {
-        setError(result.error ?? "Could not update inquiry.");
+        setError(result.error ?? "Could not update the collaboration.");
         return;
       }
 
@@ -54,14 +41,15 @@ export function InquiryTable({ inquiries }: InquiryTableProps) {
     <div className="bridge-card overflow-hidden">
       {error ? <div className="border-b border-red-900 bg-red-950/40 px-4 py-3 text-sm text-red-200">{error}</div> : null}
       <div className="overflow-x-auto">
-        <table className="w-full min-w-[900px] text-left text-sm">
+        <table className="w-full min-w-[1040px] text-left text-sm">
           <thead className="border-b border-[var(--border)] text-xs uppercase text-[var(--text-secondary)]">
             <tr>
               <th className="px-4 py-3">Brand</th>
               <th className="px-4 py-3">Goal</th>
+              <th className="px-4 py-3">Deliverables</th>
               <th className="px-4 py-3">Budget</th>
               <th className="px-4 py-3">Creator</th>
-              <th className="px-4 py-3">Status</th>
+              <th className="px-4 py-3">Collaboration Status</th>
             </tr>
           </thead>
           <tbody>
@@ -81,6 +69,9 @@ export function InquiryTable({ inquiries }: InquiryTableProps) {
                     </Link>
                   ) : null}
                 </td>
+                <td className="max-w-48 px-4 py-4 text-[var(--text-secondary)]">
+                  <p className="line-clamp-3">{inquiry.deliverables.length > 0 ? inquiry.deliverables.join(", ") : "Not listed"}</p>
+                </td>
                 <td className="px-4 py-4 text-[var(--text-secondary)]">{inquiry.budgetRange}</td>
                 <td className="px-4 py-4 text-[var(--text-secondary)]">
                   {inquiry.creatorUsername ? `@${inquiry.creatorUsername}` : "Open brief"}
@@ -91,12 +82,13 @@ export function InquiryTable({ inquiries }: InquiryTableProps) {
                     onChange={(event) => updateStatus(inquiry.id, event.target.value as BrandInquiryData["status"])}
                     className="bridge-input min-w-36 py-2"
                   >
-                    {statuses.map((status) => (
+                    {COLLABORATION_STATUSES.map((status) => (
                       <option key={status} value={status}>
-                        {statusLabel(status)}
+                        {collaborationStatusLabel(status)}
                       </option>
                     ))}
                   </select>
+                  <CollaborationTimeline status={inquiry.status} compact className="mt-3 min-w-80" />
                 </td>
               </tr>
             ))}

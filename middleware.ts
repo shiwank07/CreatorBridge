@@ -3,7 +3,7 @@ import { NextResponse, type NextFetchEvent, type NextRequest } from "next/server
 
 import { hasClerkKeys } from "@/lib/clerk-config";
 
-const isProtectedRoute = createRouteMatcher(["/onboarding(.*)", "/admin(.*)"]);
+const isProtectedRoute = createRouteMatcher(["/onboarding(.*)", "/admin(.*)", "/dashboard(.*)", "/notifications(.*)"]);
 
 const clerkHandler = clerkMiddleware(async (auth, req) => {
   if (isProtectedRoute(req)) {

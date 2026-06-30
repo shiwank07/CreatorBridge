@@ -3,13 +3,18 @@ import Link from "next/link";
 import { ArrowLeft, BadgeCheck, Crown, MapPin, Send } from "lucide-react";
 
 import { Badge } from "@/components/shared/badge";
+import { authHref } from "@/lib/auth-redirect";
 import { type CreatorCardData } from "@/lib/types";
 
 type CreatorProfileHeaderProps = {
   creator: CreatorCardData;
+  viewerRole?: "creator" | "brand";
+  viewerUsername?: string;
 };
 
-export function CreatorProfileHeader({ creator }: CreatorProfileHeaderProps) {
+export function CreatorProfileHeader({ creator, viewerRole, viewerUsername }: CreatorProfileHeaderProps) {
+  const isOwner = viewerRole === "creator" && viewerUsername === creator.username;
+
   return (
     <header className="surface-grid border-b border-[var(--border)] bg-[rgba(8,11,17,0.88)]">
       <div className="bridge-section py-8 sm:py-10">
@@ -55,13 +60,26 @@ export function CreatorProfileHeader({ creator }: CreatorProfileHeaderProps) {
             </div>
           </div>
 
-          <Link
-            href={`/campaign-inquiry?creator=${creator.username}`}
-            className="bridge-button-primary w-full sm:w-auto"
-          >
-            <Send size={17} />
-            Send Deal Inquiry
-          </Link>
+          {viewerRole === "brand" ? (
+            <Link href={`/campaign-inquiry?creator=${creator.username}`} className="bridge-button-primary w-full sm:w-auto">
+              <Send size={17} />
+              Start Collaboration
+            </Link>
+          ) : isOwner ? (
+            <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
+              <Link href="/onboarding?role=creator" className="bridge-button-secondary w-full sm:w-auto">
+                Edit Profile
+              </Link>
+              <Link href="/dashboard/creator" className="bridge-button-primary w-full sm:w-auto">
+                View Dashboard
+              </Link>
+            </div>
+          ) : !viewerRole ? (
+            <Link href={authHref("/sign-in", `/campaign-inquiry?creator=${creator.username}`)} className="bridge-button-primary w-full sm:w-auto">
+              <Send size={17} />
+              Sign in to start collaboration
+            </Link>
+          ) : null}
         </div>
       </div>
     </header>

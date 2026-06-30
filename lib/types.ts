@@ -83,12 +83,47 @@ export type BrandInquiryData = {
   email: string;
   website?: string;
   campaignGoal: string;
+  deliverables: string[];
   targetNiches: string[];
   targetPlatforms: string[];
   budgetRange: string;
   timeline: string;
   message?: string;
   creatorUsername?: string;
-  status: "new" | "reviewed" | "contacted" | "sent_to_creator" | "creator_interested" | "creator_declined" | "rejected" | "closed";
+  creatorResponseAt?: string;
+  creatorResponseNote?: string;
+  status:
+    | "new"
+    | "viewed"
+    | "interested"
+    | "work_started"
+    | "proof_submitted"
+    | "changes_requested"
+    | "approved"
+    | "completed"
+    | "closed";
+  deliveryProof?: {
+    videoUrl?: string;
+    timestampStart?: string;
+    timestampEnd?: string;
+    notes?: string;
+    screenshotUrl?: string;
+    referenceLink?: string;
+    submittedAt?: string;
+    reviewedAt?: string;
+    reviewNote?: string;
+    issueNote?: string;
+    issueReportedAt?: string;
+  };
+  createdAt?: string;
+};
+
+export type InAppNotificationData = {
+  id: string;
+  event: string;
+  title: string;
+  message: string;
+  href: string;
+  readAt?: string;
   createdAt?: string;
 };

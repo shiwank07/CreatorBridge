@@ -10,7 +10,7 @@ export const metadata: Metadata = {
     template: "%s | CreatorBridge",
   },
   description:
-    "India's creator economy marketplace for discovering creators, building creator profiles, and collecting brand campaign inquiries.",
+    "India's creator economy marketplace for discovering creators, building creator profiles, and collecting collaboration requests.",
 };
 
 export default function RootLayout({

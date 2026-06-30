@@ -11,9 +11,9 @@ export default async function AdminInquiriesPage() {
     <div>
       <div className="mb-8">
         <p className="text-sm font-semibold uppercase text-violet-300">Brand Admin</p>
-        <h1 className="mt-3 font-display text-4xl font-black">Campaign Inquiries</h1>
+        <h1 className="mt-3 font-display text-4xl font-black">Collaboration Requests</h1>
         <p className="mt-3 max-w-2xl text-sm leading-6 text-[var(--text-secondary)]">
-          Review brand-submitted campaign requests and move each inquiry through a simple status flow.
+          Review brand-submitted collaboration requests and move each request through a simple status flow.
         </p>
       </div>
 
@@ -21,10 +21,10 @@ export default async function AdminInquiriesPage() {
         <InquiryTable inquiries={inquiries} />
       ) : (
         <EmptyState
-          title="No inquiries yet"
-          description="Brand campaign inquiries submitted from the public form will appear here."
+          title="No collaboration requests yet"
+          description="Collaboration requests submitted from the public flow will appear here."
           actionHref="/campaign-inquiry"
-          actionLabel="Open Inquiry Form"
+          actionLabel="Start Collaboration"
         />
       )}
     </div>

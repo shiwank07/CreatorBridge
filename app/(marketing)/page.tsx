@@ -7,20 +7,24 @@ import { StatsBar } from "@/components/marketing/stats-bar";
 import { Badge } from "@/components/shared/badge";
 import { authHref } from "@/lib/auth-redirect";
 import { NICHES } from "@/lib/constants";
+import { getCurrentAppUser } from "@/lib/current-user";
 import { getFeaturedCreators } from "@/lib/queries/creators";
 
 export const dynamic = "force-dynamic";
 
 export default async function HomePage() {
   const featuredCreators = await getFeaturedCreators(6);
+  const viewer = await getCurrentAppUser();
+  const viewerRole = viewer?.onboardingComplete && (viewer.role === "creator" || viewer.role === "brand") ? viewer.role : undefined;
 
   return (
     <main>
-      <LandingHero />
+      <LandingHero viewerRole={viewerRole} />
       <StatsBar />
 
       <section id="for-brands" className="bridge-section scroll-mt-24">
         <div className="grid gap-4 lg:grid-cols-2">
+          {viewerRole !== "creator" ? (
           <div className="bridge-card bridge-card-hover p-6">
             <div className="flex h-12 w-12 items-center justify-center rounded-[8px] border border-cyan-400/30 bg-[#0b0f16] text-[var(--cyan)]">
               <Building2 size={24} />
@@ -29,13 +33,15 @@ export default async function HomePage() {
             <ol className="mt-5 space-y-3 text-sm leading-6 text-[var(--text-secondary)]">
               <li>1. Share your campaign brief and target creator profile.</li>
               <li>2. Browse creators by niche, platform, rate, and availability.</li>
-              <li>3. Send an inquiry for admin review and outreach.</li>
+              <li>3. Start a collaboration request for review and outreach.</li>
             </ol>
-            <Link href={authHref("/sign-up", "/onboarding?role=brand")} className="bridge-button-secondary mt-6 w-full sm:w-auto">
-              Create Brand Profile
+            <Link href={viewerRole === "brand" ? "/dashboard/brand" : authHref("/sign-up", "/onboarding?role=brand")} className="bridge-button-secondary mt-6 w-full sm:w-auto">
+              {viewerRole === "brand" ? "Open Brand Dashboard" : "Create Brand Profile"}
               <ArrowRight size={16} />
             </Link>
           </div>
+          ) : null}
+          {viewerRole !== "brand" ? (
           <div className="bridge-card bridge-card-hover p-6">
             <div className="flex h-12 w-12 items-center justify-center rounded-[8px] border border-emerald-400/30 bg-[#0b0f16] text-emerald-300">
               <UserPlus size={24} />
@@ -46,15 +52,16 @@ export default async function HomePage() {
               <li>2. Publish your public profile with stats and sample work.</li>
               <li>3. Get discovered by brands looking for campaign partners.</li>
             </ol>
-            <Link href={authHref("/sign-up", "/onboarding?role=creator")} className="bridge-button-primary mt-6 w-full sm:w-auto">
-              List Your Profile
+            <Link href={viewerRole === "creator" ? "/dashboard/creator" : authHref("/sign-up", "/onboarding?role=creator")} className="bridge-button-primary mt-6 w-full sm:w-auto">
+              {viewerRole === "creator" ? "Open Creator Dashboard" : "List Your Profile"}
               <ArrowRight size={16} />
             </Link>
           </div>
+          ) : null}
         </div>
       </section>
 
-      <FeaturedCreators creators={featuredCreators} />
+      <FeaturedCreators creators={featuredCreators} viewerRole={viewerRole} />
 
       <section className="border-y border-[var(--border)] bg-[rgba(8,11,17,0.88)]">
         <div className="bridge-section py-12 sm:py-14">
@@ -85,7 +92,7 @@ export default async function HomePage() {
           {[
             { step: "Discover", icon: Search, copy: "Browse creator profiles with public stats, audience niches, and base rates." },
             { step: "Shortlist", icon: ListChecks, copy: "Compare creators by platform strength and campaign fit before reaching out." },
-            { step: "Inquire", icon: Send, copy: "Submit a brand inquiry with the details needed for a useful first review." },
+            { step: "Collaborate", icon: Send, copy: "Start a collaboration request with the details needed for a useful first review." },
           ].map(({ step, icon: Icon, copy }, index) => (
             <div key={step} className="bridge-card bridge-card-hover p-6">
               <div className="flex items-center justify-between">
@@ -101,14 +108,18 @@ export default async function HomePage() {
         <div className="mt-12 border-t border-[var(--border)] pt-10 text-center">
           <h2 className="font-display text-3xl font-bold">Ready to grow?</h2>
           <div className="mt-6 flex flex-col justify-center gap-3 sm:flex-row">
-            <Link href={authHref("/sign-up", "/onboarding?role=creator")} className="bridge-button-primary w-full sm:w-auto">
+            {viewerRole !== "brand" ? (
+            <Link href={viewerRole === "creator" ? "/dashboard/creator" : authHref("/sign-up", "/onboarding?role=creator")} className="bridge-button-primary w-full sm:w-auto">
               <UserPlus size={17} />
-              List Your Profile Free
+              {viewerRole === "creator" ? "Creator Dashboard" : "List Your Profile Free"}
             </Link>
-            <Link href="/campaign-inquiry" className="bridge-button-secondary w-full sm:w-auto">
-              Post a Campaign Inquiry
+            ) : null}
+            {viewerRole !== "creator" ? (
+            <Link href={viewerRole === "brand" ? "/creators" : authHref("/sign-up", "/onboarding?role=brand")} className="bridge-button-secondary w-full sm:w-auto">
+              {viewerRole === "brand" ? "Browse Creators" : "I'm a Brand"}
               <ArrowRight size={17} />
             </Link>
+            ) : null}
           </div>
         </div>
       </section>

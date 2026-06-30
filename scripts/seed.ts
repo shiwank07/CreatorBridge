@@ -90,6 +90,7 @@ async function seed() {
         email: "growth@playpixel.example",
         website: "https://example.com",
         campaignGoal: "Launch a mobile gaming accessory campaign with creators who can produce YouTube integrations and Instagram reels.",
+        deliverables: ["Dedicated video", "Short-form reel", "Product review"],
         targetNiches: ["Gaming", "Tech"],
         targetPlatforms: ["youtube", "instagram"],
         budgetRange: "Rs. 50,000 - Rs. 1,00,000",
@@ -102,7 +103,7 @@ async function seed() {
     { upsert: true, new: true },
   );
 
-  console.log(`Seeded ${demoCreators.length} creators and 1 inquiry.`);
+  console.log(`Seeded ${demoCreators.length} creators and 1 collaboration request.`);
   process.exit(0);
 }
 

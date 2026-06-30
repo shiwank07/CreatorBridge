@@ -5,6 +5,7 @@ import { getAdminState } from "@/lib/admin";
 import { connectDB, hasMongoUri } from "@/lib/db";
 import { CreatorProfile } from "@/lib/models/CreatorProfile";
 import { User } from "@/lib/models/User";
+import { notificationService } from "@/lib/notifications/notification-service";
 import { getPendingCreatorVerifications } from "@/lib/queries/admin";
 import { creatorVerificationUpdateSchema } from "@/lib/validators/admin";
 
@@ -67,6 +68,17 @@ export async function PATCH(req: Request) {
 
     if (parsed.data.action === "approve_stats" || parsed.data.action === "reject") {
       await User.updateOne({ _id: user._id }, { $set: { isVerified: parsed.data.action === "approve_stats" } });
+    }
+
+    if (parsed.data.action === "reject") {
+      await notificationService.notifyVerificationRejected({ user, accountType: "creator", note: verificationNote });
+    } else {
+      await notificationService.notifyVerificationApproved({
+        user,
+        accountType: "creator",
+        note: verificationNote,
+        statusLabel: parsed.data.action === "approve_stats" ? "Creator profile verified" : "Ownership check approved",
+      });
     }
 
     return NextResponse.json({ ok: true });

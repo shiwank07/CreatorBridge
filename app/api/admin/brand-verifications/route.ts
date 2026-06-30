@@ -5,6 +5,7 @@ import { getAdminState } from "@/lib/admin";
 import { connectDB, hasMongoUri } from "@/lib/db";
 import { BrandProfile } from "@/lib/models/BrandProfile";
 import { User } from "@/lib/models/User";
+import { notificationService } from "@/lib/notifications/notification-service";
 import { getPendingBrandVerifications } from "@/lib/queries/admin";
 import { brandVerificationUpdateSchema } from "@/lib/validators/admin";
 
@@ -56,6 +57,17 @@ export async function PATCH(req: Request) {
     );
 
     await User.updateOne({ _id: user._id }, { $set: { isVerified: isApproved } });
+
+    if (isApproved) {
+      await notificationService.notifyVerificationApproved({
+        user,
+        accountType: "brand",
+        note: parsed.data.note,
+        statusLabel: "Brand verified",
+      });
+    } else {
+      await notificationService.notifyVerificationRejected({ user, accountType: "brand", note: parsed.data.note });
+    }
 
     return NextResponse.json({ ok: true });
   } catch (error) {

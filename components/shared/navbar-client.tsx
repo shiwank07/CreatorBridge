@@ -15,14 +15,13 @@ type NavbarClientProps = {
   navItems: NavItem[];
   isSignedIn: boolean;
   signInHref: string;
-  joinHref: string;
+  primaryHref: string;
+  primaryLabel: string;
 };
 
-export function NavbarClient({ navItems, isSignedIn, signInHref, joinHref }: NavbarClientProps) {
+export function NavbarClient({ navItems, isSignedIn, signInHref, primaryHref, primaryLabel }: NavbarClientProps) {
   const [isOpen, setIsOpen] = useState(false);
   const pathname = usePathname();
-  const primaryHref = isSignedIn ? "/admin" : joinHref;
-  const primaryLabel = isSignedIn ? "Dashboard" : "Join Free";
 
   useEffect(() => {
     setIsOpen(false);
@@ -135,13 +134,15 @@ export function NavbarClient({ navItems, isSignedIn, signInHref, joinHref }: Nav
                   {item.label}
                 </Link>
               ))}
-              <Link
-                href={signInHref}
-                onClick={closeMenu}
-                className="focus-ring rounded-[8px] border border-white/10 bg-white/[0.035] px-4 py-3 text-sm font-semibold text-[var(--text-primary)] transition hover:border-cyan-300/30 hover:bg-cyan-300/10"
-              >
-                Sign In
-              </Link>
+              {!isSignedIn ? (
+                <Link
+                  href={signInHref}
+                  onClick={closeMenu}
+                  className="focus-ring rounded-[8px] border border-white/10 bg-white/[0.035] px-4 py-3 text-sm font-semibold text-[var(--text-primary)] transition hover:border-cyan-300/30 hover:bg-cyan-300/10"
+                >
+                  Sign In
+                </Link>
+              ) : null}
             </nav>
 
             <Link href={primaryHref} onClick={closeMenu} className="bridge-button-primary mt-auto w-full">

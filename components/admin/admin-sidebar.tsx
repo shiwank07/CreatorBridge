@@ -6,7 +6,7 @@ const links = [
   { href: "/admin/creators", label: "Creators", icon: Users },
   { href: "/admin/verification", label: "Verification", icon: ShieldCheck },
   { href: "/admin/brand-verifications", label: "Brands", icon: ShieldCheck },
-  { href: "/admin/inquiries", label: "Inquiries", icon: ClipboardList },
+  { href: "/admin/inquiries", label: "Collaborations", icon: ClipboardList },
 ];
 
 export function AdminSidebar() {

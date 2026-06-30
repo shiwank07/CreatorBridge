@@ -3,12 +3,14 @@ import Link from "next/link";
 import { BadgeCheck, Camera, Crown, Eye, Globe2, Languages, Radio, Send, Sparkles, TvMinimalPlay } from "lucide-react";
 
 import { Badge } from "@/components/shared/badge";
+import { authHref } from "@/lib/auth-redirect";
 import { formatINR, formatNumber } from "@/lib/format";
 import { type CreatorCardData } from "@/lib/types";
 import { getPublicSubscriberCount, hasVerifiedStats } from "@/lib/verification";
 
 type CreatorCardProps = {
   creator: CreatorCardData;
+  viewerRole?: "creator" | "brand";
 };
 
 function engagementRate(creator: CreatorCardData) {
@@ -31,7 +33,7 @@ function coverClass(username: string) {
   return variants[index];
 }
 
-export function CreatorCard({ creator }: CreatorCardProps) {
+export function CreatorCard({ creator, viewerRole }: CreatorCardProps) {
   const statsVerified = hasVerifiedStats(creator);
   const subscriberCount = getPublicSubscriberCount(creator);
   const platforms = [
@@ -127,7 +129,7 @@ export function CreatorCard({ creator }: CreatorCardProps) {
           </div>
         </div>
 
-        <div className="mt-5 grid gap-2 sm:grid-cols-2">
+        <div className={`mt-5 grid gap-2 ${viewerRole === "creator" ? "" : "sm:grid-cols-2"}`}>
           <Link
             href={`/creators/${creator.username}`}
             className="bridge-button-primary px-4"
@@ -135,14 +137,16 @@ export function CreatorCard({ creator }: CreatorCardProps) {
             <Eye size={16} />
             View Profile
           </Link>
-          <Link
-            href={`/campaign-inquiry?creator=${creator.username}`}
-            className="bridge-button-secondary px-4"
-            aria-label={`Send campaign inquiry to ${creator.name}`}
-          >
-            <Send size={16} />
-            Send Inquiry
-          </Link>
+          {viewerRole === "creator" ? null : (
+            <Link
+              href={viewerRole === "brand" ? `/campaign-inquiry?creator=${creator.username}` : authHref("/sign-in", `/campaign-inquiry?creator=${creator.username}`)}
+              className="bridge-button-secondary px-4"
+              aria-label={viewerRole === "brand" ? `Start collaboration with ${creator.name}` : `Sign in to start collaboration with ${creator.name}`}
+            >
+              <Send size={16} />
+              {viewerRole === "brand" ? "Start Collaboration" : "Sign In"}
+            </Link>
+          )}
         </div>
       </div>
     </article>

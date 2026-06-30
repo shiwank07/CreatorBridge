@@ -3,6 +3,7 @@ import { BrandInquiry } from "@/lib/models/BrandInquiry";
 import { BrandProfile } from "@/lib/models/BrandProfile";
 import { CreatorProfile } from "@/lib/models/CreatorProfile";
 import { User } from "@/lib/models/User";
+import { normalizeCollaborationStatus, type BrandInquiryStatus } from "@/lib/collaborations";
 import { demoCreators, getCreators } from "@/lib/queries/creators";
 import {
   type BrandInquiryData,
@@ -19,13 +20,29 @@ type InquiryDocument = {
   email: string;
   website?: string;
   campaignGoal: string;
+  deliverables?: string[];
   targetNiches?: string[];
   targetPlatforms?: string[];
   budgetRange: string;
   timeline: string;
   message?: string;
   creatorUsername?: string;
-  status: BrandInquiryData["status"];
+  creatorResponseAt?: Date | null;
+  creatorResponseNote?: string;
+  status: BrandInquiryStatus;
+  deliveryProof?: {
+    videoUrl?: string;
+    timestampStart?: string;
+    timestampEnd?: string;
+    notes?: string;
+    screenshotUrl?: string;
+    referenceLink?: string;
+    submittedAt?: Date | null;
+    reviewedAt?: Date | null;
+    reviewNote?: string;
+    issueNote?: string;
+    issueReportedAt?: Date | null;
+  };
   createdAt?: Date;
 };
 
@@ -86,13 +103,31 @@ function mapInquiry(doc: InquiryDocument): BrandInquiryData {
     email: doc.email,
     website: doc.website,
     campaignGoal: doc.campaignGoal,
+    deliverables: doc.deliverables ?? [],
     targetNiches: doc.targetNiches ?? [],
     targetPlatforms: doc.targetPlatforms ?? [],
     budgetRange: doc.budgetRange,
     timeline: doc.timeline,
     message: doc.message,
     creatorUsername: doc.creatorUsername,
-    status: doc.status,
+    creatorResponseAt: doc.creatorResponseAt?.toISOString(),
+    creatorResponseNote: doc.creatorResponseNote,
+    status: normalizeCollaborationStatus(doc.status),
+    deliveryProof: doc.deliveryProof
+      ? {
+          videoUrl: doc.deliveryProof.videoUrl,
+          timestampStart: doc.deliveryProof.timestampStart,
+          timestampEnd: doc.deliveryProof.timestampEnd,
+          notes: doc.deliveryProof.notes,
+          screenshotUrl: doc.deliveryProof.screenshotUrl,
+          referenceLink: doc.deliveryProof.referenceLink,
+          submittedAt: doc.deliveryProof.submittedAt?.toISOString(),
+          reviewedAt: doc.deliveryProof.reviewedAt?.toISOString(),
+          reviewNote: doc.deliveryProof.reviewNote,
+          issueNote: doc.deliveryProof.issueNote,
+          issueReportedAt: doc.deliveryProof.issueReportedAt?.toISOString(),
+        }
+      : undefined,
     createdAt: doc.createdAt?.toISOString(),
   };
 }
@@ -164,7 +199,24 @@ export async function getAdminMetrics() {
   const [creators, featuredCreators, openInquiries, verifiedCreators, pendingVerifications, pendingBrandVerifications] = await Promise.all([
     CreatorProfile.countDocuments(),
     User.countDocuments({ isFeatured: true }),
-    BrandInquiry.countDocuments({ status: { $in: ["new", "reviewed"] } }),
+    BrandInquiry.countDocuments({
+      status: {
+        $in: [
+          "new",
+          "viewed",
+          "interested",
+          "work_started",
+          "proof_submitted",
+          "changes_requested",
+          "approved",
+          "reviewed",
+          "contacted",
+          "sent_to_creator",
+          "creator_interested",
+          "contact_shared",
+        ],
+      },
+    }),
     CreatorProfile.countDocuments({ verificationStatus: "stats_verified" }),
     CreatorProfile.countDocuments({
       youtubeUrl: { $nin: ["", null] },

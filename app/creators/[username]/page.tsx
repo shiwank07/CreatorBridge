@@ -7,7 +7,9 @@ import { CreatorProfileHeader } from "@/components/creators/creator-profile-head
 import { StatBox } from "@/components/creators/stat-box";
 import { Badge } from "@/components/shared/badge";
 import { Navbar } from "@/components/shared/navbar";
+import { authHref } from "@/lib/auth-redirect";
 import { formatINR, formatNumber } from "@/lib/format";
+import { getCurrentAppUser } from "@/lib/current-user";
 import { creatorMetaDescription, getCreatorByUsername } from "@/lib/queries/creators";
 import { getPublicSubscriberCount, hasVerifiedStats } from "@/lib/verification";
 
@@ -49,8 +51,11 @@ export async function generateMetadata({ params }: { params: CreatorProfileParam
 export default async function CreatorProfilePage({ params }: { params: CreatorProfileParams }) {
   const { username } = await params;
   const creator = await getCreatorByUsername(username);
+  const viewer = await getCurrentAppUser();
 
   if (!creator) notFound();
+  const viewerRole = viewer?.onboardingComplete && (viewer.role === "creator" || viewer.role === "brand") ? viewer.role : undefined;
+  const isOwner = viewerRole === "creator" && viewer?.username === creator.username;
   const statsVerified = hasVerifiedStats(creator);
   const platformLinks = [
     creator.youtubeUrl ? { label: "YouTube", href: creator.youtubeUrl, icon: TvMinimalPlay } : null,
@@ -73,7 +78,7 @@ export default async function CreatorProfilePage({ params }: { params: CreatorPr
       <Navbar />
       <main>
         <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(schema) }} />
-        <CreatorProfileHeader creator={creator} />
+        <CreatorProfileHeader creator={creator} viewerRole={viewerRole} viewerUsername={viewer?.username} />
 
         <div className="bridge-section grid gap-6 py-8 sm:py-10 lg:grid-cols-[1fr_340px]">
           <div className="space-y-6">
@@ -173,17 +178,36 @@ export default async function CreatorProfilePage({ params }: { params: CreatorPr
 
         <aside className="space-y-4 lg:sticky lg:top-24 lg:self-start">
           <div className="bridge-card p-5">
-            <h2 className="font-display text-xl font-bold">Plan an outreach</h2>
+            <h2 className="font-display text-xl font-bold">{isOwner ? "Your creator profile" : "Plan an outreach"}</h2>
             <p className="mt-3 text-sm leading-6 text-[var(--text-secondary)]">
-              Send this creator a campaign inquiry with your goals, budget range, and preferred timeline.
+              {isOwner
+                ? "Keep your profile current so brands see accurate audience, pricing, and availability signals."
+                : viewerRole === "brand"
+                  ? "Start a collaboration request with your goals, budget range, and preferred timeline."
+                  : viewerRole === "creator"
+                    ? "Browse this public profile without brand-only collaboration actions."
+                    : "Sign in with a brand account to start a structured collaboration request."}
             </p>
-            <Link
-              href={`/campaign-inquiry?creator=${creator.username}`}
-              className="bridge-button-primary mt-5 w-full"
-            >
-              <Send size={17} />
-              Send a Deal Inquiry
-            </Link>
+            {viewerRole === "brand" ? (
+              <Link href={`/campaign-inquiry?creator=${creator.username}`} className="bridge-button-primary mt-5 w-full">
+                <Send size={17} />
+                Start Collaboration
+              </Link>
+            ) : isOwner ? (
+              <>
+                <Link href="/onboarding?role=creator" className="bridge-button-secondary mt-5 w-full">
+                  Edit Profile
+                </Link>
+                <Link href="/dashboard/creator" className="bridge-button-primary mt-3 w-full">
+                  View Dashboard
+                </Link>
+              </>
+            ) : !viewerRole ? (
+              <Link href={authHref("/sign-in", `/campaign-inquiry?creator=${creator.username}`)} className="bridge-button-primary mt-5 w-full">
+                <Send size={17} />
+                Sign in to start collaboration
+              </Link>
+            ) : null}
             <Link href="/creators" className="bridge-button-secondary mt-3 w-full">
               Browse Directory
             </Link>

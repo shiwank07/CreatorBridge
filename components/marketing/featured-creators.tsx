@@ -8,9 +8,10 @@ import { type CreatorCardData } from "@/lib/types";
 
 type FeaturedCreatorsProps = {
   creators: CreatorCardData[];
+  viewerRole?: "creator" | "brand";
 };
 
-export function FeaturedCreators({ creators }: FeaturedCreatorsProps) {
+export function FeaturedCreators({ creators, viewerRole }: FeaturedCreatorsProps) {
   return (
     <section className="bridge-section">
       <div className="flex flex-col justify-between gap-4 md:flex-row md:items-end">
@@ -18,7 +19,7 @@ export function FeaturedCreators({ creators }: FeaturedCreatorsProps) {
           <p className="bridge-eyebrow">Featured Creators</p>
           <h2 className="mt-3 font-display text-3xl font-bold">Creators brands can brief today</h2>
           <p className="mt-3 max-w-2xl text-sm leading-6 text-[var(--text-secondary)]">
-            Compare audience fit, creative niche, base rates, and availability before sending a campaign inquiry.
+            Compare audience fit, creative niche, base rates, and availability before starting a collaboration request.
           </p>
         </div>
         <Link href="/creators" className="bridge-button-secondary w-full md:w-auto">
@@ -30,7 +31,7 @@ export function FeaturedCreators({ creators }: FeaturedCreatorsProps) {
       {creators.length > 0 ? (
         <div className="mt-8 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
           {creators.map((creator) => (
-            <CreatorCard key={creator.id} creator={creator} />
+            <CreatorCard key={creator.id} creator={creator} viewerRole={viewerRole} />
           ))}
         </div>
       ) : (
@@ -38,8 +39,8 @@ export function FeaturedCreators({ creators }: FeaturedCreatorsProps) {
           <EmptyState
             title="No featured creators yet"
             description="Once creators complete onboarding and an admin marks them featured, they will appear here."
-            actionHref={authHref("/sign-up", "/onboarding?role=creator")}
-            actionLabel="Create Profile"
+            actionHref={viewerRole === "brand" ? undefined : authHref("/sign-up", "/onboarding?role=creator")}
+            actionLabel={viewerRole === "brand" ? undefined : "Create Profile"}
           />
         </div>
       )}

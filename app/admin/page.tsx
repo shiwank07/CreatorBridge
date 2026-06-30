@@ -13,7 +13,7 @@ export default async function AdminPage() {
     { label: "Verified", value: metrics.verifiedCreators, icon: BadgeCheck },
     { label: "Pending Verification", value: metrics.pendingVerifications, icon: ShieldCheck },
     { label: "Pending Brands", value: metrics.pendingBrandVerifications, icon: ShieldCheck },
-    { label: "Open Inquiries", value: metrics.openInquiries, icon: ClipboardList },
+    { label: "Open Collaborations", value: metrics.openInquiries, icon: ClipboardList },
   ];
 
   return (
@@ -23,7 +23,7 @@ export default async function AdminPage() {
           <p className="text-sm font-semibold uppercase text-violet-300">Admin Dashboard</p>
           <h1 className="mt-3 font-display text-4xl font-black">Review marketplace activity</h1>
           <p className="mt-3 max-w-2xl text-sm leading-6 text-[var(--text-secondary)]">
-            Manage creator visibility and brand campaign inquiries from one small control surface.
+            Manage creator visibility and collaboration requests from one small control surface.
           </p>
         </div>
       </div>
@@ -67,10 +67,10 @@ export default async function AdminPage() {
           </span>
         </Link>
         <Link href="/admin/inquiries" className="bridge-card bridge-card-hover p-5">
-          <h2 className="font-display text-xl font-bold">Inquiry Review</h2>
-          <p className="mt-3 text-sm leading-6 text-[var(--text-secondary)]">Track brand requests from new inquiry through follow-up and closure.</p>
+          <h2 className="font-display text-xl font-bold">Collaboration Review</h2>
+          <p className="mt-3 text-sm leading-6 text-[var(--text-secondary)]">Track collaboration requests from new review through follow-up and closure.</p>
           <span className="mt-5 inline-flex items-center gap-2 text-sm font-semibold text-violet-300">
-            Open inquiries
+            Open collaborations
             <ArrowRight size={16} />
           </span>
         </Link>
