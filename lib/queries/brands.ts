@@ -9,12 +9,14 @@ type BrandDocumentWithUser = {
   companyName: string;
   contactName: string;
   contactRole?: string;
+  contactEmail?: string;
   website?: string;
   industry: string;
   companySize?: string;
   country?: string;
   verificationStatus?: BrandProfileData["verificationStatus"];
   verificationNote?: string;
+  companyRegistrationText?: string;
   createdAt?: Date;
 };
 
@@ -27,12 +29,14 @@ function mapBrand(doc: BrandDocumentWithUser): BrandProfileData {
     companyName: doc.companyName,
     contactName: doc.contactName,
     contactRole: doc.contactRole,
+    contactEmail: doc.contactEmail,
     website: doc.website,
     industry: doc.industry,
     companySize: doc.companySize,
     country: doc.country,
     verificationStatus: doc.verificationStatus ?? (user.isVerified ? "verified" : "unverified"),
     verificationNote: doc.verificationNote,
+    companyRegistrationText: doc.companyRegistrationText,
     createdAt: doc.createdAt?.toISOString(),
   };
 }

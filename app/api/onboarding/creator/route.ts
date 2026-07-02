@@ -7,18 +7,7 @@ import { hasClerkKeys } from "@/lib/clerk-config";
 import { CreatorProfile } from "@/lib/models/CreatorProfile";
 import { User } from "@/lib/models/User";
 import { creatorOnboardingSchema } from "@/lib/validators/creator";
-import { createVerificationCode, normalizeYoutubeChannelKey, verificationCodeExpiry } from "@/lib/verification-helpers";
-
-async function generateUniqueVerificationCode() {
-  for (let attempt = 0; attempt < 25; attempt += 1) {
-    const code = createVerificationCode();
-    const existing = await CreatorProfile.exists({ verificationCode: code });
-
-    if (!existing) return code;
-  }
-
-  return `CB-${Date.now().toString(36).slice(-5).toUpperCase()}`;
-}
+import { normalizeYoutubeChannelKey } from "@/lib/verification-helpers";
 
 export async function POST(req: Request) {
   try {
@@ -64,6 +53,7 @@ export async function POST(req: Request) {
           email,
           username: parsed.data.username,
           name: parsed.data.name,
+          // TODO: Add Cloudflare R2 or UploadThing upload support. Keep MongoDB storage to the image URL only.
           avatar: parsed.data.avatar || clerkUser?.imageUrl || "",
           role: "creator",
           onboardingComplete: true,
@@ -79,26 +69,13 @@ export async function POST(req: Request) {
     );
 
     const existingProfile = await CreatorProfile.findOne({ userId: user._id });
-    const hasYoutubeUrl = Boolean(parsed.data.youtubeUrl);
     const youtubeChanged = Boolean(
       existingProfile &&
         (existingProfile.youtubeUrl !== parsed.data.youtubeUrl || existingProfile.youtubeHandle !== parsed.data.youtubeHandle),
     );
-    const verificationCode = hasYoutubeUrl
-      ? youtubeChanged || !existingProfile?.verificationCode
-        ? await generateUniqueVerificationCode()
-        : existingProfile.verificationCode
-      : "";
-    const verificationStatus = hasYoutubeUrl
-      ? youtubeChanged
-        ? "unverified"
-        : existingProfile?.verificationStatus ?? "unverified"
-      : "unverified";
-    const verificationCodeExpiresAt = hasYoutubeUrl
-      ? youtubeChanged || !existingProfile?.verificationCodeExpiresAt
-        ? verificationCodeExpiry()
-        : existingProfile.verificationCodeExpiresAt
-      : null;
+    const verificationCode = youtubeChanged ? "" : existingProfile?.verificationCode ?? "";
+    const verificationStatus = youtubeChanged ? "unverified" : existingProfile?.verificationStatus ?? "unverified";
+    const verificationCodeExpiresAt = youtubeChanged ? null : existingProfile?.verificationCodeExpiresAt ?? null;
 
     await CreatorProfile.findOneAndUpdate(
       { userId: user._id },
@@ -116,9 +93,12 @@ export async function POST(req: Request) {
           verificationCode,
           verificationCodeExpiresAt,
           normalizedYoutubeChannelKey: normalizeYoutubeChannelKey(parsed.data.youtubeUrl, parsed.data.youtubeHandle),
-          ...(!hasYoutubeUrl
+          ...(youtubeChanged
             ? {
                 verifiedSubscribers: 0,
+                verificationPlatform: "youtube",
+                verificationProfileUrl: "",
+                verificationSubmittedNote: "",
                 verificationNote: "",
                 verificationSubmittedAt: null,
                 verificationReviewedAt: null,
@@ -141,7 +121,7 @@ export async function POST(req: Request) {
       { upsert: true, new: true },
     );
 
-    if (youtubeChanged || !hasYoutubeUrl) {
+    if (youtubeChanged) {
       await User.updateOne({ _id: user._id }, { $set: { isVerified: false } });
     }
 

@@ -6,6 +6,7 @@ import { ExternalLink } from "lucide-react";
 
 import { CollaborationTimeline } from "@/components/collaborations/collaboration-timeline";
 import { COLLABORATION_STATUSES, collaborationStatusLabel } from "@/lib/collaborations";
+import { formatINR } from "@/lib/format";
 import { type BrandInquiryData } from "@/lib/types";
 
 type InquiryTableProps = {
@@ -72,7 +73,13 @@ export function InquiryTable({ inquiries }: InquiryTableProps) {
                 <td className="max-w-48 px-4 py-4 text-[var(--text-secondary)]">
                   <p className="line-clamp-3">{inquiry.deliverables.length > 0 ? inquiry.deliverables.join(", ") : "Not listed"}</p>
                 </td>
-                <td className="px-4 py-4 text-[var(--text-secondary)]">{inquiry.budgetRange}</td>
+                <td className="px-4 py-4 text-[var(--text-secondary)]">
+                  <p className="font-semibold text-[var(--text-primary)]">
+                    {inquiry.currentOfferAmount ? formatINR(inquiry.currentOfferAmount) : "Exact offer not recorded"}
+                  </p>
+                  <p className="mt-1 text-xs">{inquiry.budgetRange}</p>
+                  <p className="mt-1 text-xs">Negotiable: {inquiry.isNegotiable ? "Yes" : "No"}</p>
+                </td>
                 <td className="px-4 py-4 text-[var(--text-secondary)]">
                   {inquiry.creatorUsername ? `@${inquiry.creatorUsername}` : "Open brief"}
                 </td>

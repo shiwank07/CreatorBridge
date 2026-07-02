@@ -8,20 +8,28 @@ import NewCollaborationEmail from "@/emails/new-collaboration";
 import ProofSubmittedEmail from "@/emails/proof-submitted";
 import VerificationApprovedEmail from "@/emails/verification-approved";
 import VerificationRejectedEmail from "@/emails/verification-rejected";
+import { collaborationDetailsHref } from "@/lib/collaboration-routes";
 import { sendEmail } from "@/lib/email/email-service";
 import { InAppNotification } from "@/lib/models/InAppNotification";
 import { EmailNotification, type EmailNotificationStatus } from "@/lib/models/EmailNotification";
 import { User } from "@/lib/models/User";
 
 export type NotificationEvent =
+  | "collaboration_request"
   | "new_collaboration"
+  | "brand_response"
+  | "counter_requested"
+  | "counter_sent"
   | "creator_accepted"
   | "creator_declined"
   | "proof_submitted"
   | "delivery_approved"
   | "delivery_changes_requested"
   | "verification_approved"
-  | "verification_rejected";
+  | "verification_rejected"
+  | "featured_creator"
+  | "admin_notice"
+  | "system_update";
 
 type NotificationUser = {
   _id?: unknown;
@@ -109,6 +117,30 @@ function normalizeRecipient(recipient?: string | null) {
   return recipient?.trim().toLowerCase() ?? "";
 }
 
+function maskEmailLikeValues(value: string) {
+  return value.replace(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi, (email) => {
+    const [localPart, domain] = email.split("@");
+    const visiblePrefix = localPart?.slice(0, 1) || "*";
+    return `${visiblePrefix}***@${domain}`;
+  });
+}
+
+function sanitizeLogMessage(value: string) {
+  return maskEmailLikeValues(value).replace(/re_[A-Za-z0-9_-]+/g, "[resend_api_key]");
+}
+
+function safeEmailFromValue() {
+  const value = process.env.EMAIL_FROM?.trim();
+  return value ? maskEmailLikeValues(value) : "(not configured)";
+}
+
+function emailConfigLogSnapshot() {
+  return {
+    resendApiKeyExists: Boolean(process.env.RESEND_API_KEY?.trim()),
+    emailFrom: safeEmailFromValue(),
+  };
+}
+
 function appUrl(path: string) {
   const baseUrl = (process.env.NEXT_PUBLIC_APP_URL?.trim() || "http://localhost:3000").replace(/\/+$/, "");
   return `${baseUrl}${path.startsWith("/") ? path : `/${path}`}`;
@@ -118,10 +150,9 @@ function collaborationId(collaboration: CollaborationLike) {
   return collaboration._id ? String(collaboration._id) : "";
 }
 
-function collaborationHref(role: "creator" | "brand", collaboration: CollaborationLike) {
+function collaborationHref(collaboration: CollaborationLike) {
   const id = collaborationId(collaboration);
-  const dashboardPath = role === "creator" ? "/dashboard/creator" : "/dashboard/brand";
-  return id ? `${dashboardPath}?collaboration=${encodeURIComponent(id)}` : dashboardPath;
+  return collaborationDetailsHref(id || null);
 }
 
 function verificationUrl(accountType: "creator" | "brand") {
@@ -134,6 +165,10 @@ function userDisplayName(user?: NotificationUser | null, fallback = "there") {
 
 function userObjectId(user?: NotificationUser | null) {
   return user?._id ?? user?.id ?? null;
+}
+
+function amountLabel(amount?: number | null) {
+  return amount && amount > 0 ? ` at INR ${amount.toLocaleString("en-IN")}` : "";
 }
 
 function toObjectId(value: unknown) {
@@ -189,6 +224,8 @@ async function createInAppNotification({ recipientUserId, actorUserId, event, ti
       title,
       message,
       href,
+      isRead: false,
+      readAt: null,
     });
   } catch (error) {
     console.error("[notifications] Could not store in-app notification.", {
@@ -211,19 +248,31 @@ async function recordNotification({ recipient, event, status, providerId, error 
   } catch (recordError) {
     console.error("[notifications] Could not store notification history.", {
       event,
-      recipient,
-      error: errorMessage(recordError),
+      recipientEmailExists: Boolean(recipient && recipient !== "unknown"),
+      error: sanitizeLogMessage(errorMessage(recordError)),
     });
   }
 }
 
 async function sendAndRecord({ recipient, event, subject, react }: SendNotificationInput) {
   const normalizedRecipient = normalizeRecipient(recipient);
+  const isNewCollaborationEmail = event === "new_collaboration";
 
   if (!normalizedRecipient) {
     const error = "Notification skipped because no recipient email was available.";
     await recordNotification({ recipient: "unknown", event, status: "skipped", providerId: null, error });
-    console.warn("[notifications] Email skipped.", { event, error });
+    console.warn("[notifications] Email skipped.", {
+      event,
+      recipientEmailExists: false,
+      error: sanitizeLogMessage(error),
+    });
+    if (isNewCollaborationEmail) {
+      console.warn("[notifications] Resend send skipped.", {
+        event,
+        recipientEmailExists: false,
+        reason: "no_recipient_email",
+      });
+    }
     return;
   }
 
@@ -238,14 +287,48 @@ async function sendAndRecord({ recipient, event, subject, react }: SendNotificat
     });
 
     if (result.status !== "sent") {
-      console.warn("[notifications] Email skipped.", { event, recipient: normalizedRecipient, error: result.error });
+      console.warn("[notifications] Email skipped.", {
+        event,
+        recipientEmailExists: true,
+        error: result.error ? sanitizeLogMessage(result.error) : null,
+      });
+      if (isNewCollaborationEmail) {
+        console.warn("[notifications] Resend send skipped.", {
+          event,
+          recipientEmailExists: true,
+          reason: "email_service_skipped",
+          error: result.error ? sanitizeLogMessage(result.error) : null,
+        });
+      }
     } else {
-      console.info("[notifications] Email sent.", { event, recipient: normalizedRecipient, providerId: result.providerId });
+      console.info("[notifications] Email sent.", {
+        event,
+        recipientEmailExists: true,
+        providerId: result.providerId,
+      });
+      if (isNewCollaborationEmail) {
+        console.info("[notifications] Resend send success.", {
+          event,
+          recipientEmailExists: true,
+          providerId: result.providerId,
+        });
+      }
     }
   } catch (sendError) {
     const error = errorMessage(sendError);
     await recordNotification({ recipient: normalizedRecipient, event, status: "failed", providerId: null, error });
-    console.error("[notifications] Email failed.", { event, recipient: normalizedRecipient, error });
+    console.error("[notifications] Email failed.", {
+      event,
+      recipientEmailExists: true,
+      error: sanitizeLogMessage(error),
+    });
+    if (isNewCollaborationEmail) {
+      console.error("[notifications] Resend send failure.", {
+        event,
+        recipientEmailExists: true,
+        error: sanitizeLogMessage(error),
+      });
+    }
   }
 }
 
@@ -273,7 +356,12 @@ export const notificationService = {
       const creator = await resolveCreatorUser(collaboration, creatorUser);
       const brand = await resolveBrandUser(collaboration);
       const companyName = trimText(collaboration.companyName, "A brand");
-      const href = collaborationHref("creator", collaboration);
+      const href = collaborationHref(collaboration);
+
+      console.info("[notifications] notifyNewCollaboration called", {
+        recipientEmailExists: Boolean(creator?.email),
+        ...emailConfigLogSnapshot(),
+      });
 
       await createInAppNotification({
         recipientUserId: userObjectId(creator),
@@ -315,7 +403,7 @@ export const notificationService = {
       const brand = await resolveBrandUser(collaboration);
       const companyName = trimText(collaboration.companyName, "your company");
       const creatorName = userDisplayName(creator, trimText(collaboration.creatorUsername, "The creator"));
-      const href = collaborationHref("brand", collaboration);
+      const href = collaborationHref(collaboration);
 
       await createInAppNotification({
         recipientUserId: userObjectId(brand),
@@ -356,7 +444,7 @@ export const notificationService = {
       const brand = await resolveBrandUser(collaboration);
       const companyName = trimText(collaboration.companyName, "your company");
       const creatorName = userDisplayName(creator, trimText(collaboration.creatorUsername, "The creator"));
-      const href = collaborationHref("brand", collaboration);
+      const href = collaborationHref(collaboration);
 
       await createInAppNotification({
         recipientUserId: userObjectId(brand),
@@ -382,6 +470,79 @@ export const notificationService = {
     });
   },
 
+  async notifyCreatorCounterRequested({
+    collaboration,
+    creatorUser,
+    amount,
+    note,
+  }: {
+    collaboration: CollaborationLike;
+    creatorUser?: NotificationUser | null;
+    amount?: number;
+    note?: string;
+  }) {
+    const event: NotificationEvent = "counter_requested";
+    await safeNotify(event, async () => {
+      const creator = await resolveCreatorUser(collaboration, creatorUser);
+      const brand = await resolveBrandUser(collaboration);
+      const companyName = trimText(collaboration.companyName, "your company");
+      const creatorName = userDisplayName(creator, trimText(collaboration.creatorUsername, "The creator"));
+      const href = collaborationHref(collaboration);
+      const noteText = trimText(note);
+
+      await createInAppNotification({
+        recipientUserId: userObjectId(brand),
+        actorUserId: userObjectId(creator),
+        event,
+        title: "Counter offer requested",
+        message: `${creatorName} requested a revised offer${amountLabel(amount)} for ${companyName}.${noteText ? ` ${noteText}` : ""}`,
+        href,
+      });
+    });
+  },
+
+  async notifyBrandNegotiationResponse({
+    collaboration,
+    action,
+    amount,
+    note,
+  }: {
+    collaboration: CollaborationLike;
+    action: "accept_counter" | "send_revised_offer" | "decline_negotiation";
+    amount?: number;
+    note?: string;
+  }) {
+    const event: NotificationEvent = action === "send_revised_offer" ? "counter_sent" : "brand_response";
+    await safeNotify(event, async () => {
+      const creator = await resolveCreatorUser(collaboration);
+      const brand = await resolveBrandUser(collaboration);
+      const companyName = trimText(collaboration.companyName, "The brand");
+      const href = collaborationHref(collaboration);
+      const noteText = trimText(note);
+      const title =
+        action === "accept_counter"
+          ? "Counter offer accepted"
+          : action === "send_revised_offer"
+            ? "Revised offer sent"
+            : "Negotiation declined";
+      const actionCopy =
+        action === "accept_counter"
+          ? `accepted your counter offer${amountLabel(amount)}`
+          : action === "send_revised_offer"
+            ? `sent a revised offer${amountLabel(amount)}`
+            : "declined the negotiation";
+
+      await createInAppNotification({
+        recipientUserId: userObjectId(creator),
+        actorUserId: userObjectId(brand),
+        event,
+        title,
+        message: `${companyName} ${actionCopy}.${noteText ? ` ${noteText}` : ""}`,
+        href,
+      });
+    });
+  },
+
   async notifyProofSubmitted({ collaboration }: { collaboration: CollaborationLike }) {
     const event: NotificationEvent = "proof_submitted";
     await safeNotify(event, async () => {
@@ -390,7 +551,7 @@ export const notificationService = {
       const proof = collaboration.deliveryProof;
       const companyName = trimText(collaboration.companyName, "your company");
       const creatorName = userDisplayName(creator, trimText(collaboration.creatorUsername, "The creator"));
-      const href = collaborationHref("brand", collaboration);
+      const href = collaborationHref(collaboration);
 
       await createInAppNotification({
         recipientUserId: userObjectId(brand),
@@ -423,7 +584,7 @@ export const notificationService = {
       const creator = await resolveCreatorUser(collaboration);
       const brand = await resolveBrandUser(collaboration);
       const companyName = trimText(collaboration.companyName, "The brand");
-      const href = collaborationHref("creator", collaboration);
+      const href = collaborationHref(collaboration);
 
       await createInAppNotification({
         recipientUserId: userObjectId(creator),
@@ -461,7 +622,7 @@ export const notificationService = {
         event,
         title: "Changes requested",
         message: `${companyName} requested changes to your delivery proof.${trimText(note) ? ` ${trimText(note)}` : ""}`,
-        href: collaborationHref("creator", collaboration),
+        href: collaborationHref(collaboration),
       });
     });
   },

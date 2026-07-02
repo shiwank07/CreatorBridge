@@ -13,7 +13,7 @@ export default async function AdminBrandVerificationsPage() {
         <p className="text-sm font-semibold uppercase text-violet-300">Brand Verification</p>
         <h1 className="mt-3 font-display text-4xl font-black">Review brand identity</h1>
         <p className="mt-3 max-w-2xl text-sm leading-6 text-[var(--text-secondary)]">
-          Check the submitted company domain, website, and contact details before approving the brand badge.
+          Check the submitted company website, work email domain, and optional GST/CIN/company registration text before approving the brand badge.
         </p>
       </div>
 

@@ -13,6 +13,16 @@ import {
   type VerificationStatus,
 } from "@/lib/types";
 
+type OfferHistoryDocument = {
+  _id?: { toString(): string };
+  actor?: "brand" | "creator";
+  action?: "offer_sent" | "counter_requested" | "counter_sent" | "offer_accepted" | "offer_declined";
+  amount?: number;
+  currency?: "INR";
+  note?: string;
+  createdAt?: Date | null;
+};
+
 type InquiryDocument = {
   _id: { toString(): string };
   companyName: string;
@@ -24,6 +34,11 @@ type InquiryDocument = {
   targetNiches?: string[];
   targetPlatforms?: string[];
   budgetRange: string;
+  initialOfferAmount?: number;
+  currentOfferAmount?: number;
+  currency?: "INR";
+  isNegotiable?: boolean;
+  offerHistory?: OfferHistoryDocument[];
   timeline: string;
   message?: string;
   creatorUsername?: string;
@@ -60,6 +75,9 @@ type CreatorVerificationDocument = {
   verifiedSubscribers?: number;
   verificationStatus?: VerificationStatus;
   verificationCode?: string;
+  verificationPlatform?: CreatorVerificationData["verificationPlatform"];
+  verificationProfileUrl?: string;
+  verificationSubmittedNote?: string;
   verificationNote?: string;
   verificationRejectedReason?: string;
   verificationSubmittedAt?: Date | null;
@@ -83,6 +101,7 @@ type BrandVerificationDocument = {
   industry: string;
   companySize?: string;
   country?: string;
+  companyRegistrationText?: string;
   verificationStatus?: BrandVerificationData["verificationStatus"];
   companyDomain?: string;
   normalizedWebsiteDomain?: string;
@@ -96,6 +115,17 @@ type BrandVerificationDocument = {
 };
 
 function mapInquiry(doc: InquiryDocument): BrandInquiryData {
+  const offerHistory = (doc.offerHistory ?? []).map((entry) => ({
+    id: entry._id?.toString(),
+    actor: entry.actor ?? "brand",
+    action: entry.action ?? "offer_sent",
+    amount: entry.amount && entry.amount > 0 ? entry.amount : undefined,
+    currency: entry.currency ?? "INR",
+    note: entry.note,
+    createdAt: entry.createdAt?.toISOString(),
+  }));
+  const latestOfferAmount = [...offerHistory].reverse().find((entry) => entry.amount)?.amount;
+
   return {
     id: doc._id.toString(),
     companyName: doc.companyName,
@@ -107,6 +137,11 @@ function mapInquiry(doc: InquiryDocument): BrandInquiryData {
     targetNiches: doc.targetNiches ?? [],
     targetPlatforms: doc.targetPlatforms ?? [],
     budgetRange: doc.budgetRange,
+    initialOfferAmount: doc.initialOfferAmount && doc.initialOfferAmount > 0 ? doc.initialOfferAmount : undefined,
+    currentOfferAmount: doc.currentOfferAmount && doc.currentOfferAmount > 0 ? doc.currentOfferAmount : latestOfferAmount,
+    currency: doc.currency ?? "INR",
+    isNegotiable: doc.isNegotiable ?? true,
+    offerHistory,
     timeline: doc.timeline,
     message: doc.message,
     creatorUsername: doc.creatorUsername,
@@ -146,6 +181,9 @@ function mapCreatorVerification(doc: CreatorVerificationDocument): CreatorVerifi
     verifiedSubscribers: doc.verifiedSubscribers ?? 0,
     verificationStatus: doc.verificationStatus ?? "unverified",
     verificationCode: doc.verificationCode,
+    verificationPlatform: doc.verificationPlatform,
+    verificationProfileUrl: doc.verificationProfileUrl,
+    verificationSubmittedNote: doc.verificationSubmittedNote,
     verificationNote: doc.verificationNote,
     verificationRejectedReason: doc.verificationRejectedReason,
     verificationSubmittedAt: doc.verificationSubmittedAt?.toISOString(),
@@ -171,6 +209,7 @@ function mapBrandVerification(doc: BrandVerificationDocument): BrandVerification
     companySize: doc.companySize,
     country: doc.country,
     verificationStatus: doc.verificationStatus ?? (user.isVerified ? "verified" : "unverified"),
+    companyRegistrationText: doc.companyRegistrationText,
     companyDomain: doc.companyDomain,
     normalizedWebsiteDomain: doc.normalizedWebsiteDomain,
     verificationMethod: doc.verificationMethod ?? "manual",
@@ -189,8 +228,8 @@ export async function getAdminMetrics() {
       creators: demoCreators.length,
       featuredCreators: demoCreators.filter((creator) => creator.isFeatured).length,
       openInquiries: 0,
-      verifiedCreators: demoCreators.filter((creator) => creator.verificationStatus === "stats_verified").length,
-      pendingVerifications: demoCreators.filter((creator) => creator.youtubeUrl && creator.verificationStatus !== "stats_verified").length,
+      verifiedCreators: demoCreators.filter((creator) => creator.verificationStatus === "verified").length,
+      pendingVerifications: demoCreators.filter((creator) => creator.verificationStatus === "pending").length,
       pendingBrandVerifications: 0,
     };
   }
@@ -204,6 +243,10 @@ export async function getAdminMetrics() {
         $in: [
           "new",
           "viewed",
+          "offer_sent",
+          "counter_requested",
+          "counter_sent",
+          "offer_accepted",
           "interested",
           "work_started",
           "proof_submitted",
@@ -217,10 +260,9 @@ export async function getAdminMetrics() {
         ],
       },
     }),
-    CreatorProfile.countDocuments({ verificationStatus: "stats_verified" }),
+    CreatorProfile.countDocuments({ verificationStatus: { $in: ["verified", "stats_verified", "ownership_verified"] } }),
     CreatorProfile.countDocuments({
-      youtubeUrl: { $nin: ["", null] },
-      verificationStatus: { $in: ["unverified", "pending_ownership", "ownership_verified"] },
+      verificationStatus: { $in: ["pending", "pending_ownership"] },
     }),
     BrandProfile.countDocuments({ verificationStatus: "pending" }),
   ]);
@@ -245,8 +287,7 @@ export async function getPendingCreatorVerifications(): Promise<CreatorVerificat
 
   await connectDB();
   const docs = await CreatorProfile.find({
-    youtubeUrl: { $nin: ["", null] },
-    verificationStatus: { $in: ["unverified", "pending_ownership", "ownership_verified"] },
+    verificationStatus: { $in: ["pending", "pending_ownership"] },
   })
     .populate("userId")
     .sort({ updatedAt: -1 })

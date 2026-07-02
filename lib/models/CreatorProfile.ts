@@ -1,6 +1,7 @@
 import mongoose, { type Document, type Model, Schema } from "mongoose";
 
-export type VerificationStatus = "unverified" | "pending_ownership" | "ownership_verified" | "stats_verified" | "rejected";
+export type VerificationStatus = "unverified" | "pending" | "verified" | "rejected" | "pending_ownership" | "ownership_verified" | "stats_verified";
+export type CreatorVerificationPlatform = "youtube" | "instagram" | "twitch" | "other";
 
 export interface ICreatorProfile extends Document {
   userId: mongoose.Types.ObjectId;
@@ -15,6 +16,9 @@ export interface ICreatorProfile extends Document {
   claimedSubscribers?: number;
   verifiedSubscribers?: number;
   verificationCode?: string;
+  verificationPlatform?: CreatorVerificationPlatform;
+  verificationProfileUrl?: string;
+  verificationSubmittedNote?: string;
   verificationNote?: string;
   verificationSubmittedAt?: Date | null;
   verificationReviewedAt?: Date | null;
@@ -54,13 +58,16 @@ const CreatorProfileSchema = new Schema<ICreatorProfile>(
     subscribers: { type: Number, default: 0, min: 0 },
     verificationStatus: {
       type: String,
-      enum: ["unverified", "pending_ownership", "ownership_verified", "stats_verified", "rejected"],
+      enum: ["unverified", "pending", "verified", "rejected", "pending_ownership", "ownership_verified", "stats_verified"],
       default: "unverified",
       index: true,
     },
     claimedSubscribers: { type: Number, default: 0, min: 0 },
     verifiedSubscribers: { type: Number, default: 0, min: 0 },
     verificationCode: { type: String, default: "" },
+    verificationPlatform: { type: String, enum: ["youtube", "instagram", "twitch", "other"], default: "youtube" },
+    verificationProfileUrl: { type: String, trim: true, default: "" },
+    verificationSubmittedNote: { type: String, trim: true, maxlength: 500, default: "" },
     verificationNote: { type: String, maxlength: 500, default: "" },
     verificationSubmittedAt: { type: Date, default: null },
     verificationReviewedAt: { type: Date, default: null },

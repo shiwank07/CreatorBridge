@@ -1,6 +1,7 @@
 export type Role = "creator" | "brand" | "agency" | "talent";
-export type VerificationStatus = "unverified" | "pending_ownership" | "ownership_verified" | "stats_verified" | "rejected";
+export type VerificationStatus = "unverified" | "pending" | "verified" | "rejected" | "pending_ownership" | "ownership_verified" | "stats_verified";
 export type BrandVerificationStatus = "unverified" | "pending" | "verified" | "rejected";
+export type CreatorVerificationPlatform = "youtube" | "instagram" | "twitch" | "other";
 
 export type CreatorCardData = {
   id: string;
@@ -18,6 +19,9 @@ export type CreatorCardData = {
   claimedSubscribers?: number;
   verifiedSubscribers?: number;
   verificationStatus: VerificationStatus;
+  verificationCode?: string;
+  verificationPlatform?: CreatorVerificationPlatform;
+  verificationProfileUrl?: string;
   avgViews?: number;
   instagramFollowers?: number;
   sponsorshipRate?: number;
@@ -41,6 +45,9 @@ export type CreatorVerificationData = {
   verifiedSubscribers?: number;
   verificationStatus: VerificationStatus;
   verificationCode?: string;
+  verificationPlatform?: CreatorVerificationPlatform;
+  verificationProfileUrl?: string;
+  verificationSubmittedNote?: string;
   verificationNote?: string;
   verificationRejectedReason?: string;
   verificationSubmittedAt?: string;
@@ -56,12 +63,14 @@ export type BrandProfileData = {
   companyName: string;
   contactName: string;
   contactRole?: string;
+  contactEmail?: string;
   website?: string;
   industry: string;
   companySize?: string;
   country?: string;
   verificationStatus: BrandVerificationStatus;
   verificationNote?: string;
+  companyRegistrationText?: string;
   createdAt?: string;
 };
 
@@ -76,6 +85,16 @@ export type BrandVerificationData = BrandProfileData & {
   rejectionReason?: string;
 };
 
+export type OfferHistoryEntryData = {
+  id?: string;
+  actor: "brand" | "creator";
+  action: "offer_sent" | "counter_requested" | "counter_sent" | "offer_accepted" | "offer_declined";
+  amount?: number;
+  currency: "INR";
+  note?: string;
+  createdAt?: string;
+};
+
 export type BrandInquiryData = {
   id: string;
   companyName: string;
@@ -87,6 +106,11 @@ export type BrandInquiryData = {
   targetNiches: string[];
   targetPlatforms: string[];
   budgetRange: string;
+  initialOfferAmount?: number;
+  currentOfferAmount?: number;
+  currency: "INR";
+  isNegotiable: boolean;
+  offerHistory: OfferHistoryEntryData[];
   timeline: string;
   message?: string;
   creatorUsername?: string;
@@ -95,6 +119,11 @@ export type BrandInquiryData = {
   status:
     | "new"
     | "viewed"
+    | "offer_sent"
+    | "counter_requested"
+    | "counter_sent"
+    | "offer_accepted"
+    | "offer_declined"
     | "interested"
     | "work_started"
     | "proof_submitted"
@@ -124,6 +153,7 @@ export type InAppNotificationData = {
   title: string;
   message: string;
   href: string;
-  readAt?: string;
+  isRead: boolean;
+  readAt: string | null;
   createdAt?: string;
 };

@@ -18,8 +18,10 @@ export default async function NotificationsPage() {
   const clerkUserId = await getCurrentClerkUserId();
   const user = await getCurrentAppUser();
   if (!clerkUserId) redirect("/sign-in");
-  if (!user || !user.onboardingComplete) redirect("/onboarding");
-  if (user.role !== "brand" && user.role !== "creator") redirect("/onboarding");
+  if (!user || !user.onboardingComplete) {
+    redirect(user?.role === "brand" ? "/onboarding?role=brand" : user?.role === "creator" ? "/onboarding?role=creator" : "/onboarding");
+  }
+  if (user.role !== "brand" && user.role !== "creator") redirect("/dashboard");
 
   const notifications = await getCurrentUserNotifications(100);
   const dashboardHref = user.role === "brand" ? "/dashboard/brand" : "/dashboard/creator";

@@ -63,8 +63,22 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Creator profile not found." }, { status: 404 });
     }
 
+    const now = new Date();
     const inquiryPayload: Record<string, unknown> = {
       ...parsed.data,
+      currency: "INR",
+      currentOfferAmount: parsed.data.initialOfferAmount,
+      status: "offer_sent",
+      offerHistory: [
+        {
+          actor: "brand",
+          action: "offer_sent",
+          amount: parsed.data.initialOfferAmount,
+          currency: "INR",
+          note: "Initial offer",
+          createdAt: now,
+        },
+      ],
       createdByClerkId: clerkId,
       source: parsed.data.creatorUsername ? "creator_profile" : "general_form",
     };

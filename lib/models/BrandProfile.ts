@@ -14,6 +14,7 @@ export interface IBrandProfile extends Document {
   companySize?: string;
   country?: string;
   notes?: string;
+  companyRegistrationText?: string;
   verificationStatus: BrandVerificationStatus;
   companyDomain?: string;
   normalizedWebsiteDomain?: string;
@@ -40,6 +41,7 @@ const BrandProfileSchema = new Schema<IBrandProfile>(
     companySize: { type: String, trim: true, maxlength: 80, default: "" },
     country: { type: String, trim: true, maxlength: 80, default: "" },
     notes: { type: String, trim: true, maxlength: 500, default: "" },
+    companyRegistrationText: { type: String, trim: true, maxlength: 500, default: "" },
     verificationStatus: {
       type: String,
       enum: ["unverified", "pending", "verified", "rejected"],

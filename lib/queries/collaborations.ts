@@ -1,4 +1,5 @@
 import { auth } from "@clerk/nextjs/server";
+import mongoose from "mongoose";
 
 import { normalizeCollaborationStatus, type BrandInquiryStatus, type CollaborationStatus } from "@/lib/collaborations";
 import { connectDB, hasMongoUri } from "@/lib/db";
@@ -7,10 +8,24 @@ import { BrandProfile } from "@/lib/models/BrandProfile";
 import { CreatorProfile } from "@/lib/models/CreatorProfile";
 import { User } from "@/lib/models/User";
 import { hasClerkKeys } from "@/lib/clerk-config";
-import { type BrandInquiryData } from "@/lib/types";
+import { type BrandInquiryData, type BrandVerificationStatus, type VerificationStatus } from "@/lib/types";
+
+type OfferHistoryDocument = {
+  _id?: { toString(): string };
+  actor?: "brand" | "creator";
+  action?: "offer_sent" | "counter_requested" | "counter_sent" | "offer_accepted" | "offer_declined";
+  amount?: number;
+  currency?: "INR";
+  note?: string;
+  createdAt?: Date | null;
+};
 
 type CollaborationDocument = {
   _id: { toString(): string };
+  brandUserId?: { toString(): string } | null;
+  brandProfileId?: { toString(): string } | null;
+  creatorUserId?: { toString(): string } | null;
+  creatorProfileId?: { toString(): string } | null;
   companyName: string;
   contactName: string;
   email: string;
@@ -20,9 +35,15 @@ type CollaborationDocument = {
   targetNiches?: string[];
   targetPlatforms?: string[];
   budgetRange: string;
+  initialOfferAmount?: number;
+  currentOfferAmount?: number;
+  currency?: "INR";
+  isNegotiable?: boolean;
+  offerHistory?: OfferHistoryDocument[];
   timeline: string;
   message?: string;
   creatorUsername?: string;
+  createdByClerkId?: string;
   creatorResponseAt?: Date | null;
   creatorResponseNote?: string;
   status: BrandInquiryStatus;
@@ -42,6 +63,12 @@ type CollaborationDocument = {
   createdAt?: Date;
 };
 
+export type CollaborationDetailsData = BrandInquiryData & {
+  brandVerificationStatus: BrandVerificationStatus;
+  brandVerificationNote?: string;
+  creatorVerificationStatus: VerificationStatus;
+};
+
 type DashboardUser = {
   id: string;
   username: string;
@@ -54,7 +81,46 @@ export type CollaborationDashboardData = {
   collaborations: BrandInquiryData[];
 };
 
+export type CollaborationHistorySummaryData = {
+  active: number;
+  completed: number;
+  declined: number;
+};
+
+const ACTIVE_HISTORY_QUERY_STATUSES: BrandInquiryStatus[] = [
+  "offer_sent",
+  "counter_requested",
+  "counter_sent",
+  "offer_accepted",
+  "work_started",
+  "proof_submitted",
+  "changes_requested",
+  "approved",
+  "new",
+  "viewed",
+  "interested",
+  "reviewed",
+  "contacted",
+  "sent_to_creator",
+  "creator_interested",
+  "contact_shared",
+];
+
+const COMPLETED_HISTORY_QUERY_STATUSES: BrandInquiryStatus[] = ["completed", "closed"];
+const DECLINED_HISTORY_QUERY_STATUSES: BrandInquiryStatus[] = ["offer_declined", "creator_declined", "rejected"];
+
 function mapCollaboration(doc: CollaborationDocument): BrandInquiryData {
+  const offerHistory = (doc.offerHistory ?? []).map((entry) => ({
+    id: entry._id?.toString(),
+    actor: entry.actor ?? "brand",
+    action: entry.action ?? "offer_sent",
+    amount: entry.amount && entry.amount > 0 ? entry.amount : undefined,
+    currency: entry.currency ?? "INR",
+    note: entry.note,
+    createdAt: entry.createdAt?.toISOString(),
+  }));
+  const latestOfferAmount = [...offerHistory].reverse().find((entry) => entry.amount)?.amount;
+
   return {
     id: doc._id.toString(),
     companyName: doc.companyName,
@@ -66,6 +132,11 @@ function mapCollaboration(doc: CollaborationDocument): BrandInquiryData {
     targetNiches: doc.targetNiches ?? [],
     targetPlatforms: doc.targetPlatforms ?? [],
     budgetRange: doc.budgetRange,
+    initialOfferAmount: doc.initialOfferAmount && doc.initialOfferAmount > 0 ? doc.initialOfferAmount : undefined,
+    currentOfferAmount: doc.currentOfferAmount && doc.currentOfferAmount > 0 ? doc.currentOfferAmount : latestOfferAmount,
+    currency: doc.currency ?? "INR",
+    isNegotiable: doc.isNegotiable ?? true,
+    offerHistory,
     timeline: doc.timeline,
     message: doc.message,
     creatorUsername: doc.creatorUsername,
@@ -89,6 +160,49 @@ function mapCollaboration(doc: CollaborationDocument): BrandInquiryData {
       : undefined,
     createdAt: doc.createdAt?.toISOString(),
   };
+}
+
+function idsMatch(value: unknown, id: unknown) {
+  return Boolean(value && id && value.toString() === id.toString());
+}
+
+async function getBrandVerificationStatus(collaboration: CollaborationDocument): Promise<{
+  brandVerificationStatus: BrandVerificationStatus;
+  brandVerificationNote?: string;
+}> {
+  const profile = collaboration.brandProfileId
+    ? await BrandProfile.findById(collaboration.brandProfileId).select("verificationStatus verificationNote").exec()
+    : await BrandProfile.findOne({ contactEmail: collaboration.email }).select("verificationStatus verificationNote").exec();
+
+  if (profile) {
+    return {
+      brandVerificationStatus: profile.verificationStatus ?? "unverified",
+      brandVerificationNote: profile.verificationNote,
+    };
+  }
+
+  if (collaboration.brandUserId) {
+    const brandUser = await User.findById(collaboration.brandUserId).select("isVerified").exec();
+    if (brandUser?.isVerified) return { brandVerificationStatus: "verified" };
+  }
+
+  return { brandVerificationStatus: "unverified" };
+}
+
+async function getCreatorVerificationStatus(collaboration: CollaborationDocument): Promise<VerificationStatus> {
+  const profile = collaboration.creatorProfileId
+    ? await CreatorProfile.findById(collaboration.creatorProfileId).select("verificationStatus").exec()
+    : collaboration.creatorUsername
+      ? await User.findOne({ username: collaboration.creatorUsername, role: "creator" })
+          .select("_id isVerified")
+          .exec()
+          .then(async (user) => {
+            if (!user) return null;
+            return CreatorProfile.findOne({ userId: user._id }).select("verificationStatus").exec();
+          })
+      : null;
+
+  return (profile?.verificationStatus as VerificationStatus | undefined) ?? "unverified";
 }
 
 async function getCurrentUserRecord() {
@@ -146,6 +260,67 @@ export async function getBrandCollaborationDashboard(): Promise<CollaborationDas
       role: user.role,
     },
     collaborations: docs.map((doc) => mapCollaboration(doc as unknown as CollaborationDocument)),
+  };
+}
+
+export async function getCreatorCollaborationHistorySummary(username: string): Promise<CollaborationHistorySummaryData> {
+  const creatorUsername = username.trim().toLowerCase();
+  if (!hasMongoUri() || !creatorUsername) return { active: 0, completed: 0, declined: 0 };
+
+  let active = 0;
+  let completed = 0;
+  let declined = 0;
+
+  try {
+    await connectDB();
+    const baseFilter = { creatorUsername };
+    [active, completed, declined] = await Promise.all([
+      BrandInquiry.countDocuments({ ...baseFilter, status: { $in: ACTIVE_HISTORY_QUERY_STATUSES } }).exec(),
+      BrandInquiry.countDocuments({ ...baseFilter, status: { $in: COMPLETED_HISTORY_QUERY_STATUSES } }).exec(),
+      BrandInquiry.countDocuments({ ...baseFilter, status: { $in: DECLINED_HISTORY_QUERY_STATUSES } }).exec(),
+    ]);
+  } catch (error) {
+    console.warn("Creator collaboration history unavailable; using public fallback counts.", error);
+  }
+
+  return { active, completed, declined };
+}
+
+export async function getCurrentUserCollaborationDetails(id: string): Promise<CollaborationDetailsData | null> {
+  if (!mongoose.Types.ObjectId.isValid(id)) return null;
+
+  const user = await getCurrentUserRecord();
+  if (!user) return null;
+
+  const collaboration = await BrandInquiry.findById(id).exec();
+  if (!collaboration) return null;
+
+  const doc = collaboration as unknown as CollaborationDocument;
+  let canView = false;
+
+  if (user.role === "creator") {
+    const creatorProfile = await CreatorProfile.findOne({ userId: user._id }).select("_id").exec();
+    canView =
+      doc.creatorUsername === user.username ||
+      idsMatch(doc.creatorUserId, user._id) ||
+      idsMatch(doc.creatorProfileId, creatorProfile?._id);
+  }
+
+  if (user.role === "brand") {
+    const brandProfile = await BrandProfile.findOne({ userId: user._id }).select("_id contactEmail").exec();
+    canView =
+      doc.createdByClerkId === user.clerkId ||
+      idsMatch(doc.brandUserId, user._id) ||
+      idsMatch(doc.brandProfileId, brandProfile?._id) ||
+      (brandProfile?.contactEmail ? doc.email === brandProfile.contactEmail : false);
+  }
+
+  if (!canView) return null;
+
+  return {
+    ...mapCollaboration(doc),
+    ...(await getBrandVerificationStatus(doc)),
+    creatorVerificationStatus: await getCreatorVerificationStatus(doc),
   };
 }
 

@@ -47,16 +47,12 @@ export async function PATCH(req: Request) {
       verificationReviewedAt: now,
       verificationReviewedByAdminId: admin.userId ?? "",
       verificationRejectedReason: "",
-      lastVerifiedAt: now,
     };
 
-    if (parsed.data.action === "approve_ownership") {
-      update.verificationStatus = "ownership_verified";
-    }
-
-    if (parsed.data.action === "approve_stats") {
-      update.verificationStatus = "stats_verified";
+    if (parsed.data.action === "approve" || parsed.data.action === "approve_ownership" || parsed.data.action === "approve_stats") {
+      update.verificationStatus = "verified";
       update.verifiedSubscribers = parsed.data.verifiedSubscribers ?? claimedSubscribers;
+      update.lastVerifiedAt = now;
     }
 
     if (parsed.data.action === "reject") {
@@ -66,9 +62,8 @@ export async function PATCH(req: Request) {
 
     await CreatorProfile.updateOne({ _id: profile._id }, { $set: update });
 
-    if (parsed.data.action === "approve_stats" || parsed.data.action === "reject") {
-      await User.updateOne({ _id: user._id }, { $set: { isVerified: parsed.data.action === "approve_stats" } });
-    }
+    const isApproved = parsed.data.action === "approve" || parsed.data.action === "approve_ownership" || parsed.data.action === "approve_stats";
+    await User.updateOne({ _id: user._id }, { $set: { isVerified: isApproved } });
 
     if (parsed.data.action === "reject") {
       await notificationService.notifyVerificationRejected({ user, accountType: "creator", note: verificationNote });
@@ -77,7 +72,7 @@ export async function PATCH(req: Request) {
         user,
         accountType: "creator",
         note: verificationNote,
-        statusLabel: parsed.data.action === "approve_stats" ? "Creator profile verified" : "Ownership check approved",
+        statusLabel: "Verified Creator",
       });
     }
 

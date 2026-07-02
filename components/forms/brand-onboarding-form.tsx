@@ -1,9 +1,8 @@
 "use client";
 
 import { type FormEvent, useState } from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Building2, Check, Loader2 } from "lucide-react";
+import { Building2, Loader2 } from "lucide-react";
 
 type BrandOnboardingFormProps = {
   initialContactName: string;
@@ -19,6 +18,7 @@ type FormState = {
   industry: string;
   companySize: string;
   country: string;
+  companyRegistrationText: string;
   notes: string;
 };
 
@@ -28,8 +28,6 @@ export function BrandOnboardingForm({ initialContactName, initialEmail }: BrandO
   const router = useRouter();
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState("");
-  const [savedCompany, setSavedCompany] = useState("");
-  const [savedUsername, setSavedUsername] = useState("");
   const [form, setForm] = useState<FormState>({
     companyName: "",
     contactName: initialContactName,
@@ -39,6 +37,7 @@ export function BrandOnboardingForm({ initialContactName, initialEmail }: BrandO
     industry: "",
     companySize: COMPANY_SIZES[1],
     country: "India",
+    companyRegistrationText: "",
     notes: "",
   });
 
@@ -58,45 +57,20 @@ export function BrandOnboardingForm({ initialContactName, initialEmail }: BrandO
         body: JSON.stringify(form),
       });
 
-      const result = (await response.json().catch(() => ({}))) as { error?: string; companyName?: string; username?: string };
+      const result = (await response.json().catch(() => ({}))) as { error?: string };
 
       if (!response.ok) {
         setError(result.error ?? "Could not save your brand profile.");
         return;
       }
 
-      setSavedCompany(result.companyName ?? form.companyName);
-      setSavedUsername(result.username ?? "");
+      router.replace("/dashboard/brand");
       router.refresh();
     } catch {
       setError("Could not reach the server. Please try again.");
     } finally {
       setIsSaving(false);
     }
-  }
-
-  if (savedCompany) {
-    return (
-      <div className="bridge-card p-6 text-center">
-        <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full border border-emerald-800 bg-emerald-950 text-emerald-200">
-          <Check size={24} />
-        </div>
-        <h2 className="mt-5 font-display text-2xl font-bold">Brand profile saved</h2>
-        <p className="mx-auto mt-3 max-w-xl text-sm leading-6 text-[var(--text-secondary)]">
-          {savedCompany} is ready in CreatorBridge. You can browse creators whenever you are ready.
-        </p>
-        <div className="mt-6 flex flex-col justify-center gap-3 sm:flex-row">
-          {savedUsername ? (
-            <Link href={`/brands/${savedUsername}`} className="bridge-button-secondary w-full sm:w-auto">
-              View Brand Profile
-            </Link>
-          ) : null}
-          <Link href="/creators" className="bridge-button-primary w-full sm:w-auto">
-            Browse Creators
-          </Link>
-        </div>
-      </div>
-    );
   }
 
   return (
@@ -136,6 +110,15 @@ export function BrandOnboardingForm({ initialContactName, initialEmail }: BrandO
           <label className="lg:col-span-2">
             <span className="bridge-label">Country</span>
             <input value={form.country} onChange={(event) => setField("country", event.target.value)} className="bridge-input mt-2" required />
+          </label>
+          <label className="lg:col-span-2">
+            <span className="bridge-label">GST, CIN, or company registration text</span>
+            <textarea
+              value={form.companyRegistrationText}
+              onChange={(event) => setField("companyRegistrationText", event.target.value)}
+              className="bridge-input mt-2 min-h-24"
+              placeholder="Optional text only. Do not upload documents."
+            />
           </label>
         </div>
       </section>

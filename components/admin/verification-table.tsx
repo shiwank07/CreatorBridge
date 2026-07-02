@@ -2,28 +2,21 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { BadgeCheck, ExternalLink, Loader2, ShieldCheck, XCircle } from "lucide-react";
+import { BadgeCheck, ExternalLink, Loader2, XCircle } from "lucide-react";
 
 import { Badge } from "@/components/shared/badge";
 import { formatNumber } from "@/lib/format";
 import { type CreatorVerificationData } from "@/lib/types";
+import { normalizeCreatorVerificationStatus, verificationBadgeLabel } from "@/lib/verification";
 
 type VerificationTableProps = {
   creators: CreatorVerificationData[];
 };
 
-type VerificationAction = "approve_ownership" | "approve_stats" | "reject";
+type VerificationAction = "approve" | "reject";
 
 function statusLabel(status: CreatorVerificationData["verificationStatus"]) {
-  const labels = {
-    unverified: "Unverified",
-    pending_ownership: "Pending ownership",
-    ownership_verified: "Ownership verified",
-    stats_verified: "Stats verified",
-    rejected: "Rejected",
-  };
-
-  return labels[status];
+  return verificationBadgeLabel(status);
 }
 
 export function VerificationTable({ creators }: VerificationTableProps) {
@@ -57,9 +50,7 @@ export function VerificationTable({ creators }: VerificationTableProps) {
       note: notes[creator.username] ?? "",
     };
 
-    if (action === "approve_stats") {
-      body.verifiedSubscribers = Number(verifiedCounts[creator.username] || creator.claimedSubscribers || 0);
-    }
+    if (action === "approve") body.verifiedSubscribers = Number(verifiedCounts[creator.username] || creator.claimedSubscribers || 0);
 
     try {
       const response = await fetch("/api/admin/verifications", {
@@ -71,21 +62,6 @@ export function VerificationTable({ creators }: VerificationTableProps) {
 
       if (!response.ok) {
         setError(result.error ?? "Could not update verification.");
-        return;
-      }
-
-      if (action === "approve_ownership") {
-        setRows((current) =>
-          current.map((row) =>
-            row.username === creator.username
-              ? {
-                  ...row,
-                  verificationStatus: "ownership_verified",
-                  verificationNote: notes[creator.username] ?? "",
-                }
-              : row,
-          ),
-        );
         return;
       }
 
@@ -105,7 +81,7 @@ export function VerificationTable({ creators }: VerificationTableProps) {
           <thead className="border-b border-[var(--border)] text-xs uppercase text-[var(--text-secondary)]">
             <tr>
               <th className="px-4 py-3">Creator</th>
-              <th className="px-4 py-3">Channel</th>
+              <th className="px-4 py-3">Submitted Profile</th>
               <th className="px-4 py-3">Claimed</th>
               <th className="px-4 py-3">Verification</th>
               <th className="px-4 py-3">Note</th>
@@ -120,16 +96,19 @@ export function VerificationTable({ creators }: VerificationTableProps) {
                   <p className="text-xs text-[var(--text-secondary)]">@{creator.username}</p>
                 </td>
                 <td className="px-4 py-4">
-                  {creator.youtubeUrl ? (
+                  {creator.verificationProfileUrl || creator.youtubeUrl ? (
                     <Link
-                      href={creator.youtubeUrl}
+                      href={creator.verificationProfileUrl || creator.youtubeUrl || ""}
                       target="_blank"
                       rel="noreferrer"
                       className="focus-ring inline-flex max-w-[220px] items-center gap-2 rounded-[8px] border border-[var(--border)] px-3 py-2 text-xs font-semibold text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
                     >
-                      <span className="truncate">{creator.youtubeHandle || creator.youtubeUrl}</span>
+                      <span className="truncate">{creator.verificationPlatform || creator.youtubeHandle || creator.verificationProfileUrl || creator.youtubeUrl}</span>
                       <ExternalLink size={14} />
                     </Link>
+                  ) : null}
+                  {creator.verificationSubmittedNote ? (
+                    <p className="mt-3 max-w-xs text-xs leading-5 text-[var(--text-secondary)]">{creator.verificationSubmittedNote}</p>
                   ) : null}
                 </td>
                 <td className="px-4 py-4">
@@ -140,7 +119,7 @@ export function VerificationTable({ creators }: VerificationTableProps) {
                 </td>
                 <td className="px-4 py-4">
                   <div className="space-y-3">
-                    <Badge tone={creator.verificationStatus === "ownership_verified" ? "green" : creator.verificationStatus === "pending_ownership" ? "yellow" : "neutral"}>
+                    <Badge tone={normalizeCreatorVerificationStatus(creator.verificationStatus) === "pending" ? "yellow" : "neutral"}>
                       {statusLabel(creator.verificationStatus)}
                     </Badge>
                     <div>
@@ -175,19 +154,11 @@ export function VerificationTable({ creators }: VerificationTableProps) {
                   <div className="flex flex-col gap-2">
                     <button
                       type="button"
-                      onClick={() => updateVerification(creator, "approve_ownership")}
-                      className="focus-ring inline-flex items-center justify-center gap-2 rounded-[8px] border border-emerald-800 px-3 py-2 text-xs font-semibold text-emerald-200"
-                    >
-                      {savingKey === `${creator.username}:approve_ownership` ? <Loader2 size={14} className="animate-spin" /> : <ShieldCheck size={14} />}
-                      Approve Ownership
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => updateVerification(creator, "approve_stats")}
+                      onClick={() => updateVerification(creator, "approve")}
                       className="focus-ring inline-flex items-center justify-center gap-2 rounded-[8px] bg-[var(--accent)] px-3 py-2 text-xs font-semibold text-white"
                     >
-                      {savingKey === `${creator.username}:approve_stats` ? <Loader2 size={14} className="animate-spin" /> : <BadgeCheck size={14} />}
-                      Approve Stats
+                      {savingKey === `${creator.username}:approve` ? <Loader2 size={14} className="animate-spin" /> : <BadgeCheck size={14} />}
+                      Approve Creator
                     </button>
                     <button
                       type="button"

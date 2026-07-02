@@ -1,4 +1,4 @@
-const DEFAULT_AUTH_REDIRECT = "/onboarding?role=creator";
+const DEFAULT_AUTH_REDIRECT = "/onboarding";
 
 function readParam(value: string | string[] | undefined) {
   return Array.isArray(value) ? value[0] : value;

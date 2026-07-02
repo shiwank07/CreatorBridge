@@ -11,7 +11,7 @@ export default async function SignInPage({ searchParams }: { searchParams: AuthS
 
   const params = await searchParams;
   const requestedRedirect = getRedirectParam(params);
-  const redirectUrl = safeInternalRedirect(requestedRedirect, "/onboarding?role=creator");
+  const redirectUrl = safeInternalRedirect(requestedRedirect, "/onboarding");
 
   return (
     <main className="flex min-h-screen items-center justify-center px-4 py-12">

@@ -58,34 +58,91 @@ export async function POST(req: Request, { params }: RouteContext) {
     }
 
     const currentStatus = normalizeCollaborationStatus(collaboration.status);
-    if (!["new", "viewed"].includes(currentStatus)) {
-      return NextResponse.json({ error: "This collaboration request has already been responded to." }, { status: 400 });
+    if (!["offer_sent", "counter_sent", "new", "viewed"].includes(currentStatus)) {
+      return NextResponse.json({ error: "This collaboration offer is not waiting for a creator response." }, { status: 400 });
     }
 
     const now = new Date();
-    const note = parsed.data.note || (parsed.data.action === "interested" ? "Interested" : "Declined by creator");
+    const action =
+      parsed.data.action === "interested" ? "accept_offer" : parsed.data.action === "decline" ? "decline_offer" : parsed.data.action;
+    const currentOfferAmount = collaboration.currentOfferAmount || collaboration.initialOfferAmount || 0;
+    collaboration.offerHistory = collaboration.offerHistory ?? [];
 
-    if (parsed.data.action === "interested") {
+    if (action === "accept_offer") {
+      const note = parsed.data.note || "Offer accepted by creator.";
       collaboration.set({
-        status: "interested",
+        status: "offer_accepted",
         creatorResponseAt: now,
         creatorResponseNote: note,
       });
-    } else {
+      collaboration.offerHistory.push({
+        actor: "creator",
+        action: "offer_accepted",
+        amount: currentOfferAmount,
+        currency: "INR",
+        note,
+        createdAt: now,
+      });
+    }
+
+    if (action === "decline_offer") {
+      const note = parsed.data.note || "Offer declined by creator.";
       collaboration.set({
-        status: "closed",
+        status: "offer_declined",
         creatorResponseAt: now,
         creatorResponseNote: note,
         closedAt: now,
+      });
+      collaboration.offerHistory.push({
+        actor: "creator",
+        action: "offer_declined",
+        amount: currentOfferAmount,
+        currency: "INR",
+        note,
+        createdAt: now,
+      });
+    }
+
+    if (action === "request_revision") {
+      if (!collaboration.isNegotiable) {
+        return NextResponse.json({ error: "This offer was marked as non-negotiable by the brand." }, { status: 400 });
+      }
+
+      const note = parsed.data.counterOfferNote;
+      const amount = parsed.data.counterOfferAmount ?? 0;
+      collaboration.set({
+        status: "counter_requested",
+        currentOfferAmount: amount,
+        creatorResponseAt: now,
+        creatorResponseNote: note,
+      });
+      collaboration.offerHistory.push({
+        actor: "creator",
+        action: "counter_requested",
+        amount,
+        currency: "INR",
+        note,
+        createdAt: now,
       });
     }
 
     await collaboration.save();
 
-    if (parsed.data.action === "interested") {
-      await notificationService.notifyCreatorAccepted({ collaboration, creatorUser: creatorUserForNotification, note });
-    } else {
-      await notificationService.notifyCreatorDeclined({ collaboration, creatorUser: creatorUserForNotification, note });
+    if (action === "accept_offer") {
+      await notificationService.notifyCreatorAccepted({ collaboration, creatorUser: creatorUserForNotification, note: parsed.data.note });
+    }
+
+    if (action === "decline_offer") {
+      await notificationService.notifyCreatorDeclined({ collaboration, creatorUser: creatorUserForNotification, note: parsed.data.note });
+    }
+
+    if (action === "request_revision") {
+      await notificationService.notifyCreatorCounterRequested({
+        collaboration,
+        creatorUser: creatorUserForNotification,
+        amount: parsed.data.counterOfferAmount,
+        note: parsed.data.counterOfferNote,
+      });
     }
 
     return NextResponse.json({ ok: true, status: collaboration.status });

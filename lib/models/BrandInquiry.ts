@@ -2,6 +2,8 @@ import mongoose, { type Document, type Model, Schema } from "mongoose";
 
 import { BRAND_INQUIRY_STATUS_VALUES, type BrandInquiryStatus } from "@/lib/collaborations";
 
+type OfferHistoryAction = "offer_sent" | "counter_requested" | "counter_sent" | "offer_accepted" | "offer_declined";
+
 export interface IBrandInquiry extends Document {
   brandUserId?: mongoose.Types.ObjectId;
   brandProfileId?: mongoose.Types.ObjectId;
@@ -16,6 +18,19 @@ export interface IBrandInquiry extends Document {
   targetNiches: string[];
   targetPlatforms: string[];
   budgetRange: string;
+  initialOfferAmount?: number;
+  currentOfferAmount?: number;
+  currency: "INR";
+  isNegotiable: boolean;
+  offerHistory: {
+    _id?: mongoose.Types.ObjectId;
+    actor: "brand" | "creator";
+    action: OfferHistoryAction;
+    amount?: number;
+    currency: "INR";
+    note?: string;
+    createdAt?: Date | null;
+  }[];
   timeline: string;
   message?: string;
   creatorUsername?: string;
@@ -48,6 +63,22 @@ export interface IBrandInquiry extends Document {
   updatedAt: Date;
 }
 
+const OfferHistorySchema = new Schema(
+  {
+    actor: { type: String, enum: ["brand", "creator"], required: true },
+    action: {
+      type: String,
+      enum: ["offer_sent", "counter_requested", "counter_sent", "offer_accepted", "offer_declined"],
+      required: true,
+    },
+    amount: { type: Number, min: 0, default: 0 },
+    currency: { type: String, enum: ["INR"], default: "INR" },
+    note: { type: String, trim: true, maxlength: 1000, default: "" },
+    createdAt: { type: Date, default: Date.now },
+  },
+  { _id: true },
+);
+
 const BrandInquirySchema = new Schema<IBrandInquiry>(
   {
     brandUserId: { type: Schema.Types.ObjectId, ref: "User", default: null, index: true },
@@ -63,6 +94,11 @@ const BrandInquirySchema = new Schema<IBrandInquiry>(
     targetNiches: [{ type: String }],
     targetPlatforms: [{ type: String }],
     budgetRange: { type: String, required: true },
+    initialOfferAmount: { type: Number, min: 0, default: 0 },
+    currentOfferAmount: { type: Number, min: 0, default: 0 },
+    currency: { type: String, enum: ["INR"], default: "INR" },
+    isNegotiable: { type: Boolean, default: true },
+    offerHistory: { type: [OfferHistorySchema], default: [] },
     timeline: { type: String, required: true },
     message: { type: String, default: "", maxlength: 1500 },
     creatorUsername: { type: String, default: "" },

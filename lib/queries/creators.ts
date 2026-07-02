@@ -4,7 +4,7 @@ import { CreatorProfile } from "@/lib/models/CreatorProfile";
 import { type IUser, User } from "@/lib/models/User";
 import { formatNumber } from "@/lib/format";
 import { type CreatorCardData, type VerificationStatus } from "@/lib/types";
-import { getPublicSubscriberCount } from "@/lib/verification";
+import { getPublicSubscriberCount, isCreatorVerifiedStatus } from "@/lib/verification";
 import { generateUsername } from "@/lib/slug";
 
 export type CreatorFilters = {
@@ -31,6 +31,9 @@ type CreatorDocumentWithUser = {
   claimedSubscribers?: number;
   verifiedSubscribers?: number;
   verificationStatus?: VerificationStatus;
+  verificationCode?: string;
+  verificationPlatform?: "youtube" | "instagram" | "twitch" | "other";
+  verificationProfileUrl?: string;
   avgViews?: number;
   instagramFollowers?: number;
   sponsorshipRate?: number;
@@ -60,7 +63,7 @@ export const demoCreators: CreatorCardData[] = [
     subscribers: 680000,
     claimedSubscribers: 680000,
     verifiedSubscribers: 680000,
-    verificationStatus: "stats_verified",
+    verificationStatus: "verified",
     avgViews: 145000,
     instagramFollowers: 94000,
     sponsorshipRate: 85000,
@@ -84,7 +87,7 @@ export const demoCreators: CreatorCardData[] = [
     subscribers: 1200000,
     claimedSubscribers: 1200000,
     verifiedSubscribers: 1200000,
-    verificationStatus: "stats_verified",
+    verificationStatus: "verified",
     avgViews: 260000,
     sponsorshipRate: 140000,
     rateType: "per_campaign",
@@ -133,7 +136,7 @@ export const demoCreators: CreatorCardData[] = [
     subscribers: 190000,
     claimedSubscribers: 190000,
     verifiedSubscribers: 190000,
-    verificationStatus: "stats_verified",
+    verificationStatus: "verified",
     avgViews: 51000,
     instagramFollowers: 320000,
     sponsorshipRate: 52000,
@@ -182,7 +185,7 @@ export const demoCreators: CreatorCardData[] = [
     subscribers: 260000,
     claimedSubscribers: 260000,
     verifiedSubscribers: 260000,
-    verificationStatus: "stats_verified",
+    verificationStatus: "verified",
     avgViews: 64000,
     instagramFollowers: 530000,
     sponsorshipRate: 72000,
@@ -197,9 +200,9 @@ export const demoCreators: CreatorCardData[] = [
 
 function mapCreator(doc: CreatorDocumentWithUser): CreatorCardData {
   const user = doc.userId;
-  const verificationStatus = doc.verificationStatus ?? (user.isVerified ? "stats_verified" : "unverified");
+  const verificationStatus = doc.verificationStatus ?? (user.isVerified ? "verified" : "unverified");
   const claimedSubscribers = doc.claimedSubscribers ?? doc.subscribers ?? 0;
-  const verifiedSubscribers = doc.verifiedSubscribers ?? (verificationStatus === "stats_verified" ? claimedSubscribers : 0);
+  const verifiedSubscribers = doc.verifiedSubscribers ?? (isCreatorVerifiedStatus(verificationStatus) ? claimedSubscribers : 0);
   const subscriberSnapshot = {
     verificationStatus,
     claimedSubscribers,
@@ -223,6 +226,9 @@ function mapCreator(doc: CreatorDocumentWithUser): CreatorCardData {
     claimedSubscribers,
     verifiedSubscribers,
     verificationStatus,
+    verificationCode: doc.verificationCode,
+    verificationPlatform: doc.verificationPlatform,
+    verificationProfileUrl: doc.verificationProfileUrl,
     avgViews: doc.avgViews,
     instagramFollowers: doc.instagramFollowers,
     sponsorshipRate: doc.sponsorshipRate,
@@ -231,7 +237,7 @@ function mapCreator(doc: CreatorDocumentWithUser): CreatorCardData {
     sampleWorkUrls: doc.sampleWorkUrls ?? [],
     isOpenToDeals: Boolean(doc.isOpenToDeals),
     isFeatured: Boolean(user.isFeatured),
-    isVerified: verificationStatus === "stats_verified",
+    isVerified: isCreatorVerifiedStatus(verificationStatus),
     createdAt: doc.createdAt?.toISOString(),
   };
 }

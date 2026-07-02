@@ -5,8 +5,10 @@ import { BadgeCheck, Building2, ExternalLink, MapPin } from "lucide-react";
 
 import { Badge } from "@/components/shared/badge";
 import { Navbar } from "@/components/shared/navbar";
+import { TrustPassportCard } from "@/components/verification/trust-passport-card";
 import { getCurrentAppUser } from "@/lib/current-user";
 import { getBrandByUsername } from "@/lib/queries/brands";
+import { verificationBadgeLabel } from "@/lib/verification";
 
 export const dynamic = "force-dynamic";
 
@@ -60,14 +62,10 @@ export default async function BrandProfilePage({ params }: { params: BrandProfil
               <div className="min-w-0">
                 <div className="flex flex-wrap items-center gap-3">
                   <h1 className="font-display text-3xl font-black leading-tight sm:text-4xl md:text-5xl">{brand.companyName}</h1>
-                  {isVerified ? (
-                    <Badge tone="green">
-                      <BadgeCheck size={13} />
-                      Verified brand
-                    </Badge>
-                  ) : (
-                    <Badge tone="neutral">Unverified brand</Badge>
-                  )}
+                  <Badge tone={isVerified ? "green" : brand.verificationStatus === "pending" ? "yellow" : "neutral"}>
+                    {isVerified ? <BadgeCheck size={13} /> : null}
+                    {verificationBadgeLabel(brand.verificationStatus, "brand")}
+                  </Badge>
                 </div>
                 <p className="mt-2 text-[var(--text-secondary)]">@{brand.username}</p>
                 <div className="mt-4 flex flex-wrap gap-2">
@@ -114,7 +112,7 @@ export default async function BrandProfilePage({ params }: { params: BrandProfil
               </div>
               <div className="bridge-panel p-3">
                 <p className="text-xs text-[var(--text-secondary)]">Trust status</p>
-                <p className="mt-1 font-semibold">{isVerified ? "Verified" : "Pending review"}</p>
+                <p className="mt-1 font-semibold">{verificationBadgeLabel(brand.verificationStatus, "brand")}</p>
               </div>
             </div>
             {brand.verificationNote ? (
@@ -146,10 +144,10 @@ export default async function BrandProfilePage({ params }: { params: BrandProfil
                 {isVerified ? (
                   <Badge tone="green">
                     <BadgeCheck size={13} />
-                    Verified brand
+                    {verificationBadgeLabel(brand.verificationStatus, "brand")}
                   </Badge>
                 ) : (
-                  <Badge tone="neutral">Verification pending or not submitted</Badge>
+                  <Badge tone={brand.verificationStatus === "pending" ? "yellow" : "neutral"}>{verificationBadgeLabel(brand.verificationStatus, "brand")}</Badge>
                 )}
               </div>
               {brand.website ? (
@@ -164,6 +162,13 @@ export default async function BrandProfilePage({ params }: { params: BrandProfil
                 </Link>
               ) : null}
             </div>
+            <TrustPassportCard
+              accountType="brand"
+              emailVerified={Boolean(brand.contactEmail)}
+              verificationStatus={brand.verificationStatus}
+              successfulCollaborations={0}
+              className="bridge-card p-5"
+            />
           </aside>
         </div>
       </main>

@@ -1,7 +1,6 @@
 "use client";
 
 import { type FormEvent, useMemo, useState } from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Check, Loader2, UserPlus } from "lucide-react";
 
@@ -41,8 +40,6 @@ export function CreatorOnboardingForm({ initialName, initialUsername, initialAva
   const router = useRouter();
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState("");
-  const [savedUsername, setSavedUsername] = useState("");
-  const [verificationCode, setVerificationCode] = useState("");
   const [form, setForm] = useState<FormState>({
     name: initialName,
     username: initialUsername,
@@ -121,46 +118,20 @@ export function CreatorOnboardingForm({ initialName, initialUsername, initialAva
         body: JSON.stringify(payload),
       });
 
-      const result = (await response.json().catch(() => ({}))) as { error?: string; username?: string; verificationCode?: string };
+      const result = (await response.json().catch(() => ({}))) as { error?: string };
 
       if (!response.ok) {
         setError(result.error ?? "Could not save your creator profile.");
         return;
       }
 
-      if (result.verificationCode) {
-        setSavedUsername(result.username ?? form.username);
-        setVerificationCode(result.verificationCode);
-        router.refresh();
-        return;
-      }
-
-      router.push(`/creators/${result.username ?? form.username}`);
+      router.replace("/dashboard/creator");
       router.refresh();
     } catch {
       setError("Could not reach the server. Please try again.");
     } finally {
       setIsSaving(false);
     }
-  }
-
-  if (savedUsername && verificationCode) {
-    return (
-      <div className="bridge-card p-6 text-center">
-        <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full border border-emerald-800 bg-emerald-950 text-emerald-200">
-          <Check size={24} />
-        </div>
-        <h2 className="mt-5 font-display text-2xl font-bold">Creator profile published</h2>
-        <p className="mt-4 text-sm font-semibold uppercase text-[var(--text-secondary)]">Verification code</p>
-        <p className="mt-2 font-mono text-3xl font-bold tracking-normal text-[var(--text-primary)]">{verificationCode}</p>
-        <p className="mx-auto mt-4 max-w-xl text-sm leading-6 text-[var(--text-secondary)]">
-          Add this code temporarily to your YouTube channel About section, then submit for review.
-        </p>
-        <Link href={`/creators/${savedUsername}`} className="bridge-button-primary mt-6 w-full sm:w-auto">
-          View Public Profile
-        </Link>
-      </div>
-    );
   }
 
   return (
@@ -189,8 +160,12 @@ export function CreatorOnboardingForm({ initialName, initialUsername, initialAva
             />
           </label>
           <label className="lg:col-span-2">
-            <span className="bridge-label">Profile photo URL</span>
-            <input value={form.avatar} onChange={(event) => setField("avatar", event.target.value)} className="bridge-input mt-2" placeholder="https://..." />
+            <span className="bridge-label">Profile photo image URL</span>
+            {/* TODO: Replace URL-only profile photos with Cloudflare R2 or UploadThing uploads. Do not store image files in MongoDB. */}
+            <input value={form.avatar} onChange={(event) => setField("avatar", event.target.value)} className="bridge-input mt-2" placeholder="https://example.com/photo.jpg" />
+            <span className="mt-2 block text-xs leading-5 text-[var(--text-secondary)]">
+              Paste a public image URL for now. Direct uploads are planned for a later release.
+            </span>
           </label>
           <label className="lg:col-span-2">
             <span className="bridge-label">Bio</span>

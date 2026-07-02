@@ -53,7 +53,7 @@ export async function PATCH(req: Request) {
         { userId: updated._id },
         {
           $set: {
-            verificationStatus: parsed.data.isVerified ? "stats_verified" : "unverified",
+            verificationStatus: parsed.data.isVerified ? "verified" : "unverified",
             verifiedSubscribers: parsed.data.isVerified ? claimedSubscribers : 0,
             lastVerifiedAt: parsed.data.isVerified ? new Date() : null,
           },

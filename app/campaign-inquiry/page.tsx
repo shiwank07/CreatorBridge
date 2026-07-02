@@ -30,7 +30,7 @@ export default async function CampaignInquiryPage({ searchParams }: { searchPara
   }
 
   if (clerkUserId && (!user || !user.onboardingComplete)) {
-    redirect("/onboarding?role=brand");
+    redirect(user?.role === "brand" ? "/onboarding?role=brand" : user?.role === "creator" ? "/onboarding?role=creator" : "/onboarding");
   }
 
   if (user?.role === "creator") {
@@ -38,7 +38,7 @@ export default async function CampaignInquiryPage({ searchParams }: { searchPara
   }
 
   if (user?.role && user.role !== "brand") {
-    redirect("/onboarding?role=brand");
+    redirect("/dashboard");
   }
 
   return (

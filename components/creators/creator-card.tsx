@@ -6,7 +6,7 @@ import { Badge } from "@/components/shared/badge";
 import { authHref } from "@/lib/auth-redirect";
 import { formatINR, formatNumber } from "@/lib/format";
 import { type CreatorCardData } from "@/lib/types";
-import { getPublicSubscriberCount, hasVerifiedStats } from "@/lib/verification";
+import { getPublicSubscriberCount, hasVerifiedStats, normalizeCreatorVerificationStatus, verificationBadgeLabel } from "@/lib/verification";
 
 type CreatorCardProps = {
   creator: CreatorCardData;
@@ -35,6 +35,7 @@ function coverClass(username: string) {
 
 export function CreatorCard({ creator, viewerRole }: CreatorCardProps) {
   const statsVerified = hasVerifiedStats(creator);
+  const normalizedVerification = normalizeCreatorVerificationStatus(creator.verificationStatus);
   const subscriberCount = getPublicSubscriberCount(creator);
   const platforms = [
     creator.youtubeUrl ? { label: "YouTube", icon: TvMinimalPlay } : null,
@@ -53,9 +54,9 @@ export function CreatorCard({ creator, viewerRole }: CreatorCardProps) {
               Featured
             </Badge>
           ) : null}
-          <Badge tone={statsVerified ? "green" : "neutral"} className="border-white/10 bg-black/25 text-white backdrop-blur-md">
+          <Badge tone={statsVerified ? "green" : normalizedVerification === "pending" ? "yellow" : "neutral"} className="border-white/10 bg-black/25 text-white backdrop-blur-md">
             {statsVerified ? <BadgeCheck size={12} /> : <Sparkles size={12} />}
-            {statsVerified ? "Verified" : "Unverified"}
+            {verificationBadgeLabel(creator.verificationStatus)}
           </Badge>
         </div>
         <div className="absolute bottom-4 right-4 flex gap-2">

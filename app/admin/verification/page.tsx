@@ -11,9 +11,9 @@ export default async function AdminVerificationPage() {
     <div>
       <div className="mb-8">
         <p className="text-sm font-semibold uppercase text-violet-300">Creator Verification</p>
-        <h1 className="mt-3 font-display text-4xl font-black">Review YouTube ownership and stats</h1>
+        <h1 className="mt-3 font-display text-4xl font-black">Review creator ownership</h1>
         <p className="mt-3 max-w-2xl text-sm leading-6 text-[var(--text-secondary)]">
-          Check the creator channel About section for the CreatorBridge code, compare claimed subscribers, then approve or reject.
+          Check the submitted platform bio or About section for the HALO verification code, then approve or reject the creator badge.
         </p>
       </div>
 
@@ -22,7 +22,7 @@ export default async function AdminVerificationPage() {
       ) : (
         <EmptyState
           title="No pending verifications"
-          description="Creators with a YouTube URL and an unverified or ownership-verified status will appear here."
+          description="Creators appear here after submitting a platform profile and HALO code for manual review."
           actionHref="/admin/creators"
           actionLabel="Open Creators"
         />

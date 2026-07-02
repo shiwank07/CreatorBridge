@@ -19,7 +19,6 @@ export default async function DashboardPage() {
   if (user?.role === "brand" && user.onboardingComplete) redirect("/dashboard/brand");
   if (user?.role === "creator" && user.onboardingComplete) redirect("/dashboard/creator");
   if (clerkUserId && (!user || !user.onboardingComplete)) redirect("/onboarding");
-  if (user) redirect("/onboarding");
 
   return (
     <>

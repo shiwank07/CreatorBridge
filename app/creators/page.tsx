@@ -179,7 +179,7 @@ export default async function CreatorsPage({ searchParams }: { searchParams: Cre
         <section className="bridge-section py-10 sm:py-12">
           <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
             {[
-              { label: "Verified Creators", value: String(verifiedCreators), detail: "approved stats and identity", icon: BadgeCheck, motionClass: "stat-delay-1" },
+              { label: "Verified Creators", value: String(verifiedCreators), detail: "approved platform ownership", icon: BadgeCheck, motionClass: "stat-delay-1" },
               { label: "Brands", value: `${brandSignal}+`, detail: "manual brand review flow", icon: Building2, motionClass: "stat-delay-2" },
               { label: "Collaborations", value: `${campaignSignal}+`, detail: "structured collaboration requests", icon: Rocket, motionClass: "stat-delay-3" },
               { label: "Success Rate", value: "94%", detail: "quality before automation", icon: Sparkles, motionClass: "stat-delay-4" },

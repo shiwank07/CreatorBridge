@@ -5,6 +5,7 @@ import { ArrowLeft, BadgeCheck, Crown, MapPin, Send } from "lucide-react";
 import { Badge } from "@/components/shared/badge";
 import { authHref } from "@/lib/auth-redirect";
 import { type CreatorCardData } from "@/lib/types";
+import { normalizeCreatorVerificationStatus, verificationBadgeLabel } from "@/lib/verification";
 
 type CreatorProfileHeaderProps = {
   creator: CreatorCardData;
@@ -14,6 +15,7 @@ type CreatorProfileHeaderProps = {
 
 export function CreatorProfileHeader({ creator, viewerRole, viewerUsername }: CreatorProfileHeaderProps) {
   const isOwner = viewerRole === "creator" && viewerUsername === creator.username;
+  const verificationStatus = normalizeCreatorVerificationStatus(creator.verificationStatus);
 
   return (
     <header className="surface-grid border-b border-[var(--border)] bg-[rgba(8,11,17,0.88)]">
@@ -36,12 +38,10 @@ export function CreatorProfileHeader({ creator, viewerRole, viewerUsername }: Cr
             <div className="min-w-0">
               <div className="flex flex-wrap items-center gap-3">
                 <h1 className="font-display text-3xl font-black leading-tight sm:text-4xl md:text-5xl">{creator.name}</h1>
-                {creator.isVerified ? (
-                  <Badge tone="green">
-                    <BadgeCheck size={13} />
-                    Verified creator
-                  </Badge>
-                ) : null}
+                <Badge tone={verificationStatus === "verified" ? "green" : verificationStatus === "pending" ? "yellow" : "neutral"}>
+                  {verificationStatus === "verified" ? <BadgeCheck size={13} /> : null}
+                  {verificationBadgeLabel(creator.verificationStatus)}
+                </Badge>
                 {creator.isFeatured ? <Crown size={22} className="text-[var(--yellow)]" aria-label="Featured" /> : null}
               </div>
               <p className="mt-2 text-[var(--text-secondary)]">@{creator.username}</p>

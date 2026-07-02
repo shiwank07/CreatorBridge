@@ -5,13 +5,16 @@ import { Camera, ExternalLink, Languages, MapPin, Radio, Send, ShieldCheck, Tags
 
 import { CreatorProfileHeader } from "@/components/creators/creator-profile-header";
 import { StatBox } from "@/components/creators/stat-box";
+import { WorkingHistoryCard } from "@/components/collaborations/working-history-card";
 import { Badge } from "@/components/shared/badge";
 import { Navbar } from "@/components/shared/navbar";
+import { TrustPassportCard } from "@/components/verification/trust-passport-card";
 import { authHref } from "@/lib/auth-redirect";
 import { formatINR, formatNumber } from "@/lib/format";
 import { getCurrentAppUser } from "@/lib/current-user";
+import { getCreatorCollaborationHistorySummary } from "@/lib/queries/collaborations";
 import { creatorMetaDescription, getCreatorByUsername } from "@/lib/queries/creators";
-import { getPublicSubscriberCount, hasVerifiedStats } from "@/lib/verification";
+import { getPublicSubscriberCount, hasVerifiedStats, normalizeCreatorVerificationStatus, verificationBadgeLabel } from "@/lib/verification";
 
 export const dynamic = "force-dynamic";
 
@@ -51,12 +54,16 @@ export async function generateMetadata({ params }: { params: CreatorProfileParam
 export default async function CreatorProfilePage({ params }: { params: CreatorProfileParams }) {
   const { username } = await params;
   const creator = await getCreatorByUsername(username);
-  const viewer = await getCurrentAppUser();
 
   if (!creator) notFound();
+  const [viewer, historySummary] = await Promise.all([
+    getCurrentAppUser(),
+    getCreatorCollaborationHistorySummary(creator.username),
+  ]);
   const viewerRole = viewer?.onboardingComplete && (viewer.role === "creator" || viewer.role === "brand") ? viewer.role : undefined;
   const isOwner = viewerRole === "creator" && viewer?.username === creator.username;
   const statsVerified = hasVerifiedStats(creator);
+  const normalizedVerification = normalizeCreatorVerificationStatus(creator.verificationStatus);
   const platformLinks = [
     creator.youtubeUrl ? { label: "YouTube", href: creator.youtubeUrl, icon: TvMinimalPlay } : null,
     creator.instagramUrl ? { label: "Instagram", href: creator.instagramUrl, icon: Camera } : null,
@@ -88,9 +95,9 @@ export default async function CreatorProfilePage({ params }: { params: CreatorPr
                 <p className="bridge-eyebrow">Audience Snapshot</p>
                 <h2 className="mt-2 font-display text-2xl font-bold">Platform Stats</h2>
               </div>
-              <Badge tone={statsVerified ? "green" : "neutral"}>
+              <Badge tone={statsVerified ? "green" : normalizedVerification === "pending" ? "yellow" : "neutral"}>
                 <ShieldCheck size={13} />
-                {statsVerified ? "Stats verified" : "Stats unverified"}
+                {verificationBadgeLabel(creator.verificationStatus)}
               </Badge>
             </div>
             <div className="mt-5 grid gap-3 sm:grid-cols-3">
@@ -149,6 +156,13 @@ export default async function CreatorProfilePage({ params }: { params: CreatorPr
               </div>
             ) : null}
           </section>
+
+          <WorkingHistoryCard
+            accountType="creator"
+            summary={historySummary}
+            showDetails={false}
+            className="bridge-card p-5"
+          />
 
           <section className="bridge-card p-5">
             <div className="flex items-center gap-2">
@@ -212,6 +226,14 @@ export default async function CreatorProfilePage({ params }: { params: CreatorPr
               Browse Directory
             </Link>
           </div>
+
+          <TrustPassportCard
+            accountType="creator"
+            emailVerified
+            verificationStatus={creator.verificationStatus}
+            completedCollaborations={historySummary.completed}
+            className="bridge-card p-5"
+          />
 
           <div className="bridge-card p-5">
             <h2 className="font-display text-xl font-bold">Creator channels</h2>

@@ -86,14 +86,19 @@ export function BrandVerificationTable({ brands }: BrandVerificationTableProps) 
                 </td>
                 <td className="px-4 py-4">
                   <Badge tone="neutral">{methodLabel(brand.verificationMethod)}</Badge>
-                  <p className="mt-3 text-xs font-semibold uppercase text-[var(--text-secondary)]">Code</p>
-                  <p className="mt-1 font-mono text-sm font-bold text-[var(--text-primary)]">{brand.verificationCode || "No code"}</p>
                   {brand.website ? (
                     <Link href={brand.website} target="_blank" rel="noreferrer" className="mt-3 inline-flex items-center gap-1 text-xs text-violet-300">
                       Website
                       <ExternalLink size={13} />
                     </Link>
                   ) : null}
+                  {brand.companyRegistrationText ? (
+                    <p className="mt-3 max-w-xs text-xs leading-5 text-[var(--text-secondary)]">
+                      {brand.companyRegistrationText}
+                    </p>
+                  ) : (
+                    <p className="mt-3 text-xs text-[var(--text-muted)]">No GST/CIN/company registration text provided.</p>
+                  )}
                 </td>
                 <td className="px-4 py-4 text-xs text-[var(--text-secondary)]">
                   <p>email: {brand.companyDomain || "unknown"}</p>

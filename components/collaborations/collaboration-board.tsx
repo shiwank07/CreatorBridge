@@ -4,7 +4,9 @@ import { CalendarDays, CircleDollarSign, UserRound } from "lucide-react";
 import { CollaborationActions } from "@/components/collaborations/collaboration-actions";
 import { CollaborationTimeline } from "@/components/collaborations/collaboration-timeline";
 import { Badge } from "@/components/shared/badge";
+import { collaborationDetailsHref } from "@/lib/collaboration-routes";
 import { collaborationStatusLabel } from "@/lib/collaborations";
+import { formatINR } from "@/lib/format";
 import { type BrandInquiryData } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
@@ -32,6 +34,10 @@ function platformLabel(platform: string) {
   return platform.replaceAll("_", " ");
 }
 
+function offerLabel(collaboration: BrandInquiryData) {
+  return collaboration.currentOfferAmount ? formatINR(collaboration.currentOfferAmount) : "Exact offer not recorded";
+}
+
 export function CollaborationBoard({ columns, mode }: CollaborationBoardProps) {
   return (
     <div className={cn("grid gap-4 md:grid-cols-2", columns.length >= 5 ? "xl:grid-cols-5" : "xl:grid-cols-4")}>
@@ -48,44 +54,54 @@ export function CollaborationBoard({ columns, mode }: CollaborationBoardProps) {
             {column.items.length > 0 ? (
               column.items.map((collaboration) => (
                 <article key={collaboration.id} className="rounded-[8px] border border-[var(--border)] bg-[#0b0f16] p-4">
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0">
-                      <h3 className="truncate font-semibold text-[var(--text-primary)]">{collaboration.companyName}</h3>
-                      <p className="mt-1 truncate text-xs text-[var(--text-secondary)]">
-                        {collaboration.creatorUsername ? `@${collaboration.creatorUsername}` : "Open creator brief"}
-                      </p>
+                  <Link href={collaborationDetailsHref(collaboration.id)} className="focus-ring block rounded-[8px] transition hover:bg-white/[0.025]">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <h3 className="truncate font-semibold text-[var(--text-primary)]">{collaboration.companyName}</h3>
+                        <p className="mt-1 truncate text-xs text-[var(--text-secondary)]">
+                          {collaboration.creatorUsername ? `@${collaboration.creatorUsername}` : "Open creator brief"}
+                        </p>
+                      </div>
+                      <Badge tone={collaboration.status === "closed" || collaboration.status === "offer_declined" ? "neutral" : "green"} className="shrink-0">
+                        {collaborationStatusLabel(collaboration.status)}
+                      </Badge>
                     </div>
-                    <Badge tone={collaboration.status === "closed" ? "neutral" : "green"} className="shrink-0">
-                      {collaborationStatusLabel(collaboration.status)}
-                    </Badge>
-                  </div>
 
-                  <p className="mt-3 line-clamp-3 text-sm leading-6 text-[var(--text-secondary)]">{collaboration.campaignGoal}</p>
+                    <p className="mt-3 line-clamp-3 text-sm leading-6 text-[var(--text-secondary)]">{collaboration.campaignGoal}</p>
 
-                  <div className="mt-4 grid gap-2 text-xs text-[var(--text-secondary)]">
-                    <span className="flex min-w-0 items-center gap-2">
-                      <CircleDollarSign size={14} className="shrink-0 text-cyan-200" />
-                      <span className="truncate">{collaboration.budgetRange}</span>
-                    </span>
-                    <span className="flex min-w-0 items-center gap-2">
-                      <CalendarDays size={14} className="shrink-0 text-violet-200" />
-                      <span className="truncate">{collaboration.timeline}</span>
-                    </span>
-                    <span className="flex min-w-0 items-center gap-2">
-                      <UserRound size={14} className="shrink-0 text-emerald-200" />
-                      <span className="truncate">{collaborationDate(collaboration.createdAt)}</span>
-                    </span>
-                  </div>
-
-                  {collaboration.deliverables.length > 0 || collaboration.targetPlatforms.length > 0 ? (
-                    <div className="mt-4 flex flex-wrap gap-2">
-                      {[...collaboration.deliverables.slice(0, 2), ...collaboration.targetPlatforms.slice(0, 2).map(platformLabel)].map((item) => (
-                        <span key={item} className="rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-1 text-[11px] text-[var(--text-secondary)]">
-                          {item}
-                        </span>
-                      ))}
+                    <div className="mt-4 grid gap-2 text-xs text-[var(--text-secondary)]">
+                      <span className="flex min-w-0 items-center gap-2">
+                        <CircleDollarSign size={14} className="shrink-0 text-cyan-200" />
+                        <span className="truncate">{offerLabel(collaboration)}</span>
+                      </span>
+                      <span className="flex min-w-0 items-center gap-2">
+                        <CircleDollarSign size={14} className="shrink-0 text-emerald-200" />
+                        <span className="truncate">{collaboration.budgetRange}</span>
+                      </span>
+                      <span className="flex min-w-0 items-center gap-2">
+                        <CircleDollarSign size={14} className="shrink-0 text-amber-200" />
+                        <span className="truncate">Negotiable: {collaboration.isNegotiable ? "Yes" : "No"}</span>
+                      </span>
+                      <span className="flex min-w-0 items-center gap-2">
+                        <CalendarDays size={14} className="shrink-0 text-violet-200" />
+                        <span className="truncate">{collaboration.timeline}</span>
+                      </span>
+                      <span className="flex min-w-0 items-center gap-2">
+                        <UserRound size={14} className="shrink-0 text-emerald-200" />
+                        <span className="truncate">{collaborationDate(collaboration.createdAt)}</span>
+                      </span>
                     </div>
-                  ) : null}
+
+                    {collaboration.deliverables.length > 0 || collaboration.targetPlatforms.length > 0 ? (
+                      <div className="mt-4 flex flex-wrap gap-2">
+                        {[...collaboration.deliverables.slice(0, 2), ...collaboration.targetPlatforms.slice(0, 2).map(platformLabel)].map((item) => (
+                          <span key={item} className="rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-1 text-[11px] text-[var(--text-secondary)]">
+                            {item}
+                          </span>
+                        ))}
+                      </div>
+                    ) : null}
+                  </Link>
 
                   {collaboration.creatorResponseNote ? (
                     <div className="mt-4 rounded-[8px] border border-white/10 bg-white/[0.035] px-3 py-2 text-xs leading-5 text-[var(--text-secondary)]">

@@ -1,24 +1,21 @@
 import { auth } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
+import { z } from "zod";
 
-import { handleRouteError } from "@/lib/api-errors";
+import { handleRouteError, parseJsonBody } from "@/lib/api-errors";
 import { hasClerkKeys } from "@/lib/clerk-config";
 import { connectDB, hasMongoUri } from "@/lib/db";
 import { BrandProfile } from "@/lib/models/BrandProfile";
 import { User } from "@/lib/models/User";
-import { createVerificationCode, emailDomain, isWorkEmailDomain, normalizeUrlDomain } from "@/lib/verification-helpers";
+import { emailDomain, normalizeUrlDomain } from "@/lib/verification-helpers";
 
-async function generateUniqueBrandCode() {
-  for (let attempt = 0; attempt < 25; attempt += 1) {
-    const code = createVerificationCode("CB-B");
-    const existing = await BrandProfile.exists({ verificationCode: code });
-    if (!existing) return code;
-  }
+const brandVerificationSubmitSchema = z.object({
+  website: z.string().trim().url("Enter a valid company website URL.").max(500),
+  contactEmail: z.string().trim().email("Enter a valid work email.").max(160),
+  companyRegistrationText: z.string().trim().max(500).optional().default(""),
+});
 
-  return `CB-B-${Date.now().toString(36).slice(-5).toUpperCase()}`;
-}
-
-export async function POST() {
+export async function POST(req: Request) {
   try {
     if (!hasClerkKeys()) {
       return NextResponse.json({ error: "Clerk is not configured yet." }, { status: 503 });
@@ -33,6 +30,12 @@ export async function POST() {
       return NextResponse.json({ error: "MongoDB is not configured yet." }, { status: 503 });
     }
 
+    const body = await parseJsonBody(req);
+    const parsed = brandVerificationSubmitSchema.safeParse(body);
+    if (!parsed.success) {
+      return NextResponse.json({ error: parsed.error.issues[0]?.message ?? "Invalid brand verification request." }, { status: 400 });
+    }
+
     await connectDB();
 
     const user = await User.findOne({ clerkId: userId, role: "brand" });
@@ -44,23 +47,19 @@ export async function POST() {
       return NextResponse.json({ ok: true, status: profile.verificationStatus });
     }
 
-    const companyDomain = profile.companyDomain || emailDomain(profile.contactEmail);
-    const normalizedWebsiteDomain = profile.normalizedWebsiteDomain || normalizeUrlDomain(profile.website);
-    const verificationMethod =
-      companyDomain && normalizedWebsiteDomain && companyDomain === normalizedWebsiteDomain && isWorkEmailDomain(companyDomain)
-        ? "work_email_domain"
-        : profile.website
-          ? "website_code"
-          : "manual";
-    const verificationCode = profile.verificationCode || (await generateUniqueBrandCode());
+    const companyDomain = emailDomain(parsed.data.contactEmail);
+    const normalizedWebsiteDomain = normalizeUrlDomain(parsed.data.website);
 
     await BrandProfile.updateOne(
       { _id: profile._id },
       {
         $set: {
+          website: parsed.data.website,
+          contactEmail: parsed.data.contactEmail,
+          companyRegistrationText: parsed.data.companyRegistrationText,
           verificationStatus: "pending",
-          verificationMethod,
-          verificationCode,
+          verificationMethod: "manual",
+          verificationCode: "",
           companyDomain,
           normalizedWebsiteDomain,
           verificationSubmittedAt: new Date(),
@@ -72,7 +71,7 @@ export async function POST() {
       },
     );
 
-    return NextResponse.json({ ok: true, status: "pending", verificationCode, verificationMethod });
+    return NextResponse.json({ ok: true, status: "pending", verificationMethod: "manual" });
   } catch (error) {
     return handleRouteError(error, "Brand verification submission failed", "Could not submit brand verification.");
   }

@@ -1,7 +1,8 @@
 import { auth } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
+import { z } from "zod";
 
-import { handleRouteError } from "@/lib/api-errors";
+import { handleRouteError, parseJsonBody } from "@/lib/api-errors";
 import { hasClerkKeys } from "@/lib/clerk-config";
 import { connectDB, hasMongoUri } from "@/lib/db";
 import { CreatorProfile } from "@/lib/models/CreatorProfile";
@@ -15,10 +16,16 @@ async function generateUniqueCreatorCode() {
     if (!existing) return code;
   }
 
-  return `CB-${Date.now().toString(36).slice(-5).toUpperCase()}`;
+  return `HALO-${Date.now().toString().slice(-6)}`;
 }
 
-export async function POST() {
+const creatorVerificationSubmitSchema = z.object({
+  platform: z.enum(["youtube", "instagram", "twitch", "other"]),
+  profileUrl: z.string().trim().url("Enter a valid public profile URL.").max(500),
+  note: z.string().trim().max(500).optional().default(""),
+});
+
+export async function POST(req: Request) {
   try {
     if (!hasClerkKeys()) {
       return NextResponse.json({ error: "Clerk is not configured yet." }, { status: 503 });
@@ -33,6 +40,12 @@ export async function POST() {
       return NextResponse.json({ error: "MongoDB is not configured yet." }, { status: 503 });
     }
 
+    const body = await parseJsonBody(req);
+    const parsed = creatorVerificationSubmitSchema.safeParse(body);
+    if (!parsed.success) {
+      return NextResponse.json({ error: parsed.error.issues[0]?.message ?? "Invalid verification request." }, { status: 400 });
+    }
+
     await connectDB();
 
     const user = await User.findOne({ clerkId: userId, role: "creator" });
@@ -40,10 +53,7 @@ export async function POST() {
 
     const profile = await CreatorProfile.findOne({ userId: user._id });
     if (!profile) return NextResponse.json({ error: "Creator profile not found." }, { status: 404 });
-    if (!profile.youtubeUrl) {
-      return NextResponse.json({ error: "Add a YouTube URL before submitting verification." }, { status: 400 });
-    }
-    if (profile.verificationStatus === "stats_verified") {
+    if (profile.verificationStatus === "verified" || profile.verificationStatus === "stats_verified") {
       return NextResponse.json({ ok: true, status: profile.verificationStatus });
     }
 
@@ -55,9 +65,12 @@ export async function POST() {
       { _id: profile._id },
       {
         $set: {
-          verificationStatus: "pending_ownership",
+          verificationStatus: "pending",
           verificationCode,
           verificationCodeExpiresAt: isExpired || !profile.verificationCodeExpiresAt ? verificationCodeExpiry() : profile.verificationCodeExpiresAt,
+          verificationPlatform: parsed.data.platform,
+          verificationProfileUrl: parsed.data.profileUrl,
+          verificationSubmittedNote: parsed.data.note,
           verificationSubmittedAt: now,
           verificationReviewedAt: null,
           verificationReviewedByAdminId: "",
@@ -67,7 +80,7 @@ export async function POST() {
       },
     );
 
-    return NextResponse.json({ ok: true, status: "pending_ownership", verificationCode });
+    return NextResponse.json({ ok: true, status: "pending", verificationCode });
   } catch (error) {
     return handleRouteError(error, "Creator verification submission failed", "Could not submit verification.");
   }

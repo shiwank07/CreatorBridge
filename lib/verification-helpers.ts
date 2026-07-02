@@ -3,7 +3,11 @@ import { randomInt } from "crypto";
 const VERIFICATION_CODE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 const PUBLIC_EMAIL_DOMAINS = new Set(["gmail.com", "yahoo.com", "outlook.com", "hotmail.com", "icloud.com"]);
 
-export function createVerificationCode(prefix = "CB") {
+export function createVerificationCode(prefix = "HALO") {
+  if (prefix === "HALO") {
+    return `HALO-${randomInt(100000, 1000000)}`;
+  }
+
   let suffix = "";
 
   for (let index = 0; index < 5; index += 1) {

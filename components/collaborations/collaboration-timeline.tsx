@@ -42,7 +42,7 @@ export function CollaborationTimeline({ status = "new", compact = false, classNa
 
   return (
     <div className={cn("w-full", className)} aria-label={`Collaboration status: ${currentStatus.replace("_", " ")}`}>
-      <ol className="grid gap-3 sm:grid-cols-6 sm:gap-2">
+      <ol className="grid gap-3 sm:grid-cols-7 sm:gap-2">
         {COLLABORATION_TIMELINE_STEPS.map((step, index) => {
           const isComplete = index < currentIndex;
           const isCurrent = index === currentIndex;

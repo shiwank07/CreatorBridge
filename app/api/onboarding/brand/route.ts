@@ -90,6 +90,7 @@ export async function POST(req: Request) {
           industry: parsed.data.industry,
           companySize: parsed.data.companySize,
           country: parsed.data.country,
+          companyRegistrationText: parsed.data.companyRegistrationText,
           notes: parsed.data.notes,
           companyDomain,
           normalizedWebsiteDomain,

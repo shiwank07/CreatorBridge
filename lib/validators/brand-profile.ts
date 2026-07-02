@@ -16,6 +16,7 @@ export const brandOnboardingSchema = z.object({
   industry: z.string().trim().min(2, "Industry is required.").max(80),
   companySize: z.string().trim().max(80).optional().default(""),
   country: z.string().trim().min(2, "Country is required.").max(80),
+  companyRegistrationText: z.string().trim().max(500).optional().default(""),
   notes: z.string().trim().max(500).optional().default(""),
 });
 

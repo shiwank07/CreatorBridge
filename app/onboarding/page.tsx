@@ -21,12 +21,24 @@ function readParam(value: string | string[] | undefined) {
   return Array.isArray(value) ? value[0] : value;
 }
 
+function isOnboardingRole(value: string | undefined): value is OnboardingRole {
+  return value === "creator" || value === "brand";
+}
+
+function dashboardHrefForRole(role: string | undefined) {
+  if (role === "brand") return "/dashboard/brand";
+  if (role === "creator") return "/dashboard/creator";
+  return "/dashboard";
+}
+
 export default async function OnboardingPage({ searchParams }: { searchParams: OnboardingSearchParams }) {
   if (!hasClerkKeys()) return <AuthSetupNotice />;
 
   const params = await searchParams;
   const requestedRole = readParam(params.role);
-  let selectedRole: OnboardingRole = requestedRole === "brand" ? "brand" : "creator";
+  const explicitRole = isOnboardingRole(requestedRole) ? requestedRole : null;
+  const roleSwitchRequested = readParam(params.switchRole) === "1";
+  let selectedRole: OnboardingRole = explicitRole ?? "creator";
   const clerkUser = await currentUser();
   if (!clerkUser) redirect("/sign-in");
 
@@ -35,16 +47,22 @@ export default async function OnboardingPage({ searchParams }: { searchParams: O
 
   let initialUsername = generateUsername(clerkUser.username ?? fallbackName);
   let databaseWarning = hasMongoUri() ? "" : "MongoDB is not configured yet. Add your Atlas connection string before saving onboarding data.";
-  let completedCreatorUsername = "";
+  let completedRedirectHref = "";
 
   if (hasMongoUri()) {
     try {
       await connectDB();
       const dbUser = await User.findOne({ clerkId: clerkUser.id });
-      if (!requestedRole && dbUser?.role === "brand") selectedRole = "brand";
-      if (selectedRole === "creator" && dbUser?.role === "creator" && dbUser?.onboardingComplete) {
-        completedCreatorUsername = dbUser.username;
+      const existingRole = isOnboardingRole(dbUser?.role) ? dbUser.role : null;
+
+      if (dbUser?.onboardingComplete) {
+        completedRedirectHref = dashboardHrefForRole(dbUser.role);
+      } else if (existingRole && (!explicitRole || !roleSwitchRequested)) {
+        selectedRole = existingRole;
+      } else if (explicitRole) {
+        selectedRole = explicitRole;
       }
+
       if (dbUser?.username) initialUsername = dbUser.username;
     } catch (error) {
       console.error("Onboarding database preload failed", error);
@@ -52,7 +70,7 @@ export default async function OnboardingPage({ searchParams }: { searchParams: O
     }
   }
 
-  if (completedCreatorUsername) redirect(`/creators/${completedCreatorUsername}`);
+  if (completedRedirectHref) redirect(completedRedirectHref);
 
   return (
     <>
@@ -73,7 +91,7 @@ export default async function OnboardingPage({ searchParams }: { searchParams: O
         <div className="bridge-card p-3">
           <div className="grid gap-2 sm:grid-cols-2">
             <Link
-              href="/onboarding?role=creator"
+              href="/onboarding?role=creator&switchRole=1"
               className={`focus-ring inline-flex items-center justify-center gap-2 rounded-[8px] border px-4 py-3 text-sm font-semibold transition hover:-translate-y-0.5 hover:border-cyan-300/40 ${
                 selectedRole === "creator"
                   ? "border-violet-700 bg-violet-950 text-violet-100"
@@ -84,7 +102,7 @@ export default async function OnboardingPage({ searchParams }: { searchParams: O
               I&apos;m a Creator
             </Link>
             <Link
-              href="/onboarding?role=brand"
+              href="/onboarding?role=brand&switchRole=1"
               className={`focus-ring inline-flex items-center justify-center gap-2 rounded-[8px] border px-4 py-3 text-sm font-semibold transition hover:-translate-y-0.5 hover:border-cyan-300/40 ${
                 selectedRole === "brand"
                   ? "border-emerald-800 bg-emerald-950 text-emerald-100"

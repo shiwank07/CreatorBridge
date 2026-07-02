@@ -41,6 +41,7 @@ export async function GET() {
       rejectionReason: profile.rejectionReason,
       companyDomain: profile.companyDomain,
       normalizedWebsiteDomain: profile.normalizedWebsiteDomain,
+      companyRegistrationText: profile.companyRegistrationText,
     });
   } catch (error) {
     return handleRouteError(error, "Brand verification status failed", "Could not load brand verification status.");
