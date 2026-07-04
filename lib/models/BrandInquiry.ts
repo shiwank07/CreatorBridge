@@ -1,6 +1,6 @@
 import mongoose, { type Document, type Model, Schema } from "mongoose";
 
-import { BRAND_INQUIRY_STATUS_VALUES, type BrandInquiryStatus } from "@/lib/collaborations";
+import { BRAND_INQUIRY_STATUS_VALUES, type BrandInquiryStatus, type CollaborationTimelineEvent } from "@/lib/collaborations";
 
 type OfferHistoryAction = "offer_sent" | "counter_requested" | "counter_sent" | "offer_accepted" | "offer_declined";
 
@@ -37,6 +37,14 @@ export interface IBrandInquiry extends Document {
   createdByClerkId?: string;
   source: "general_form" | "creator_profile";
   status: BrandInquiryStatus;
+  statusHistory: {
+    _id?: mongoose.Types.ObjectId;
+    event: CollaborationTimelineEvent;
+    status: BrandInquiryStatus;
+    actor: "brand" | "creator" | "admin" | "system";
+    note?: string;
+    createdAt?: Date | null;
+  }[];
   deliveryProof?: {
     videoUrl?: string;
     timestampStart?: string;
@@ -49,6 +57,9 @@ export interface IBrandInquiry extends Document {
     reviewNote?: string;
     issueNote?: string;
     issueReportedAt?: Date | null;
+    issueStatus?: "open" | "resolved" | "dismissed";
+    issueReviewedAt?: Date | null;
+    issueReviewedByAdminId?: string;
   };
   adminOwnerId?: string;
   adminNote?: string;
@@ -73,6 +84,22 @@ const OfferHistorySchema = new Schema(
     },
     amount: { type: Number, min: 0, default: 0 },
     currency: { type: String, enum: ["INR"], default: "INR" },
+    note: { type: String, trim: true, maxlength: 1000, default: "" },
+    createdAt: { type: Date, default: Date.now },
+  },
+  { _id: true },
+);
+
+const StatusHistorySchema = new Schema(
+  {
+    event: {
+      type: String,
+      enum: ["CREATED", "VIEWED", "ACCEPTED", "DECLINED", "IN_PROGRESS", "PROOF_SUBMITTED", "REVISION_REQUESTED", "APPROVED", "COMPLETED", "CANCELLED"],
+      required: true,
+      index: true,
+    },
+    status: { type: String, enum: BRAND_INQUIRY_STATUS_VALUES, required: true, index: true },
+    actor: { type: String, enum: ["brand", "creator", "admin", "system"], default: "system" },
     note: { type: String, trim: true, maxlength: 1000, default: "" },
     createdAt: { type: Date, default: Date.now },
   },
@@ -107,9 +134,10 @@ const BrandInquirySchema = new Schema<IBrandInquiry>(
     status: {
       type: String,
       enum: BRAND_INQUIRY_STATUS_VALUES,
-      default: "new",
+      default: "NEW",
       index: true,
     },
+    statusHistory: { type: [StatusHistorySchema], default: [] },
     deliveryProof: {
       videoUrl: { type: String, trim: true, default: "" },
       timestampStart: { type: String, trim: true, maxlength: 40, default: "" },
@@ -122,6 +150,9 @@ const BrandInquirySchema = new Schema<IBrandInquiry>(
       reviewNote: { type: String, trim: true, maxlength: 1000, default: "" },
       issueNote: { type: String, trim: true, maxlength: 1000, default: "" },
       issueReportedAt: { type: Date, default: null },
+      issueStatus: { type: String, enum: ["open", "resolved", "dismissed"], default: "open", index: true },
+      issueReviewedAt: { type: Date, default: null },
+      issueReviewedByAdminId: { type: String, default: "" },
     },
     adminOwnerId: { type: String, default: "" },
     adminNote: { type: String, maxlength: 1000, default: "" },

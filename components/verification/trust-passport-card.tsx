@@ -1,3 +1,5 @@
+import { type ReactNode } from "react";
+
 import { Badge } from "@/components/shared/badge";
 import { type BrandVerificationStatus, type VerificationStatus } from "@/lib/types";
 import { normalizeCreatorVerificationStatus, verificationBadgeLabel } from "@/lib/verification";
@@ -6,17 +8,29 @@ type TrustPassportCardProps =
   | {
       accountType: "creator";
       emailVerified?: boolean;
+      phoneVerified?: boolean;
       verificationStatus?: VerificationStatus;
+      creatorVerificationStatus?: VerificationStatus;
+      brandVerificationStatus?: BrandVerificationStatus;
       successfulCollaborations?: number;
       completedCollaborations?: number;
+      joinedDate?: string;
+      responseTimeLabel?: string;
+      disputes?: number;
       className?: string;
     }
   | {
       accountType: "brand";
       emailVerified?: boolean;
+      phoneVerified?: boolean;
       verificationStatus?: BrandVerificationStatus;
+      creatorVerificationStatus?: VerificationStatus;
+      brandVerificationStatus?: BrandVerificationStatus;
       successfulCollaborations?: number;
       completedCollaborations?: number;
+      joinedDate?: string;
+      responseTimeLabel?: string;
+      disputes?: number;
       className?: string;
     };
 
@@ -26,52 +40,80 @@ function passportTone(isGood: boolean, isPending = false) {
   return "neutral";
 }
 
-function creatorProfileLabel(status?: VerificationStatus) {
-  const normalized = normalizeCreatorVerificationStatus(status);
-  if (normalized === "verified") return "Verified Creator";
-  if (normalized === "pending") return "Verification Pending";
-  if (normalized === "rejected") return "Rejected";
-  return "Unverified";
+function formattedDate(input?: string) {
+  if (!input) return "Not available";
+  const date = new Date(input);
+  if (Number.isNaN(date.getTime())) return "Not available";
+
+  return new Intl.DateTimeFormat("en", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  }).format(date);
+}
+
+function statusTone(status?: VerificationStatus | BrandVerificationStatus, accountType: "creator" | "brand" = "creator") {
+  const normalized = accountType === "creator" ? normalizeCreatorVerificationStatus(status as VerificationStatus | undefined) : status;
+  return passportTone(normalized === "verified", normalized === "pending");
+}
+
+function TrustRow({
+  label,
+  value,
+  tone = "neutral",
+}: {
+  label: string;
+  value: ReactNode;
+  tone?: "violet" | "green" | "yellow" | "neutral";
+}) {
+  return (
+    <div className="flex items-center justify-between gap-3 rounded-[8px] border border-white/10 bg-black/20 px-3 py-2 text-sm">
+      <span className="text-[var(--text-secondary)]">{label}</span>
+      <Badge tone={tone} className="shrink-0">
+        {value}
+      </Badge>
+    </div>
+  );
 }
 
 export function TrustPassportCard(props: TrustPassportCardProps) {
-  const normalized =
+  const fallbackVerificationStatus =
     props.accountType === "creator"
-      ? normalizeCreatorVerificationStatus(props.verificationStatus)
+      ? props.verificationStatus
       : props.verificationStatus ?? "unverified";
-  const isVerified = normalized === "verified";
-  const isPending = normalized === "pending";
+  const creatorVerificationStatus =
+    props.accountType === "creator"
+      ? props.creatorVerificationStatus ?? (fallbackVerificationStatus as VerificationStatus | undefined)
+      : props.creatorVerificationStatus;
+  const brandVerificationStatus =
+    props.accountType === "brand"
+      ? props.brandVerificationStatus ?? (fallbackVerificationStatus as BrandVerificationStatus | undefined)
+      : props.brandVerificationStatus;
   const completedCollaborations = props.completedCollaborations ?? props.successfulCollaborations ?? 0;
+  const disputes = props.disputes ?? 0;
+  const hasResponseTime = Boolean(props.responseTimeLabel && props.responseTimeLabel !== "No data");
 
   return (
     <section className={props.className ?? "bridge-card p-5"}>
       <p className="bridge-eyebrow">Trust Passport</p>
-      <h2 className="mt-2 font-display text-xl font-bold">Verification signals</h2>
+      <h2 className="mt-2 font-display text-xl font-bold">Verification and history signals</h2>
       <div className="mt-4 grid gap-2">
-        <div className="flex items-center justify-between gap-3 rounded-[8px] border border-white/10 bg-black/20 px-3 py-2 text-sm">
-          <span className="text-[var(--text-secondary)]">Email verified</span>
-          <Badge tone={passportTone(Boolean(props.emailVerified))}>{props.emailVerified ? "Verified" : "Not verified"}</Badge>
-        </div>
-        <div className="flex items-center justify-between gap-3 rounded-[8px] border border-white/10 bg-black/20 px-3 py-2 text-sm">
-          <span className="text-[var(--text-secondary)]">
-            {props.accountType === "creator" ? "Platform verification status" : "Brand verification status"}
-          </span>
-          <Badge tone={passportTone(isVerified, isPending)}>{verificationBadgeLabel(props.verificationStatus, props.accountType)}</Badge>
-        </div>
-        {props.accountType === "creator" ? (
-          <div className="flex items-center justify-between gap-3 rounded-[8px] border border-white/10 bg-black/20 px-3 py-2 text-sm">
-            <span className="text-[var(--text-secondary)]">Profile verification status</span>
-            <Badge tone={passportTone(isVerified, isPending)}>{creatorProfileLabel(props.verificationStatus)}</Badge>
-          </div>
-        ) : null}
-        <div className="flex items-center justify-between gap-3 rounded-[8px] border border-white/10 bg-black/20 px-3 py-2 text-sm">
-          <span className="text-[var(--text-secondary)]">Completed collaborations</span>
-          <Badge tone="neutral">{completedCollaborations}</Badge>
-        </div>
-        <div className="flex items-center justify-between gap-3 rounded-[8px] border border-white/10 bg-black/20 px-3 py-2 text-sm">
-          <span className="text-[var(--text-secondary)]">Active disputes</span>
-          <Badge tone="green">None</Badge>
-        </div>
+        <TrustRow label="Email Verified" value={props.emailVerified ? "Verified" : "Not verified"} tone={passportTone(Boolean(props.emailVerified))} />
+        <TrustRow label="Phone Verified" value={props.phoneVerified ? "Verified" : "Not verified"} tone={passportTone(Boolean(props.phoneVerified))} />
+        <TrustRow
+          label="Creator Verification"
+          value={creatorVerificationStatus ? verificationBadgeLabel(creatorVerificationStatus, "creator") : "Not applicable"}
+          tone={creatorVerificationStatus ? statusTone(creatorVerificationStatus, "creator") : "neutral"}
+        />
+        <TrustRow
+          label="Brand Verification"
+          value={brandVerificationStatus ? verificationBadgeLabel(brandVerificationStatus, "brand") : "Not applicable"}
+          tone={brandVerificationStatus ? statusTone(brandVerificationStatus, "brand") : "neutral"}
+        />
+        <TrustRow label="Completed Collaborations" value={completedCollaborations} tone={completedCollaborations > 0 ? "green" : "neutral"} />
+        <TrustRow label="Joined Date" value={formattedDate(props.joinedDate)} />
+        <TrustRow label="Response Time" value={props.responseTimeLabel ?? "No data"} tone={hasResponseTime ? "green" : "neutral"} />
+        <TrustRow label="Disputes" value={disputes > 0 ? `${disputes} reported` : "None"} tone={disputes > 0 ? "yellow" : "green"} />
       </div>
     </section>
   );

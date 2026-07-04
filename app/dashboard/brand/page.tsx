@@ -24,15 +24,18 @@ import { RecentActivityFeed } from "@/components/dashboard/recent-activity-feed"
 import { NotificationList } from "@/components/notifications/notification-list";
 import { Badge } from "@/components/shared/badge";
 import { Navbar } from "@/components/shared/navbar";
+import { ProfileCompletionCard } from "@/components/shared/profile-completion-card";
 import { BrandVerificationCard } from "@/components/verification/brand-verification-card";
 import { TrustPassportCard } from "@/components/verification/trust-passport-card";
 import { collaborationDetailsHref } from "@/lib/collaboration-routes";
 import { collaborationStatusLabel } from "@/lib/collaborations";
 import { getCurrentAppUser, getCurrentClerkUserId } from "@/lib/current-user";
 import { formatNumber } from "@/lib/format";
+import { calculateBrandProfileCompletion } from "@/lib/profile-completion";
 import { getBrandCollaborationDashboard, groupCollaborationsByStatus } from "@/lib/queries/collaborations";
 import { getBrandByUsername } from "@/lib/queries/brands";
 import { getCurrentUserNotificationSummary } from "@/lib/queries/notifications";
+import { averageResponseTimeLabel, countDisputes } from "@/lib/trust-metrics";
 import { type BrandInquiryData, type BrandProfileData, type InAppNotificationData } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { verificationBadgeLabel } from "@/lib/verification";
@@ -130,7 +133,7 @@ function StageCard({
                   </span>
                   <span className="mt-1 block truncate text-xs text-[var(--text-secondary)]">{item.timeline}</span>
                 </span>
-                <Badge tone={item.status === "closed" || item.status === "offer_declined" ? "neutral" : "green"} className="shrink-0">
+                <Badge tone={item.status === "DECLINED" || item.status === "CANCELLED" ? "neutral" : "green"} className="shrink-0">
                   {collaborationStatusLabel(item.status)}
                 </Badge>
               </span>
@@ -349,15 +352,23 @@ export default async function BrandDashboardPage() {
 
   const collaborations = dashboard.collaborations;
   const sentCollaborations = collaborations;
-  const waitingForCreator = groupCollaborationsByStatus(collaborations, ["offer_sent", "counter_sent", "new", "viewed"]);
-  const activeCampaigns = groupCollaborationsByStatus(collaborations, ["counter_requested", "offer_accepted", "interested", "work_started", "changes_requested"]);
-  const proofReview = groupCollaborationsByStatus(collaborations, ["proof_submitted", "approved"]);
-  const completed = groupCollaborationsByStatus(collaborations, ["completed", "closed"]);
-  const declined = groupCollaborationsByStatus(collaborations, ["offer_declined"]);
+  const waitingForCreator = groupCollaborationsByStatus(collaborations, ["NEW", "PENDING_CREATOR_RESPONSE"]);
+  const inProgress = groupCollaborationsByStatus(collaborations, ["ACCEPTED", "IN_PROGRESS", "PROOF_SUBMITTED", "REVISION_REQUESTED", "APPROVED"]);
+  const proofReview = groupCollaborationsByStatus(collaborations, ["PROOF_SUBMITTED", "REVISION_REQUESTED", "APPROVED"]);
+  const completed = groupCollaborationsByStatus(collaborations, ["COMPLETED"]);
+  const declined = groupCollaborationsByStatus(collaborations, ["DECLINED", "CANCELLED"]);
+  const profileCompletion = calculateBrandProfileCompletion({
+    brand: brandProfile,
+    emailVerified: Boolean(user?.email || brandProfile?.contactEmail),
+    phoneVerified: Boolean(user?.phoneVerified || brandProfile?.phoneVerified),
+    collaborations,
+  });
+  const responseTime = averageResponseTimeLabel(collaborations, "brand");
+  const disputes = countDisputes(collaborations);
   const columns = [
-    { title: "Waiting for Creator", items: waitingForCreator },
-    { title: "Active Campaigns", items: activeCampaigns },
-    { title: "Proof Review", items: proofReview },
+    { title: "Sent", items: sentCollaborations },
+    { title: "Waiting", items: waitingForCreator },
+    { title: "In Progress", items: inProgress },
     { title: "Completed", items: completed },
     { title: "Declined", items: declined },
   ];
@@ -393,7 +404,7 @@ export default async function BrandDashboardPage() {
 
         <section className="mt-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
           <DashboardMetricCard label="Waiting" value={waitingForCreator.length} detail="Briefs waiting for creator responses." Icon={UsersRound} tone="cyan" delay="stat-delay-1" />
-          <DashboardMetricCard label="Active" value={activeCampaigns.length} detail="Campaigns with accepted creators in motion." Icon={Layers3} tone="violet" delay="stat-delay-2" />
+          <DashboardMetricCard label="In Progress" value={inProgress.length} detail="Campaigns with accepted creators in motion." Icon={Layers3} tone="violet" delay="stat-delay-2" />
           <DashboardMetricCard label="Proof Review" value={proofReview.length} detail="Delivery proof and approvals needing attention." Icon={FileCheck2} tone="emerald" delay="stat-delay-3" />
           <DashboardMetricCard label="Unread" value={notificationSummary.unreadCount} detail="Notification signals from campaigns and verification." Icon={Sparkles} tone="amber" delay="stat-delay-4" />
         </section>
@@ -422,7 +433,7 @@ export default async function BrandDashboardPage() {
           <StageCard
             title="Active Campaigns"
             copy="Keep accepted creator work moving through delivery."
-            items={activeCampaigns}
+            items={inProgress}
             Icon={Megaphone}
             empty="No active campaigns yet."
           />
@@ -439,7 +450,7 @@ export default async function BrandDashboardPage() {
           <div className="grid gap-4">
             <CampaignStatistics
               collaborations={collaborations}
-              activeCount={activeCampaigns.length}
+              activeCount={inProgress.length}
               proofCount={proofReview.length}
               completedCount={completed.length}
             />
@@ -449,16 +460,21 @@ export default async function BrandDashboardPage() {
           </div>
           <div className="grid gap-4">
             <BrandVerificationStatus brand={brandProfile} />
+            <ProfileCompletionCard completion={profileCompletion} updateHref="/onboarding?role=brand" />
             <BrandVerificationCard brand={brandProfile} />
             <TrustPassportCard
               accountType="brand"
-              emailVerified={Boolean(user?.email)}
+              emailVerified={Boolean(user?.email || brandProfile?.contactEmail)}
+              phoneVerified={Boolean(user?.phoneVerified || brandProfile?.phoneVerified)}
               verificationStatus={brandProfile?.verificationStatus}
               completedCollaborations={completed.length}
+              joinedDate={brandProfile?.createdAt}
+              responseTimeLabel={responseTime}
+              disputes={disputes}
               className="rounded-[8px] border border-white/10 bg-white/[0.04] p-5"
             />
             <SavedCreators collaborations={collaborations} />
-            <UpcomingCampaigns collaborations={activeCampaigns} />
+            <UpcomingCampaigns collaborations={inProgress} />
           </div>
         </section>
 

@@ -9,6 +9,7 @@ export type CurrentAppUser = {
   id: string;
   clerkId: string;
   email: string;
+  phoneVerified: boolean;
   username: string;
   name: string;
   role: Role;
@@ -19,6 +20,7 @@ type UserDocument = {
   _id: { toString(): string };
   clerkId: string;
   email: string;
+  phoneVerified?: boolean;
   username: string;
   name: string;
   role: Role;
@@ -30,6 +32,7 @@ function mapUser(user: UserDocument): CurrentAppUser {
     id: user._id.toString(),
     clerkId: user.clerkId,
     email: user.email,
+    phoneVerified: Boolean(user.phoneVerified),
     username: user.username,
     name: user.name,
     role: user.role,

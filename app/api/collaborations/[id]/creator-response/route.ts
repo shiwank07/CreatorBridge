@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 
 import { handleRouteError, parseJsonBody } from "@/lib/api-errors";
 import { hasClerkKeys } from "@/lib/clerk-config";
-import { normalizeCollaborationStatus } from "@/lib/collaborations";
+import { appendCollaborationTimeline, normalizeCollaborationStatus } from "@/lib/collaborations";
 import { connectDB, hasMongoUri } from "@/lib/db";
 import { BrandInquiry } from "@/lib/models/BrandInquiry";
 import { CreatorProfile } from "@/lib/models/CreatorProfile";
@@ -58,7 +58,7 @@ export async function POST(req: Request, { params }: RouteContext) {
     }
 
     const currentStatus = normalizeCollaborationStatus(collaboration.status);
-    if (!["offer_sent", "counter_sent", "new", "viewed"].includes(currentStatus)) {
+    if (!["NEW", "PENDING_CREATOR_RESPONSE"].includes(currentStatus)) {
       return NextResponse.json({ error: "This collaboration offer is not waiting for a creator response." }, { status: 400 });
     }
 
@@ -71,9 +71,16 @@ export async function POST(req: Request, { params }: RouteContext) {
     if (action === "accept_offer") {
       const note = parsed.data.note || "Offer accepted by creator.";
       collaboration.set({
-        status: "offer_accepted",
+        status: "ACCEPTED",
         creatorResponseAt: now,
         creatorResponseNote: note,
+      });
+      appendCollaborationTimeline(collaboration, {
+        event: "ACCEPTED",
+        status: "ACCEPTED",
+        actor: "creator",
+        note,
+        createdAt: now,
       });
       collaboration.offerHistory.push({
         actor: "creator",
@@ -88,10 +95,17 @@ export async function POST(req: Request, { params }: RouteContext) {
     if (action === "decline_offer") {
       const note = parsed.data.note || "Offer declined by creator.";
       collaboration.set({
-        status: "offer_declined",
+        status: "DECLINED",
         creatorResponseAt: now,
         creatorResponseNote: note,
         closedAt: now,
+      });
+      appendCollaborationTimeline(collaboration, {
+        event: "DECLINED",
+        status: "DECLINED",
+        actor: "creator",
+        note,
+        createdAt: now,
       });
       collaboration.offerHistory.push({
         actor: "creator",
@@ -111,10 +125,17 @@ export async function POST(req: Request, { params }: RouteContext) {
       const note = parsed.data.counterOfferNote;
       const amount = parsed.data.counterOfferAmount ?? 0;
       collaboration.set({
-        status: "counter_requested",
+        status: "REVISION_REQUESTED",
         currentOfferAmount: amount,
         creatorResponseAt: now,
         creatorResponseNote: note,
+      });
+      appendCollaborationTimeline(collaboration, {
+        event: "REVISION_REQUESTED",
+        status: "REVISION_REQUESTED",
+        actor: "creator",
+        note,
+        createdAt: now,
       });
       collaboration.offerHistory.push({
         actor: "creator",

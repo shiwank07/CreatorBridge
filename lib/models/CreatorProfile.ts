@@ -6,6 +6,8 @@ export type CreatorVerificationPlatform = "youtube" | "instagram" | "twitch" | "
 export interface ICreatorProfile extends Document {
   userId: mongoose.Types.ObjectId;
   bio?: string;
+  phoneNumber?: string;
+  phoneVerified: boolean;
   niche: string[];
   country?: string;
   languages: string[];
@@ -41,6 +43,7 @@ export interface ICreatorProfile extends Document {
   sampleWorkUrls: string[];
   isOpenToDeals: boolean;
   profileViews: number;
+  completedCampaigns: number;
   totalDeals: number;
   createdAt: Date;
   updatedAt: Date;
@@ -50,6 +53,8 @@ const CreatorProfileSchema = new Schema<ICreatorProfile>(
   {
     userId: { type: Schema.Types.ObjectId, ref: "User", required: true, unique: true, index: true },
     bio: { type: String, maxlength: 500, default: "" },
+    phoneNumber: { type: String, trim: true, default: "" },
+    phoneVerified: { type: Boolean, default: false, index: true },
     niche: [{ type: String, index: true }],
     country: { type: String, default: "" },
     languages: [{ type: String }],
@@ -90,6 +95,7 @@ const CreatorProfileSchema = new Schema<ICreatorProfile>(
     sampleWorkUrls: [{ type: String }],
     isOpenToDeals: { type: Boolean, default: true },
     profileViews: { type: Number, default: 0, min: 0 },
+    completedCampaigns: { type: Number, default: 0, min: 0 },
     totalDeals: { type: Number, default: 0, min: 0 },
   },
   { timestamps: true },

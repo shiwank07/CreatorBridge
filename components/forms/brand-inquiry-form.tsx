@@ -239,11 +239,13 @@ export function BrandInquiryForm({ creatorUsername = "" }: BrandInquiryFormProps
                 {steps.map(({ title, icon: Icon }, index) => {
                   const isCurrent = index === stepIndex;
                   const isComplete = index < stepIndex || success;
+                  const isUnavailable = index > stepIndex || isSaving || success;
 
                   return (
                     <li key={title}>
                       <button
                         type="button"
+                        disabled={isUnavailable}
                         onClick={() => {
                           if (index <= stepIndex) {
                             setError("");
@@ -276,7 +278,7 @@ export function BrandInquiryForm({ creatorUsername = "" }: BrandInquiryFormProps
               ) : null}
 
               {success ? (
-                <div className="py-8 text-center">
+                <div role="status" className="py-8 text-center">
                   <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full border border-emerald-800 bg-emerald-950 text-emerald-200">
                     <Check size={24} />
                   </div>
@@ -475,7 +477,7 @@ export function BrandInquiryForm({ creatorUsername = "" }: BrandInquiryFormProps
                   {isSaving ? "Starting Collaboration" : "Start Collaboration"}
                 </button>
               ) : (
-                <button type="button" onClick={goNext} className="bridge-button-primary w-full sm:w-auto">
+                <button type="button" onClick={goNext} disabled={isSaving} className="bridge-button-primary w-full sm:w-auto">
                   Continue
                   <ChevronRight size={17} />
                 </button>

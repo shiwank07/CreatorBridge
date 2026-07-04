@@ -5,8 +5,10 @@ import { BadgeCheck, Building2, ExternalLink, MapPin } from "lucide-react";
 
 import { Badge } from "@/components/shared/badge";
 import { Navbar } from "@/components/shared/navbar";
+import { ProfileCompletionCard } from "@/components/shared/profile-completion-card";
 import { TrustPassportCard } from "@/components/verification/trust-passport-card";
 import { getCurrentAppUser } from "@/lib/current-user";
+import { calculateBrandProfileCompletion } from "@/lib/profile-completion";
 import { getBrandByUsername } from "@/lib/queries/brands";
 import { verificationBadgeLabel } from "@/lib/verification";
 
@@ -48,6 +50,11 @@ export default async function BrandProfilePage({ params }: { params: BrandProfil
 
   const isVerified = brand.verificationStatus === "verified";
   const isOwner = viewer?.role === "brand" && viewer.username === brand.username;
+  const ownerProfileCompletion = calculateBrandProfileCompletion({
+    brand,
+    emailVerified: Boolean(viewer?.email || brand.contactEmail),
+    phoneVerified: Boolean(viewer?.phoneVerified || brand.phoneVerified),
+  });
 
   return (
     <>
@@ -138,6 +145,9 @@ export default async function BrandProfilePage({ params }: { params: BrandProfil
                 </Link>
               </div>
             ) : null}
+            {isOwner ? (
+              <ProfileCompletionCard completion={ownerProfileCompletion} updateHref="/onboarding?role=brand" className="bridge-card p-5" />
+            ) : null}
             <div className="bridge-card p-5">
               <h2 className="font-display text-xl font-bold">Verification</h2>
               <div className="mt-4">
@@ -165,8 +175,10 @@ export default async function BrandProfilePage({ params }: { params: BrandProfil
             <TrustPassportCard
               accountType="brand"
               emailVerified={Boolean(brand.contactEmail)}
+              phoneVerified={Boolean(brand.phoneVerified)}
               verificationStatus={brand.verificationStatus}
               successfulCollaborations={0}
+              joinedDate={brand.createdAt}
               className="bridge-card p-5"
             />
           </aside>

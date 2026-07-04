@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 
 import { handleRouteError } from "@/lib/api-errors";
 import { hasClerkKeys } from "@/lib/clerk-config";
+import { appendCollaborationTimeline } from "@/lib/collaborations";
 import { connectDB, hasMongoUri } from "@/lib/db";
 import { BrandInquiry } from "@/lib/models/BrandInquiry";
 import { CreatorProfile } from "@/lib/models/CreatorProfile";
@@ -46,10 +47,18 @@ export async function POST(_req: Request, { params }: RouteContext) {
       }
     }
 
-    collaboration.set({ status: "work_started" });
+    const now = new Date();
+    collaboration.set({ status: "IN_PROGRESS" });
+    appendCollaborationTimeline(collaboration, {
+      event: "IN_PROGRESS",
+      status: "IN_PROGRESS",
+      actor: "creator",
+      note: "Creator marked the collaboration as in progress.",
+      createdAt: now,
+    });
     await collaboration.save();
 
-    return NextResponse.json({ ok: true, status: "work_started" });
+    return NextResponse.json({ ok: true, status: "IN_PROGRESS" });
   } catch (error) {
     return handleRouteError(error, "Work status update failed", "Could not update work status.");
   }

@@ -1,5 +1,13 @@
 export const APP_NAME = "CreatorBridge";
 
+export const CONTACT_EMAILS = {
+  support: "support@creatorbridge.app",
+  partnerships: "partnerships@creatorbridge.app",
+  legal: "legal@creatorbridge.app",
+} as const;
+
+export const LEGAL_LAST_UPDATED = "July 4, 2026";
+
 export const NICHES = [
   "Gaming",
   "Tech",

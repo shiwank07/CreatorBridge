@@ -1,3 +1,4 @@
+/* eslint-disable @next/next/no-head-element -- This file renders standalone HTML email markup, not a Next.js page. */
 import type { CSSProperties, ReactNode } from "react";
 
 export type HaloEmailCta = {

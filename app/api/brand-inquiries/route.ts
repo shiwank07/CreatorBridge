@@ -68,7 +68,16 @@ export async function POST(req: Request) {
       ...parsed.data,
       currency: "INR",
       currentOfferAmount: parsed.data.initialOfferAmount,
-      status: "offer_sent",
+      status: "PENDING_CREATOR_RESPONSE",
+      statusHistory: [
+        {
+          event: "CREATED",
+          status: "PENDING_CREATOR_RESPONSE",
+          actor: "brand",
+          note: "Brand created the collaboration request.",
+          createdAt: now,
+        },
+      ],
       offerHistory: [
         {
           actor: "brand",

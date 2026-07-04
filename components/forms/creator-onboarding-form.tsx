@@ -17,6 +17,7 @@ type CreatorOnboardingFormProps = {
 type FormState = {
   name: string;
   username: string;
+  phoneNumber: string;
   avatar: string;
   bio: string;
   niche: string[];
@@ -43,6 +44,7 @@ export function CreatorOnboardingForm({ initialName, initialUsername, initialAva
   const [form, setForm] = useState<FormState>({
     name: initialName,
     username: initialUsername,
+    phoneNumber: "",
     avatar: initialAvatar,
     bio: "",
     niche: [],
@@ -92,6 +94,7 @@ export function CreatorOnboardingForm({ initialName, initialUsername, initialAva
     const payload = {
       name: form.name,
       username: form.username,
+      phoneNumber: form.phoneNumber,
       avatar: form.avatar,
       bio: form.bio,
       niche: form.niche,
@@ -158,6 +161,20 @@ export function CreatorOnboardingForm({ initialName, initialUsername, initialAva
               className="bridge-input mt-2"
               required
             />
+          </label>
+          <label className="lg:col-span-2">
+            <span className="bridge-label">Phone number</span>
+            <input
+              value={form.phoneNumber}
+              onChange={(event) => setField("phoneNumber", event.target.value)}
+              className="bridge-input mt-2"
+              autoComplete="tel"
+              inputMode="tel"
+              placeholder="+91 98765 43210"
+            />
+            <span className="mt-2 block text-xs leading-5 text-[var(--text-secondary)]">
+              Your phone is used for trust, support, and urgent contact only. It is never shown publicly or shared with brands.
+            </span>
           </label>
           <label className="lg:col-span-2">
             <span className="bridge-label">Profile photo image URL</span>

@@ -41,6 +41,8 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "That username is already taken." }, { status: 409 });
     }
 
+    const existingUser = await User.findOne({ clerkId: userId });
+    const phoneVerified = Boolean(existingUser?.phoneVerified && (existingUser.phoneNumber ?? "") === parsed.data.phoneNumber);
     const clerkUser = await currentUser();
     const email =
       clerkUser?.emailAddresses.find((item) => item.id === clerkUser.primaryEmailAddressId)?.emailAddress ??
@@ -53,6 +55,8 @@ export async function POST(req: Request) {
           email,
           username: parsed.data.username,
           name: parsed.data.name,
+          phoneNumber: parsed.data.phoneNumber,
+          phoneVerified,
           // TODO: Add Cloudflare R2 or UploadThing upload support. Keep MongoDB storage to the image URL only.
           avatar: parsed.data.avatar || clerkUser?.imageUrl || "",
           role: "creator",
@@ -82,6 +86,8 @@ export async function POST(req: Request) {
       {
         $set: {
           bio: parsed.data.bio,
+          phoneNumber: parsed.data.phoneNumber,
+          phoneVerified,
           niche: parsed.data.niche,
           country: parsed.data.country,
           languages: parsed.data.languages,

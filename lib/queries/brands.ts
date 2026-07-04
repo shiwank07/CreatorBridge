@@ -10,10 +10,12 @@ type BrandDocumentWithUser = {
   contactName: string;
   contactRole?: string;
   contactEmail?: string;
+  phoneVerified?: boolean;
   website?: string;
   industry: string;
   companySize?: string;
   country?: string;
+  notes?: string;
   verificationStatus?: BrandProfileData["verificationStatus"];
   verificationNote?: string;
   companyRegistrationText?: string;
@@ -26,6 +28,7 @@ function mapBrand(doc: BrandDocumentWithUser): BrandProfileData {
   return {
     id: doc._id.toString(),
     username: user.username,
+    avatar: user.avatar,
     companyName: doc.companyName,
     contactName: doc.contactName,
     contactRole: doc.contactRole,
@@ -34,9 +37,11 @@ function mapBrand(doc: BrandDocumentWithUser): BrandProfileData {
     industry: doc.industry,
     companySize: doc.companySize,
     country: doc.country,
+    notes: doc.notes,
     verificationStatus: doc.verificationStatus ?? (user.isVerified ? "verified" : "unverified"),
     verificationNote: doc.verificationNote,
     companyRegistrationText: doc.companyRegistrationText,
+    phoneVerified: Boolean(user.phoneVerified || doc.phoneVerified),
     createdAt: doc.createdAt?.toISOString(),
   };
 }
@@ -46,11 +51,19 @@ export async function getBrandByUsername(username: string): Promise<BrandProfile
 
   try {
     await connectDB();
-    const user = await User.findOne({ username: username.toLowerCase(), role: "brand", onboardingComplete: true });
+    const user = await User.findOne({
+      username: username.toLowerCase(),
+      role: "brand",
+      onboardingComplete: true,
+      accountStatus: { $nin: ["hidden", "suspended"] },
+    });
     if (!user) return null;
 
     const profile = await BrandProfile.findOne({ userId: user._id })
-      .populate({ path: "userId", match: { role: "brand", onboardingComplete: true } })
+      .populate({
+        path: "userId",
+        match: { role: "brand", onboardingComplete: true, accountStatus: { $nin: ["hidden", "suspended"] } },
+      })
       .exec();
     if (!profile?.userId) return null;
 

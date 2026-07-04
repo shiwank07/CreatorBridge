@@ -21,6 +21,7 @@ type CreatorDocumentWithUser = {
   _id: { toString(): string };
   userId: IUser & { _id: { toString(): string } };
   bio?: string;
+  phoneVerified?: boolean;
   niche?: string[];
   country?: string;
   languages?: string[];
@@ -238,6 +239,7 @@ function mapCreator(doc: CreatorDocumentWithUser): CreatorCardData {
     isOpenToDeals: Boolean(doc.isOpenToDeals),
     isFeatured: Boolean(user.isFeatured),
     isVerified: isCreatorVerifiedStatus(verificationStatus),
+    phoneVerified: Boolean(user.phoneVerified || doc.phoneVerified),
     createdAt: doc.createdAt?.toISOString(),
   };
 }
@@ -334,6 +336,7 @@ export async function getCreators(filters: CreatorFilters = {}): Promise<Creator
     if (filters.search) {
       const regex = new RegExp(escapeRegex(filters.search.trim()), "i");
       const users = await User.find({
+        accountStatus: { $nin: ["hidden", "suspended"] },
         $or: [{ name: regex }, { username: regex }],
       })
         .select("_id")
@@ -347,7 +350,10 @@ export async function getCreators(filters: CreatorFilters = {}): Promise<Creator
     if (andClauses.length > 0) profileQuery.$and = andClauses;
 
     const docs = await CreatorProfile.find(profileQuery)
-      .populate({ path: "userId", match: { role: "creator", onboardingComplete: true } })
+      .populate({
+        path: "userId",
+        match: { role: "creator", onboardingComplete: true, accountStatus: { $nin: ["hidden", "suspended"] } },
+      })
       .limit(Math.max(filters.limit ?? 24, 100))
       .exec();
 
@@ -373,11 +379,19 @@ export async function getCreatorByUsername(username: string): Promise<CreatorCar
 
   try {
     await connectDB();
-    const user = await User.findOne({ username: username.toLowerCase(), role: "creator", onboardingComplete: true });
+    const user = await User.findOne({
+      username: username.toLowerCase(),
+      role: "creator",
+      onboardingComplete: true,
+      accountStatus: { $nin: ["hidden", "suspended"] },
+    });
     if (!user) return null;
 
     const profile = await CreatorProfile.findOne({ userId: user._id })
-      .populate({ path: "userId", match: { role: "creator", onboardingComplete: true } })
+      .populate({
+        path: "userId",
+        match: { role: "creator", onboardingComplete: true, accountStatus: { $nin: ["hidden", "suspended"] } },
+      })
       .exec();
     if (!profile) return null;
 

@@ -6,12 +6,10 @@ import {
   Bell,
   BriefcaseBusiness,
   CalendarClock,
-  CheckCircle2,
   ClipboardList,
   Clock3,
   Compass,
   FileCheck2,
-  Gauge,
   Layers3,
   ShieldCheck,
   Sparkles,
@@ -25,15 +23,18 @@ import { RecentActivityFeed } from "@/components/dashboard/recent-activity-feed"
 import { NotificationList } from "@/components/notifications/notification-list";
 import { Badge } from "@/components/shared/badge";
 import { Navbar } from "@/components/shared/navbar";
+import { ProfileCompletionCard } from "@/components/shared/profile-completion-card";
 import { CreatorVerificationCard } from "@/components/verification/creator-verification-card";
 import { TrustPassportCard } from "@/components/verification/trust-passport-card";
 import { collaborationDetailsHref } from "@/lib/collaboration-routes";
 import { collaborationStatusLabel } from "@/lib/collaborations";
 import { getCurrentAppUser, getCurrentClerkUserId } from "@/lib/current-user";
 import { formatINR, formatNumber } from "@/lib/format";
+import { calculateCreatorProfileCompletion } from "@/lib/profile-completion";
 import { getCreatorCollaborationDashboard, groupCollaborationsByStatus } from "@/lib/queries/collaborations";
 import { getCreatorByUsername } from "@/lib/queries/creators";
 import { getCurrentUserNotificationSummary } from "@/lib/queries/notifications";
+import { averageResponseTimeLabel, countDisputes } from "@/lib/trust-metrics";
 import { getPublicSubscriberCount, verificationBadgeLabel } from "@/lib/verification";
 import { type BrandInquiryData, type CreatorCardData, type InAppNotificationData } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -82,26 +83,6 @@ function DashboardMetricCard({ label, value, detail, Icon, tone, delay = "" }: M
   );
 }
 
-function profileCompletionFields(creator: CreatorCardData | null) {
-  return [
-    { label: "Bio", done: Boolean(creator?.bio) },
-    { label: "Niche", done: Boolean(creator?.niche.length) },
-    { label: "Country", done: Boolean(creator?.country) },
-    { label: "Languages", done: Boolean(creator?.languages.length) },
-    { label: "Platform link", done: Boolean(creator?.youtubeUrl || creator?.instagramUrl || creator?.podcastUrl) },
-    { label: "Audience stats", done: Boolean((creator?.subscribers ?? 0) > 0 || (creator?.instagramFollowers ?? 0) > 0) },
-    { label: "Base rate", done: Boolean((creator?.sponsorshipRate ?? 0) > 0) },
-    { label: "Sample work", done: Boolean(creator?.sampleWorkUrls.length) },
-  ];
-}
-
-function profileCompletionPercent(creator: CreatorCardData | null) {
-  const fields = profileCompletionFields(creator);
-  const completed = fields.filter((field) => field.done).length;
-
-  return Math.round((completed / fields.length) * 100);
-}
-
 function verificationCopy(creator: CreatorCardData | null) {
   if (!creator) return "Profile pending";
   return verificationBadgeLabel(creator.verificationStatus);
@@ -144,7 +125,7 @@ function StageCard({
                   <span className="block truncate text-sm font-semibold text-[var(--text-primary)]">{item.companyName}</span>
                   <span className="mt-1 block truncate text-xs text-[var(--text-secondary)]">{item.timeline}</span>
                 </span>
-                <Badge tone={item.status === "closed" || item.status === "offer_declined" ? "neutral" : "green"} className="shrink-0">
+                <Badge tone={item.status === "DECLINED" || item.status === "CANCELLED" ? "neutral" : "green"} className="shrink-0">
                   {collaborationStatusLabel(item.status)}
                 </Badge>
               </span>
@@ -194,38 +175,6 @@ function CreatorPassport({ creator }: { creator: CreatorCardData | null }) {
         <Badge tone={creator?.isVerified ? "green" : "neutral"}>{verificationCopy(creator)}</Badge>
         {creator?.country ? <Badge tone="neutral">{creator.country}</Badge> : null}
       </div>
-    </section>
-  );
-}
-
-function ProfileCompletion({ creator }: { creator: CreatorCardData | null }) {
-  const fields = profileCompletionFields(creator);
-  const percent = profileCompletionPercent(creator);
-
-  return (
-    <section className="rounded-[8px] border border-white/10 bg-white/[0.04] p-5">
-      <div className="flex items-center justify-between gap-3">
-        <div>
-          <p className="bridge-eyebrow">Profile Completion</p>
-          <h2 className="mt-2 font-display text-2xl font-bold">{percent}% ready</h2>
-        </div>
-        <Gauge size={22} className="text-cyan-200" />
-      </div>
-      <div className="mt-4 h-2 overflow-hidden rounded-full bg-white/10">
-        <div className="h-full rounded-full bg-gradient-to-r from-cyan-300 via-violet-400 to-emerald-300" style={{ width: `${percent}%` }} />
-      </div>
-      <div className="mt-4 grid grid-cols-2 gap-2">
-        {fields.map((field) => (
-          <div key={field.label} className="flex items-center gap-2 text-xs text-[var(--text-secondary)]">
-            <CheckCircle2 size={14} className={field.done ? "text-emerald-300" : "text-[var(--text-muted)]"} />
-            <span>{field.label}</span>
-          </div>
-        ))}
-      </div>
-      <Link href="/onboarding?role=creator" className="bridge-button-secondary mt-5 w-full px-3 py-2 text-xs">
-        Update profile
-        <ArrowRight size={14} />
-      </Link>
     </section>
   );
 }
@@ -287,17 +236,21 @@ export default async function CreatorDashboardPage() {
   ]);
 
   const collaborations = dashboard.collaborations;
-  const newRequests = groupCollaborationsByStatus(collaborations, ["offer_sent", "counter_sent", "new", "viewed"]);
-  const ongoing = groupCollaborationsByStatus(collaborations, ["counter_requested", "offer_accepted", "interested", "work_started", "changes_requested"]);
-  const proofReview = groupCollaborationsByStatus(collaborations, ["proof_submitted", "approved"]);
-  const completed = groupCollaborationsByStatus(collaborations, ["completed", "closed"]);
-  const declined = groupCollaborationsByStatus(collaborations, ["offer_declined"]);
-  const activeWork = [...ongoing, ...proofReview];
+  const newRequests = groupCollaborationsByStatus(collaborations, ["NEW", "PENDING_CREATOR_RESPONSE"]);
+  const activeWork = groupCollaborationsByStatus(collaborations, ["ACCEPTED", "IN_PROGRESS", "PROOF_SUBMITTED", "REVISION_REQUESTED", "APPROVED"]);
+  const completed = groupCollaborationsByStatus(collaborations, ["COMPLETED"]);
+  const declined = groupCollaborationsByStatus(collaborations, ["DECLINED", "CANCELLED"]);
+  const profileCompletion = calculateCreatorProfileCompletion({
+    creator: creatorProfile,
+    emailVerified: Boolean(user?.email),
+    phoneVerified: Boolean(user?.phoneVerified || creatorProfile?.phoneVerified),
+  });
+  const responseTime = averageResponseTimeLabel(collaborations, "creator");
+  const disputes = countDisputes(collaborations);
   const columns = [
     { title: "New Collaboration Requests", items: newRequests },
-    { title: "Ongoing Collaborations", items: ongoing },
-    { title: "Proof Review", items: proofReview },
-    { title: "Completed Collaborations", items: completed },
+    { title: "Active Collaborations", items: activeWork },
+    { title: "Working History", items: completed },
     { title: "Declined Collaborations", items: declined },
   ];
 
@@ -352,22 +305,15 @@ export default async function CreatorDashboardPage() {
             empty="No new requests waiting right now."
           />
           <StageCard
-            title="Ongoing Collaborations"
+            title="Active Collaborations"
             copy="Keep active work moving from accepted to submitted."
             items={activeWork}
             Icon={BriefcaseBusiness}
             empty="No active collaborations yet."
           />
           <StageCard
-            title="Delivery Proof"
-            copy="Submit proof or respond to requested changes."
-            items={proofReview}
-            Icon={FileCheck2}
-            empty="No delivery proof is waiting right now."
-          />
-          <StageCard
-            title="Completed Collaborations"
-            copy="Review your closed work and campaign history."
+            title="Working History"
+            copy="Completed campaigns move into your permanent collaboration record."
             items={completed}
             Icon={BadgeCheck}
             empty="Completed work will collect here."
@@ -380,8 +326,12 @@ export default async function CreatorDashboardPage() {
             <TrustPassportCard
               accountType="creator"
               emailVerified={Boolean(user?.email)}
+              phoneVerified={Boolean(user?.phoneVerified || creatorProfile?.phoneVerified)}
               verificationStatus={creatorProfile?.verificationStatus}
               completedCollaborations={completed.length}
+              joinedDate={creatorProfile?.createdAt}
+              responseTimeLabel={responseTime}
+              disputes={disputes}
               className="rounded-[8px] border border-white/10 bg-white/[0.04] p-5"
             />
             <WorkingHistoryCard accountType="creator" collaborations={collaborations} />
@@ -389,7 +339,7 @@ export default async function CreatorDashboardPage() {
           </div>
           <div className="grid gap-4">
             <CreatorVerificationCard creator={creatorProfile} />
-            <ProfileCompletion creator={creatorProfile} />
+            <ProfileCompletionCard completion={profileCompletion} updateHref="/onboarding?role=creator" />
             <UpcomingDeadlines collaborations={activeWork} />
           </div>
         </section>

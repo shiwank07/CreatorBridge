@@ -5,6 +5,7 @@ import { getAdminState } from "@/lib/admin";
 import { connectDB, hasMongoUri } from "@/lib/db";
 import { CreatorProfile } from "@/lib/models/CreatorProfile";
 import { User } from "@/lib/models/User";
+import { notificationService } from "@/lib/notifications/notification-service";
 import { getAdminCreators } from "@/lib/queries/admin";
 import { creatorAdminUpdateSchema } from "@/lib/validators/admin";
 
@@ -33,11 +34,14 @@ export async function PATCH(req: Request) {
 
     await connectDB();
     const updated = await User.findOneAndUpdate(
-      { username: parsed.data.username },
+      { username: parsed.data.username, role: "creator" },
       {
         $set: {
           ...(typeof parsed.data.isFeatured === "boolean" ? { isFeatured: parsed.data.isFeatured } : {}),
           ...(typeof parsed.data.isVerified === "boolean" ? { isVerified: parsed.data.isVerified } : {}),
+          ...(parsed.data.action === "hide_profile" ? { accountStatus: "hidden" } : {}),
+          ...(parsed.data.action === "suspend" ? { accountStatus: "suspended" } : {}),
+          ...(parsed.data.action === "restore" ? { accountStatus: "active" } : {}),
         },
       },
       { new: true },
@@ -45,20 +49,43 @@ export async function PATCH(req: Request) {
 
     if (!updated) return NextResponse.json({ error: "Creator not found." }, { status: 404 });
 
-    if (typeof parsed.data.isVerified === "boolean") {
+    if (typeof parsed.data.isVerified === "boolean" || parsed.data.action === "approve_verification" || parsed.data.action === "reject_verification") {
       const profile = await CreatorProfile.findOne({ userId: updated._id });
+      if (!profile) return NextResponse.json({ error: "Creator profile not found." }, { status: 404 });
       const claimedSubscribers = profile?.claimedSubscribers ?? profile?.subscribers ?? 0;
+      const isApproved = parsed.data.action === "approve_verification" || parsed.data.isVerified === true;
+      const isRejected = parsed.data.action === "reject_verification";
+      const now = new Date();
 
       await CreatorProfile.updateOne(
         { userId: updated._id },
         {
           $set: {
-            verificationStatus: parsed.data.isVerified ? "verified" : "unverified",
-            verifiedSubscribers: parsed.data.isVerified ? claimedSubscribers : 0,
-            lastVerifiedAt: parsed.data.isVerified ? new Date() : null,
+            verificationStatus: isRejected ? "rejected" : isApproved ? "verified" : "unverified",
+            verifiedSubscribers: isApproved ? claimedSubscribers : 0,
+            verificationReviewedAt: now,
+            verificationReviewedByAdminId: admin.userId ?? "",
+            verificationNote: parsed.data.note,
+            verificationRejectedReason: isRejected ? parsed.data.note : "",
+            lastVerifiedAt: isApproved ? now : null,
           },
         },
       );
+
+      await User.updateOne({ _id: updated._id }, { $set: { isVerified: isApproved } });
+
+      if (parsed.data.action === "approve_verification") {
+        await notificationService.notifyVerificationApproved({
+          user: updated,
+          accountType: "creator",
+          note: parsed.data.note,
+          statusLabel: "Verified Creator",
+        });
+      }
+
+      if (isRejected) {
+        await notificationService.notifyVerificationRejected({ user: updated, accountType: "creator", note: parsed.data.note });
+      }
     }
 
     return NextResponse.json({ ok: true });

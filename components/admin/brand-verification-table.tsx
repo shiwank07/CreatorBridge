@@ -27,12 +27,14 @@ export function BrandVerificationTable({ brands }: BrandVerificationTableProps) 
   const [rows, setRows] = useState(brands);
   const [savingKey, setSavingKey] = useState("");
   const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
   const [notes, setNotes] = useState<Record<string, string>>(() =>
     Object.fromEntries(brands.map((brand) => [brand.username, brand.verificationNote ?? brand.rejectionReason ?? ""])),
   );
 
   async function updateVerification(brand: BrandVerificationData, action: BrandVerificationAction) {
     setError("");
+    setSuccess("");
     setSavingKey(`${brand.username}:${action}`);
 
     try {
@@ -53,6 +55,7 @@ export function BrandVerificationTable({ brands }: BrandVerificationTableProps) 
       }
 
       setRows((current) => current.filter((row) => row.username !== brand.username));
+      setSuccess(`${brand.companyName} was ${action === "approve" ? "approved" : "rejected"} successfully.`);
     } catch {
       setError("Could not reach the server. Please try again.");
     } finally {
@@ -62,8 +65,22 @@ export function BrandVerificationTable({ brands }: BrandVerificationTableProps) 
 
   return (
     <div className="bridge-card overflow-hidden">
-      {error ? <div className="border-b border-red-900 bg-red-950/40 px-4 py-3 text-sm text-red-200">{error}</div> : null}
-      <div className="overflow-x-auto">
+      {error ? (
+        <div role="alert" className="border-b border-red-900 bg-red-950/40 px-4 py-3 text-sm text-red-200">
+          {error}
+        </div>
+      ) : null}
+      {success ? (
+        <div role="status" className="border-b border-emerald-800 bg-emerald-950/40 px-4 py-3 text-sm text-emerald-100">
+          {success}
+        </div>
+      ) : null}
+      {rows.length === 0 ? (
+        <div className="border-b border-[var(--border)] px-4 py-6 text-sm text-[var(--text-secondary)]">
+          No brand verifications are waiting for review.
+        </div>
+      ) : null}
+      <div className="hidden overflow-x-auto md:block">
         <table className="w-full min-w-[980px] text-left text-sm">
           <thead className="border-b border-[var(--border)] text-xs uppercase text-[var(--text-secondary)]">
             <tr>
@@ -122,28 +139,92 @@ export function BrandVerificationTable({ brands }: BrandVerificationTableProps) 
                 </td>
                 <td className="px-4 py-4">
                   <div className="flex flex-col gap-2">
-                    <button
-                      type="button"
-                      onClick={() => updateVerification(brand, "approve")}
-                      className="focus-ring inline-flex items-center justify-center gap-2 rounded-[8px] bg-[var(--accent)] px-3 py-2 text-xs font-semibold text-white"
-                    >
-                      {savingKey === `${brand.username}:approve` ? <Loader2 size={14} className="animate-spin" /> : <BadgeCheck size={14} />}
-                      Approve Brand
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => updateVerification(brand, "reject")}
-                      className="focus-ring inline-flex items-center justify-center gap-2 rounded-[8px] border border-red-900 px-3 py-2 text-xs font-semibold text-red-200"
-                    >
-                      {savingKey === `${brand.username}:reject` ? <Loader2 size={14} className="animate-spin" /> : <XCircle size={14} />}
-                      Reject
-                    </button>
+                    {brand.verificationStatus !== "verified" ? (
+                      <button
+                        type="button"
+                        onClick={() => updateVerification(brand, "approve")}
+                        disabled={savingKey.startsWith(`${brand.username}:`)}
+                        className="bridge-button-primary px-3 py-2 text-xs"
+                      >
+                        {savingKey === `${brand.username}:approve` ? <Loader2 size={14} className="animate-spin" /> : <BadgeCheck size={14} />}
+                        Approve Verification
+                      </button>
+                    ) : null}
+                    {brand.verificationStatus !== "rejected" ? (
+                      <button
+                        type="button"
+                        onClick={() => updateVerification(brand, "reject")}
+                        disabled={savingKey.startsWith(`${brand.username}:`)}
+                        className="bridge-action-button justify-center border-red-900 text-red-200"
+                      >
+                        {savingKey === `${brand.username}:reject` ? <Loader2 size={14} className="animate-spin" /> : <XCircle size={14} />}
+                        Reject
+                      </button>
+                    ) : null}
                   </div>
                 </td>
               </tr>
             ))}
           </tbody>
         </table>
+      </div>
+
+      <div className="divide-y divide-[var(--border)] md:hidden">
+        {rows.map((brand) => (
+          <article key={brand.username} className="p-4">
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <h2 className="truncate font-semibold text-[var(--text-primary)]">{brand.companyName}</h2>
+                <p className="text-xs text-[var(--text-secondary)]">@{brand.username}</p>
+                <p className="mt-1 text-xs text-[var(--text-secondary)]">{brand.contactName}</p>
+                <p className="break-all text-xs text-[var(--text-secondary)]">{brand.contactEmail}</p>
+              </div>
+              <Badge tone="yellow">Pending</Badge>
+            </div>
+            <div className="mt-4 space-y-3 text-xs text-[var(--text-secondary)]">
+              <Badge tone="neutral">{methodLabel(brand.verificationMethod)}</Badge>
+              {brand.website ? (
+                <Link href={brand.website} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-violet-300">
+                  Website
+                  <ExternalLink size={13} />
+                </Link>
+              ) : null}
+              <p>email domain: {brand.companyDomain || "unknown"}</p>
+              <p>website domain: {brand.normalizedWebsiteDomain || "unknown"}</p>
+              {brand.companyRegistrationText ? <p className="leading-5">{brand.companyRegistrationText}</p> : null}
+            </div>
+            <textarea
+              value={notes[brand.username] ?? ""}
+              onChange={(event) => setNotes((current) => ({ ...current, [brand.username]: event.target.value }))}
+              className="bridge-input mt-4 min-h-24 w-full"
+              placeholder="Optional admin note"
+            />
+            <div className="mt-4 flex flex-wrap gap-2">
+              {brand.verificationStatus !== "verified" ? (
+                <button
+                  type="button"
+                  onClick={() => updateVerification(brand, "approve")}
+                  disabled={savingKey.startsWith(`${brand.username}:`)}
+                  className="bridge-button-primary px-3 py-2 text-xs"
+                >
+                  {savingKey === `${brand.username}:approve` ? <Loader2 size={14} className="animate-spin" /> : <BadgeCheck size={14} />}
+                  Approve Verification
+                </button>
+              ) : null}
+              {brand.verificationStatus !== "rejected" ? (
+                <button
+                  type="button"
+                  onClick={() => updateVerification(brand, "reject")}
+                  disabled={savingKey.startsWith(`${brand.username}:`)}
+                  className="bridge-action-button border-red-900 text-red-200"
+                >
+                  {savingKey === `${brand.username}:reject` ? <Loader2 size={14} className="animate-spin" /> : <XCircle size={14} />}
+                  Reject
+                </button>
+              ) : null}
+            </div>
+          </article>
+        ))}
       </div>
     </div>
   );

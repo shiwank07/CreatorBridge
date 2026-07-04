@@ -103,7 +103,7 @@ function CollaborationCard({ collaboration, accountType }: { collaboration: Bran
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
             <h3 className="truncate font-display text-xl font-bold">{partnerName(collaboration, accountType)}</h3>
-            <Badge tone={collaboration.status === "offer_declined" || collaboration.status === "closed" ? "neutral" : "green"}>
+            <Badge tone={collaboration.status === "DECLINED" || collaboration.status === "CANCELLED" ? "neutral" : "green"}>
               {collaborationStatusLabel(collaboration.status)}
             </Badge>
           </div>

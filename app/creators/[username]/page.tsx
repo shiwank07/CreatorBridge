@@ -8,10 +8,12 @@ import { StatBox } from "@/components/creators/stat-box";
 import { WorkingHistoryCard } from "@/components/collaborations/working-history-card";
 import { Badge } from "@/components/shared/badge";
 import { Navbar } from "@/components/shared/navbar";
+import { ProfileCompletionCard } from "@/components/shared/profile-completion-card";
 import { TrustPassportCard } from "@/components/verification/trust-passport-card";
 import { authHref } from "@/lib/auth-redirect";
 import { formatINR, formatNumber } from "@/lib/format";
 import { getCurrentAppUser } from "@/lib/current-user";
+import { calculateCreatorProfileCompletion } from "@/lib/profile-completion";
 import { getCreatorCollaborationHistorySummary } from "@/lib/queries/collaborations";
 import { creatorMetaDescription, getCreatorByUsername } from "@/lib/queries/creators";
 import { getPublicSubscriberCount, hasVerifiedStats, normalizeCreatorVerificationStatus, verificationBadgeLabel } from "@/lib/verification";
@@ -64,6 +66,11 @@ export default async function CreatorProfilePage({ params }: { params: CreatorPr
   const isOwner = viewerRole === "creator" && viewer?.username === creator.username;
   const statsVerified = hasVerifiedStats(creator);
   const normalizedVerification = normalizeCreatorVerificationStatus(creator.verificationStatus);
+  const ownerProfileCompletion = calculateCreatorProfileCompletion({
+    creator,
+    emailVerified: Boolean(viewer?.email),
+    phoneVerified: Boolean(viewer?.phoneVerified || creator.phoneVerified),
+  });
   const platformLinks = [
     creator.youtubeUrl ? { label: "YouTube", href: creator.youtubeUrl, icon: TvMinimalPlay } : null,
     creator.instagramUrl ? { label: "Instagram", href: creator.instagramUrl, icon: Camera } : null,
@@ -227,11 +234,17 @@ export default async function CreatorProfilePage({ params }: { params: CreatorPr
             </Link>
           </div>
 
+          {isOwner ? (
+            <ProfileCompletionCard completion={ownerProfileCompletion} updateHref="/onboarding?role=creator" className="bridge-card p-5" />
+          ) : null}
+
           <TrustPassportCard
             accountType="creator"
             emailVerified
+            phoneVerified={Boolean(creator.phoneVerified)}
             verificationStatus={creator.verificationStatus}
             completedCollaborations={historySummary.completed}
+            joinedDate={creator.createdAt}
             className="bridge-card p-5"
           />
 

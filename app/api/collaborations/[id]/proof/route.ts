@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 
 import { handleRouteError, parseJsonBody } from "@/lib/api-errors";
 import { hasClerkKeys } from "@/lib/clerk-config";
+import { appendCollaborationTimeline, normalizeCollaborationStatus } from "@/lib/collaborations";
 import { connectDB, hasMongoUri } from "@/lib/db";
 import { BrandInquiry } from "@/lib/models/BrandInquiry";
 import { CreatorProfile } from "@/lib/models/CreatorProfile";
@@ -26,6 +27,9 @@ type DeliveryProofShape = {
   reviewNote?: string;
   issueNote?: string;
   issueReportedAt?: Date | null;
+  issueStatus?: "open" | "resolved" | "dismissed";
+  issueReviewedAt?: Date | null;
+  issueReviewedByAdminId?: string;
 };
 
 function idsMatch(value: unknown, id: unknown) {
@@ -45,6 +49,9 @@ function plainProof(proof?: DeliveryProofShape | null) {
     reviewNote: proof?.reviewNote ?? "",
     issueNote: proof?.issueNote ?? "",
     issueReportedAt: proof?.issueReportedAt ?? null,
+    issueStatus: proof?.issueStatus ?? "open",
+    issueReviewedAt: proof?.issueReviewedAt ?? null,
+    issueReviewedByAdminId: proof?.issueReviewedByAdminId ?? "",
   };
 }
 
@@ -84,8 +91,13 @@ export async function POST(req: Request, { params }: RouteContext) {
     }
 
     const now = new Date();
+    const currentStatus = normalizeCollaborationStatus(collaboration.status);
+    if (!["ACCEPTED", "IN_PROGRESS", "PROOF_SUBMITTED", "REVISION_REQUESTED"].includes(currentStatus)) {
+      return NextResponse.json({ error: "Proof can only be submitted after the collaboration is accepted and before approval." }, { status: 400 });
+    }
+
     collaboration.set({
-      status: "proof_submitted",
+      status: "PROOF_SUBMITTED",
       deliveryProof: {
         ...plainProof(collaboration.deliveryProof),
         ...parsed.data,
@@ -94,14 +106,24 @@ export async function POST(req: Request, { params }: RouteContext) {
         reviewNote: "",
         issueNote: "",
         issueReportedAt: null,
+        issueStatus: "dismissed",
+        issueReviewedAt: now,
+        issueReviewedByAdminId: "creator_resubmission",
       },
+    });
+    appendCollaborationTimeline(collaboration, {
+      event: "PROOF_SUBMITTED",
+      status: "PROOF_SUBMITTED",
+      actor: "creator",
+      note: parsed.data.notes,
+      createdAt: now,
     });
 
     await collaboration.save();
 
     await notificationService.notifyProofSubmitted({ collaboration });
 
-    return NextResponse.json({ ok: true, status: "proof_submitted" });
+    return NextResponse.json({ ok: true, status: "PROOF_SUBMITTED" });
   } catch (error) {
     return handleRouteError(error, "Delivery proof submit failed", "Could not submit delivery proof.");
   }

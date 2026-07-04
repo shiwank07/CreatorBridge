@@ -3,9 +3,11 @@ import { NextResponse } from "next/server";
 
 import { handleRouteError, parseJsonBody } from "@/lib/api-errors";
 import { hasClerkKeys } from "@/lib/clerk-config";
+import { appendCollaborationTimeline, normalizeCollaborationStatus } from "@/lib/collaborations";
 import { connectDB, hasMongoUri } from "@/lib/db";
 import { BrandInquiry } from "@/lib/models/BrandInquiry";
 import { BrandProfile } from "@/lib/models/BrandProfile";
+import { CreatorProfile } from "@/lib/models/CreatorProfile";
 import { User } from "@/lib/models/User";
 import { notificationService } from "@/lib/notifications/notification-service";
 import { deliveryReviewSchema } from "@/lib/validators/brand-inquiry";
@@ -26,6 +28,9 @@ type DeliveryProofShape = {
   reviewNote?: string;
   issueNote?: string;
   issueReportedAt?: Date | null;
+  issueStatus?: "open" | "resolved" | "dismissed";
+  issueReviewedAt?: Date | null;
+  issueReviewedByAdminId?: string;
 };
 
 function idsMatch(value: unknown, id: unknown) {
@@ -45,6 +50,9 @@ function plainProof(proof?: DeliveryProofShape | null) {
     reviewNote: proof?.reviewNote ?? "",
     issueNote: proof?.issueNote ?? "",
     issueReportedAt: proof?.issueReportedAt ?? null,
+    issueStatus: proof?.issueStatus ?? "open",
+    issueReviewedAt: proof?.issueReviewedAt ?? null,
+    issueReviewedByAdminId: proof?.issueReviewedByAdminId ?? "",
   };
 }
 
@@ -89,6 +97,11 @@ export async function POST(req: Request, { params }: RouteContext) {
     }
 
     const now = new Date();
+    const currentStatus = normalizeCollaborationStatus(collaboration.status);
+    if (!["PROOF_SUBMITTED", "REVISION_REQUESTED", "APPROVED"].includes(currentStatus)) {
+      return NextResponse.json({ error: "This collaboration is not ready for brand review." }, { status: 400 });
+    }
+
     const currentProof = plainProof(collaboration.deliveryProof);
     const update = {
       deliveryProof: {
@@ -103,38 +116,86 @@ export async function POST(req: Request, { params }: RouteContext) {
     if (parsed.data.action === "approve_delivery") {
       collaboration.set({
         ...update,
-        status: "approved",
+        status: "APPROVED",
+      });
+      appendCollaborationTimeline(collaboration, {
+        event: "APPROVED",
+        status: "APPROVED",
+        actor: "brand",
+        note: parsed.data.note || "Brand approved the delivery proof.",
+        createdAt: now,
       });
     }
 
     if (parsed.data.action === "request_changes") {
       collaboration.set({
         ...update,
-        status: "changes_requested",
+        status: "REVISION_REQUESTED",
+      });
+      appendCollaborationTimeline(collaboration, {
+        event: "REVISION_REQUESTED",
+        status: "REVISION_REQUESTED",
+        actor: "brand",
+        note: parsed.data.note,
+        createdAt: now,
       });
     }
 
     if (parsed.data.action === "report_issue") {
       collaboration.set({
-        status: "changes_requested",
+        status: "REVISION_REQUESTED",
         deliveryProof: {
           ...currentProof,
           reviewedAt: now,
           reviewNote: parsed.data.note,
           issueNote: parsed.data.note,
           issueReportedAt: now,
+          issueStatus: "open",
+          issueReviewedAt: null,
+          issueReviewedByAdminId: "",
         },
+      });
+      appendCollaborationTimeline(collaboration, {
+        event: "REVISION_REQUESTED",
+        status: "REVISION_REQUESTED",
+        actor: "brand",
+        note: parsed.data.note,
+        createdAt: now,
       });
     }
 
     if (parsed.data.action === "mark_completed") {
       collaboration.set({
         ...update,
-        status: "completed",
+        status: "COMPLETED",
+      });
+      appendCollaborationTimeline(collaboration, {
+        event: "COMPLETED",
+        status: "COMPLETED",
+        actor: "brand",
+        note: parsed.data.note || "Brand closed the collaboration as completed.",
+        createdAt: now,
       });
     }
 
     await collaboration.save();
+
+    if (parsed.data.action === "mark_completed") {
+      await Promise.all([
+        collaboration.creatorProfileId
+          ? CreatorProfile.updateOne(
+              { _id: collaboration.creatorProfileId },
+              { $inc: { completedCampaigns: 1, totalDeals: 1 } },
+            )
+          : Promise.resolve(),
+        collaboration.brandProfileId
+          ? BrandProfile.updateOne(
+              { _id: collaboration.brandProfileId },
+              { $inc: { completedCampaigns: 1 } },
+            )
+          : Promise.resolve(),
+      ]);
+    }
 
     if (parsed.data.action === "approve_delivery") {
       await notificationService.notifyDeliveryApproved({ collaboration, note: parsed.data.note });
@@ -142,6 +203,10 @@ export async function POST(req: Request, { params }: RouteContext) {
 
     if (parsed.data.action === "request_changes" || parsed.data.action === "report_issue") {
       await notificationService.notifyDeliveryChangesRequested({ collaboration, note: parsed.data.note });
+    }
+
+    if (parsed.data.action === "mark_completed") {
+      await notificationService.notifyCollaborationCompleted({ collaboration, note: parsed.data.note });
     }
 
     return NextResponse.json({ ok: true, status: collaboration.status });

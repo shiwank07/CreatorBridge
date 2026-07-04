@@ -1,21 +1,48 @@
 import { Check } from "lucide-react";
 
-import { COLLABORATION_TIMELINE_STEPS, collaborationStatusIndex, normalizeCollaborationStatus } from "@/lib/collaborations";
+import {
+  COLLABORATION_TIMELINE_STEPS,
+  collaborationStatusLabel,
+  collaborationStatusIndex,
+  collaborationTimelineEventLabel,
+  normalizeCollaborationStatus,
+} from "@/lib/collaborations";
+import { type CollaborationTimelineEntryData } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 type CollaborationTimelineProps = {
   status?: string;
+  history?: CollaborationTimelineEntryData[];
   compact?: boolean;
   className?: string;
 };
 
-export function CollaborationTimeline({ status = "new", compact = false, className }: CollaborationTimelineProps) {
+function timelineDate(value?: string) {
+  if (!value) return "Recently";
+
+  return new Intl.DateTimeFormat("en", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  }).format(new Date(value));
+}
+
+function actorLabel(actor?: string) {
+  if (actor === "brand") return "Brand";
+  if (actor === "creator") return "Creator";
+  if (actor === "admin") return "Admin";
+  return "System";
+}
+
+export function CollaborationTimeline({ status = "NEW", history = [], compact = false, className }: CollaborationTimelineProps) {
   const currentStatus = normalizeCollaborationStatus(status);
   const currentIndex = collaborationStatusIndex(currentStatus);
 
   if (compact) {
     return (
-      <ol className={cn("flex items-center gap-3 flex-wrap", className)} aria-label={`Collaboration status: ${currentStatus.replace("_", " ")}`}>
+      <ol className={cn("flex items-center gap-3 flex-wrap", className)} aria-label={`Collaboration status: ${currentStatus.replaceAll("_", " ")}`}>
         {COLLABORATION_TIMELINE_STEPS.map((step, index) => {
           const isComplete = index < currentIndex;
           const isCurrent = index === currentIndex;
@@ -41,8 +68,8 @@ export function CollaborationTimeline({ status = "new", compact = false, classNa
   }
 
   return (
-    <div className={cn("w-full", className)} aria-label={`Collaboration status: ${currentStatus.replace("_", " ")}`}>
-      <ol className="grid gap-3 sm:grid-cols-7 sm:gap-2">
+    <div className={cn("w-full", className)} aria-label={`Collaboration status: ${currentStatus.replaceAll("_", " ")}`}>
+      <ol className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-8 xl:gap-2">
         {COLLABORATION_TIMELINE_STEPS.map((step, index) => {
           const isComplete = index < currentIndex;
           const isCurrent = index === currentIndex;
@@ -78,6 +105,23 @@ export function CollaborationTimeline({ status = "new", compact = false, classNa
           );
         })}
       </ol>
+      {history.length ? (
+        <ol className="mt-5 grid gap-3">
+          {history.map((entry, index) => (
+            <li key={entry.id ?? `${entry.event}-${entry.createdAt ?? index}`} className="rounded-[8px] border border-white/10 bg-black/20 p-3">
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold text-[var(--text-primary)]">{collaborationTimelineEventLabel(entry.event)}</p>
+                  <p className="mt-1 text-xs leading-5 text-[var(--text-secondary)]">
+                    {actorLabel(entry.actor)} - {entry.note || collaborationStatusLabel(entry.status)}
+                  </p>
+                </div>
+                <time className="shrink-0 text-xs text-[var(--text-muted)]">{timelineDate(entry.createdAt)}</time>
+              </div>
+            </li>
+          ))}
+        </ol>
+      ) : null}
     </div>
   );
 }

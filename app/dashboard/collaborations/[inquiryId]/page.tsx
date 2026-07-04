@@ -135,7 +135,7 @@ export default async function CollaborationDetailsPage({ params }: Collaboration
                 {campaignTitle(collaboration.campaignGoal, collaboration.companyName)}
               </h1>
               <div className="mt-4 flex flex-wrap gap-2">
-                <Badge tone={collaboration.status === "closed" || collaboration.status === "offer_declined" ? "neutral" : "green"}>{collaborationStatusLabel(collaboration.status)}</Badge>
+                <Badge tone={collaboration.status === "DECLINED" || collaboration.status === "CANCELLED" ? "neutral" : "green"}>{collaborationStatusLabel(collaboration.status)}</Badge>
                 <Badge tone={verificationTone(collaboration.brandVerificationStatus)}>{verificationLabel(collaboration.brandVerificationStatus)}</Badge>
                 <Badge tone={creatorVerificationTone(collaboration.creatorVerificationStatus)}>{verificationBadgeLabel(collaboration.creatorVerificationStatus)}</Badge>
                 {collaboration.creatorUsername ? <Badge tone="neutral">@{collaboration.creatorUsername}</Badge> : null}
@@ -191,10 +191,14 @@ export default async function CollaborationDetailsPage({ params }: Collaboration
                     <div className="grid gap-1">
                       <span>{collaboration.companyName}</span>
                       <span className="text-[var(--text-secondary)]">{collaboration.contactName}</span>
-                      <span className="inline-flex min-w-0 items-center gap-2 text-[var(--text-secondary)]">
-                        <Mail size={14} className="shrink-0" />
-                        <span className="truncate">{collaboration.email}</span>
-                      </span>
+                      {collaboration.contactEmailRevealed ? (
+                        <span className="inline-flex min-w-0 items-center gap-2 text-[var(--text-secondary)]">
+                          <Mail size={14} className="shrink-0" />
+                          <span className="truncate">{collaboration.brandContactEmail ?? collaboration.email}</span>
+                        </span>
+                      ) : (
+                        <span className="text-[var(--text-secondary)]">Contact email appears after the creator accepts.</span>
+                      )}
                       {collaboration.website ? (
                         <Link href={collaboration.website} target="_blank" rel="noreferrer" className="inline-flex min-w-0 items-center gap-2 text-cyan-200 hover:text-cyan-100">
                           <Globe2 size={14} className="shrink-0" />
@@ -211,6 +215,14 @@ export default async function CollaborationDetailsPage({ params }: Collaboration
                     <div className="grid gap-1">
                       <span>{collaboration.creatorUsername ? `@${collaboration.creatorUsername}` : "Creator not linked"}</span>
                       <span className="text-[var(--text-secondary)]">{verificationBadgeLabel(collaboration.creatorVerificationStatus)}</span>
+                      {collaboration.contactEmailRevealed ? (
+                        <span className="inline-flex min-w-0 items-center gap-2 text-[var(--text-secondary)]">
+                          <Mail size={14} className="shrink-0" />
+                          <span className="truncate">{collaboration.creatorContactEmail || "Creator email unavailable"}</span>
+                        </span>
+                      ) : (
+                        <span className="text-[var(--text-secondary)]">Creator email appears after acceptance.</span>
+                      )}
                     </div>
                   }
                   Icon={UserRound}
@@ -273,7 +285,7 @@ export default async function CollaborationDetailsPage({ params }: Collaboration
             <section className="rounded-[8px] border border-white/10 bg-white/[0.04] p-5">
               <p className="bridge-eyebrow">Progress</p>
               <h2 className="mt-2 font-display text-2xl font-bold">Collaboration timeline</h2>
-              <CollaborationTimeline status={collaboration.status} className="mt-5" />
+              <CollaborationTimeline status={collaboration.status} history={collaboration.statusHistory} className="mt-5" />
             </section>
           </div>
 

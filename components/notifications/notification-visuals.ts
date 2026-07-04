@@ -103,6 +103,13 @@ const notificationVisuals: Record<string, NotificationVisual> = {
     iconClassName: "text-cyan-100",
     accentClassName: "bg-cyan-300",
   },
+  collaboration_completed: {
+    label: "Collaboration completed",
+    Icon: BadgeCheck,
+    shellClassName: "border-emerald-300/25 bg-emerald-400/10 text-emerald-100",
+    iconClassName: "text-emerald-100",
+    accentClassName: "bg-emerald-400",
+  },
   featured_creator: {
     label: "Featured creator",
     Icon: Star,

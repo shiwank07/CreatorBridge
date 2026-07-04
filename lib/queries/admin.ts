@@ -2,13 +2,27 @@ import { connectDB, hasMongoUri } from "@/lib/db";
 import { BrandInquiry } from "@/lib/models/BrandInquiry";
 import { BrandProfile } from "@/lib/models/BrandProfile";
 import { CreatorProfile } from "@/lib/models/CreatorProfile";
+import { EmailNotification } from "@/lib/models/EmailNotification";
 import { User } from "@/lib/models/User";
-import { normalizeCollaborationStatus, type BrandInquiryStatus } from "@/lib/collaborations";
-import { demoCreators, getCreators } from "@/lib/queries/creators";
+import {
+  normalizeCollaborationStatus,
+  type BrandInquiryStatus,
+  type CollaborationTimelineEvent,
+} from "@/lib/collaborations";
+import { demoCreators } from "@/lib/queries/creators";
 import {
   type BrandInquiryData,
+  type AdminBrandData,
   type BrandVerificationData,
-  type CreatorCardData,
+  type AdminContactData,
+  type AdminCollaborationData,
+  type AdminCreatorData,
+  type AdminEmailLogData,
+  type AdminReportData,
+  type AdminReportStatus,
+  type AdminSearchResultData,
+  type AdminUserData,
+  type AccountStatus,
   type CreatorVerificationData,
   type VerificationStatus,
 } from "@/lib/types";
@@ -19,6 +33,15 @@ type OfferHistoryDocument = {
   action?: "offer_sent" | "counter_requested" | "counter_sent" | "offer_accepted" | "offer_declined";
   amount?: number;
   currency?: "INR";
+  note?: string;
+  createdAt?: Date | null;
+};
+
+type StatusHistoryDocument = {
+  _id?: { toString(): string };
+  event?: CollaborationTimelineEvent;
+  status?: BrandInquiryStatus;
+  actor?: "brand" | "creator" | "admin" | "system";
   note?: string;
   createdAt?: Date | null;
 };
@@ -45,6 +68,7 @@ type InquiryDocument = {
   creatorResponseAt?: Date | null;
   creatorResponseNote?: string;
   status: BrandInquiryStatus;
+  statusHistory?: StatusHistoryDocument[];
   deliveryProof?: {
     videoUrl?: string;
     timestampStart?: string;
@@ -114,6 +138,84 @@ type BrandVerificationDocument = {
   createdAt?: Date;
 };
 
+type PopulatedUserDocument = {
+  _id: { toString(): string };
+  username: string;
+  name: string;
+  email: string;
+  avatar?: string;
+  role: "creator" | "brand" | "agency" | "talent";
+  isVerified?: boolean;
+  accountStatus?: AccountStatus;
+  createdAt?: Date;
+  updatedAt?: Date;
+};
+
+type AdminCreatorDocument = {
+  _id: { toString(): string };
+  userId: PopulatedUserDocument;
+  verificationStatus?: VerificationStatus;
+  createdAt?: Date;
+};
+
+type AdminBrandDocument = {
+  _id: { toString(): string };
+  userId: PopulatedUserDocument;
+  companyName: string;
+  contactEmail?: string;
+  verificationStatus?: BrandVerificationData["verificationStatus"];
+  createdAt?: Date;
+};
+
+type AdminCollaborationDocument = InquiryDocument & {
+  updatedAt?: Date;
+};
+
+type AdminReportDocument = InquiryDocument & {
+  updatedAt?: Date;
+  deliveryProof?: InquiryDocument["deliveryProof"] & {
+    issueStatus?: AdminReportStatus;
+    issueReviewedAt?: Date | null;
+    issueReviewedByAdminId?: string;
+  };
+};
+
+type AdminEmailNotificationDocument = {
+  _id: { toString(): string };
+  recipient: string;
+  event: string;
+  status: AdminEmailLogData["status"];
+  error?: string | null;
+  createdAt?: Date;
+};
+
+type AdminContactUserDocument = {
+  _id: { toString(): string };
+  username: string;
+  name: string;
+  email: string;
+  phoneNumber?: string;
+  phoneVerified?: boolean;
+  role: "creator" | "brand";
+  updatedAt?: Date;
+};
+
+type AdminCreatorContactProfileDocument = {
+  userId: { toString(): string };
+  country?: string;
+  verificationStatus?: VerificationStatus;
+};
+
+type AdminBrandContactProfileDocument = {
+  userId: { toString(): string };
+  companyName: string;
+  contactName: string;
+  contactRole?: string;
+  contactEmail: string;
+  country?: string;
+  verificationStatus?: BrandVerificationData["verificationStatus"];
+};
+
 function mapInquiry(doc: InquiryDocument): BrandInquiryData {
   const offerHistory = (doc.offerHistory ?? []).map((entry) => ({
     id: entry._id?.toString(),
@@ -125,6 +227,26 @@ function mapInquiry(doc: InquiryDocument): BrandInquiryData {
     createdAt: entry.createdAt?.toISOString(),
   }));
   const latestOfferAmount = [...offerHistory].reverse().find((entry) => entry.amount)?.amount;
+  const normalizedStatus = normalizeCollaborationStatus(doc.status);
+  const statusHistory =
+    doc.statusHistory?.length
+      ? doc.statusHistory.map((entry) => ({
+          id: entry._id?.toString(),
+          event: entry.event ?? "CREATED",
+          status: normalizeCollaborationStatus(entry.status),
+          actor: entry.actor ?? "system",
+          note: entry.note,
+          createdAt: entry.createdAt?.toISOString(),
+        }))
+      : [
+          {
+            event: "CREATED" as const,
+            status: normalizedStatus,
+            actor: "system" as const,
+            note: "Collaboration created.",
+            createdAt: doc.createdAt?.toISOString(),
+          },
+        ];
 
   return {
     id: doc._id.toString(),
@@ -147,7 +269,8 @@ function mapInquiry(doc: InquiryDocument): BrandInquiryData {
     creatorUsername: doc.creatorUsername,
     creatorResponseAt: doc.creatorResponseAt?.toISOString(),
     creatorResponseNote: doc.creatorResponseNote,
-    status: normalizeCollaborationStatus(doc.status),
+    status: normalizedStatus,
+    statusHistory,
     deliveryProof: doc.deliveryProof
       ? {
           videoUrl: doc.deliveryProof.videoUrl,
@@ -222,56 +345,172 @@ function mapBrandVerification(doc: BrandVerificationDocument): BrandVerification
   };
 }
 
+function accountStatus(user?: { accountStatus?: AccountStatus }): AccountStatus {
+  return user?.accountStatus ?? "active";
+}
+
+function mapAdminCreator(doc: AdminCreatorDocument): AdminCreatorData {
+  const user = doc.userId;
+
+  return {
+    userId: user._id.toString(),
+    profileId: doc._id.toString(),
+    avatar: user.avatar ?? "",
+    name: user.name,
+    username: user.username,
+    email: user.email,
+    verificationStatus: doc.verificationStatus ?? (user.isVerified ? "verified" : "unverified"),
+    accountStatus: accountStatus(user),
+    joinedDate: user.createdAt?.toISOString() ?? doc.createdAt?.toISOString(),
+  };
+}
+
+function mapAdminBrand(doc: AdminBrandDocument): AdminBrandData {
+  const user = doc.userId;
+
+  return {
+    userId: user._id.toString(),
+    profileId: doc._id.toString(),
+    logo: user.avatar ?? "",
+    companyName: doc.companyName,
+    username: user.username,
+    email: doc.contactEmail || user.email,
+    verificationStatus: doc.verificationStatus ?? (user.isVerified ? "verified" : "unverified"),
+    accountStatus: accountStatus(user),
+    joinedDate: user.createdAt?.toISOString() ?? doc.createdAt?.toISOString(),
+  };
+}
+
+function mapAdminCollaboration(doc: AdminCollaborationDocument): AdminCollaborationData {
+  return {
+    id: doc._id.toString(),
+    brand: doc.companyName,
+    brandEmail: doc.email,
+    creator: doc.creatorUsername ? `@${doc.creatorUsername}` : "Open brief",
+    status: normalizeCollaborationStatus(doc.status),
+    budget: doc.currentOfferAmount && doc.currentOfferAmount > 0 ? `INR ${doc.currentOfferAmount.toLocaleString("en-IN")}` : doc.budgetRange,
+    createdAt: doc.createdAt?.toISOString(),
+    updatedAt: doc.updatedAt?.toISOString() ?? doc.createdAt?.toISOString(),
+  };
+}
+
+function mapAdminReport(doc: AdminReportDocument): AdminReportData {
+  return {
+    id: doc._id.toString(),
+    reporter: `${doc.companyName} (${doc.email})`,
+    reportedUser: doc.creatorUsername ? `@${doc.creatorUsername}` : "Creator not assigned",
+    reportedUsername: doc.creatorUsername,
+    reason: doc.deliveryProof?.issueNote || doc.deliveryProof?.reviewNote || "Delivery issue reported.",
+    status: doc.deliveryProof?.issueStatus ?? "open",
+    createdAt: doc.deliveryProof?.issueReportedAt?.toISOString() ?? doc.updatedAt?.toISOString() ?? doc.createdAt?.toISOString(),
+  };
+}
+
+function mapAdminEmailLog(doc: AdminEmailNotificationDocument): AdminEmailLogData {
+  return {
+    id: doc._id.toString(),
+    recipient: doc.recipient,
+    event: doc.event,
+    status: doc.status,
+    error: doc.error,
+    createdAt: doc.createdAt?.toISOString(),
+  };
+}
+
 export async function getAdminMetrics() {
   if (!hasMongoUri()) {
     return {
-      creators: demoCreators.length,
-      featuredCreators: demoCreators.filter((creator) => creator.isFeatured).length,
-      openInquiries: 0,
-      verifiedCreators: demoCreators.filter((creator) => creator.verificationStatus === "verified").length,
+      totalCreators: demoCreators.length,
+      totalBrands: 0,
+      activeCollaborations: 0,
       pendingVerifications: demoCreators.filter((creator) => creator.verificationStatus === "pending").length,
-      pendingBrandVerifications: 0,
+      openReports: 0,
+      emailsSentToday: 0,
     };
   }
 
   await connectDB();
-  const [creators, featuredCreators, openInquiries, verifiedCreators, pendingVerifications, pendingBrandVerifications] = await Promise.all([
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const activeStatuses: BrandInquiryStatus[] = [
+    "NEW",
+    "PENDING_CREATOR_RESPONSE",
+    "ACCEPTED",
+    "IN_PROGRESS",
+    "PROOF_SUBMITTED",
+    "REVISION_REQUESTED",
+    "APPROVED",
+    "new",
+    "viewed",
+    "offer_sent",
+    "counter_requested",
+    "counter_sent",
+    "offer_accepted",
+    "interested",
+    "work_started",
+    "proof_submitted",
+    "changes_requested",
+    "approved",
+    "reviewed",
+    "contacted",
+    "sent_to_creator",
+    "creator_interested",
+    "contact_shared",
+  ];
+  const [totalCreators, totalBrands, activeCollaborations, pendingCreatorVerifications, pendingBrandVerifications, openReports, emailsSentToday] = await Promise.all([
     CreatorProfile.countDocuments(),
-    User.countDocuments({ isFeatured: true }),
+    BrandProfile.countDocuments(),
     BrandInquiry.countDocuments({
       status: {
-        $in: [
-          "new",
-          "viewed",
-          "offer_sent",
-          "counter_requested",
-          "counter_sent",
-          "offer_accepted",
-          "interested",
-          "work_started",
-          "proof_submitted",
-          "changes_requested",
-          "approved",
-          "reviewed",
-          "contacted",
-          "sent_to_creator",
-          "creator_interested",
-          "contact_shared",
-        ],
+        $in: activeStatuses,
       },
     }),
-    CreatorProfile.countDocuments({ verificationStatus: { $in: ["verified", "stats_verified", "ownership_verified"] } }),
     CreatorProfile.countDocuments({
       verificationStatus: { $in: ["pending", "pending_ownership"] },
     }),
     BrandProfile.countDocuments({ verificationStatus: "pending" }),
+    BrandInquiry.countDocuments({
+      "deliveryProof.issueReportedAt": { $ne: null },
+      "deliveryProof.issueStatus": { $nin: ["resolved", "dismissed"] },
+    }),
+    EmailNotification.countDocuments({ status: "sent", createdAt: { $gte: today } }),
   ]);
 
-  return { creators, featuredCreators, openInquiries, verifiedCreators, pendingVerifications, pendingBrandVerifications };
+  return {
+    totalCreators,
+    totalBrands,
+    activeCollaborations,
+    pendingVerifications: pendingCreatorVerifications + pendingBrandVerifications,
+    openReports,
+    emailsSentToday,
+  };
 }
 
-export async function getAdminCreators(): Promise<CreatorCardData[]> {
-  return getCreators({ limit: 100, sort: "featured" });
+export async function getAdminCreators(): Promise<AdminCreatorData[]> {
+  if (!hasMongoUri()) {
+    return demoCreators.map((creator) => ({
+      userId: creator.id,
+      profileId: creator.id,
+      avatar: creator.avatar,
+      name: creator.name,
+      username: creator.username,
+      email: `${creator.username}@example.com`,
+      verificationStatus: creator.verificationStatus,
+      accountStatus: "active",
+      joinedDate: creator.createdAt,
+    }));
+  }
+
+  await connectDB();
+  const docs = await CreatorProfile.find({})
+    .populate({ path: "userId", match: { role: "creator", onboardingComplete: true } })
+    .sort({ updatedAt: -1, createdAt: -1 })
+    .limit(200)
+    .exec();
+
+  return docs
+    .filter((doc) => Boolean(doc.userId))
+    .map((doc) => mapAdminCreator(doc as unknown as AdminCreatorDocument));
 }
 
 export async function getAdminInquiries(): Promise<BrandInquiryData[]> {
@@ -280,6 +519,187 @@ export async function getAdminInquiries(): Promise<BrandInquiryData[]> {
   await connectDB();
   const docs = await BrandInquiry.find({}).sort({ createdAt: -1 }).limit(100).exec();
   return docs.map((doc) => mapInquiry(doc as unknown as InquiryDocument));
+}
+
+export async function getAdminInquiryById(id: string): Promise<BrandInquiryData | null> {
+  if (!hasMongoUri()) return null;
+
+  await connectDB();
+  const doc = await BrandInquiry.findById(id).exec();
+  return doc ? mapInquiry(doc as unknown as InquiryDocument) : null;
+}
+
+export async function getAdminBrands(): Promise<AdminBrandData[]> {
+  if (!hasMongoUri()) return [];
+
+  await connectDB();
+  const docs = await BrandProfile.find({})
+    .populate({ path: "userId", match: { role: "brand", onboardingComplete: true } })
+    .sort({ updatedAt: -1, createdAt: -1 })
+    .limit(200)
+    .exec();
+
+  return docs
+    .filter((doc) => Boolean(doc.userId))
+    .map((doc) => mapAdminBrand(doc as unknown as AdminBrandDocument));
+}
+
+export async function getAdminCollaborations(): Promise<AdminCollaborationData[]> {
+  if (!hasMongoUri()) return [];
+
+  await connectDB();
+  const docs = await BrandInquiry.find({}).sort({ updatedAt: -1, createdAt: -1 }).limit(200).exec();
+  return docs.map((doc) => mapAdminCollaboration(doc as unknown as AdminCollaborationDocument));
+}
+
+export async function getAdminReports(): Promise<AdminReportData[]> {
+  if (!hasMongoUri()) return [];
+
+  await connectDB();
+  const docs = await BrandInquiry.find({ "deliveryProof.issueReportedAt": { $ne: null } })
+    .sort({ "deliveryProof.issueReportedAt": -1, updatedAt: -1 })
+    .limit(200)
+    .exec();
+
+  return docs.map((doc) => mapAdminReport(doc as unknown as AdminReportDocument));
+}
+
+export async function getAdminEmailLogs(): Promise<AdminEmailLogData[]> {
+  if (!hasMongoUri()) return [];
+
+  await connectDB();
+  const docs = await EmailNotification.find({}).sort({ createdAt: -1 }).limit(200).exec();
+  return docs.map((doc) => mapAdminEmailLog(doc as unknown as AdminEmailNotificationDocument));
+}
+
+export async function getAdminUsers(): Promise<AdminUserData[]> {
+  if (!hasMongoUri()) {
+    return demoCreators.map((creator) => ({
+      userId: creator.id,
+      avatar: creator.avatar,
+      name: creator.name,
+      username: creator.username,
+      email: `${creator.username}@example.com`,
+      role: "creator",
+      verificationStatus: creator.verificationStatus,
+      accountStatus: "active",
+      joinedDate: creator.createdAt,
+    }));
+  }
+
+  await connectDB();
+  const users = await User.find({ role: { $in: ["creator", "brand"] } })
+    .select("_id username name email avatar role isVerified accountStatus createdAt")
+    .sort({ createdAt: -1 })
+    .limit(300)
+    .exec();
+
+  const userIds = users.map((user) => user._id);
+  const [creatorProfiles, brandProfiles] = await Promise.all([
+    CreatorProfile.find({ userId: { $in: userIds } }).select("userId verificationStatus").exec(),
+    BrandProfile.find({ userId: { $in: userIds } }).select("userId verificationStatus").exec(),
+  ]);
+
+  const creatorStatusByUserId = new Map(
+    creatorProfiles.map((profile) => {
+      const doc = profile as unknown as { userId: { toString(): string }; verificationStatus?: VerificationStatus };
+      return [doc.userId.toString(), doc.verificationStatus ?? "unverified"];
+    }),
+  );
+  const brandStatusByUserId = new Map(
+    brandProfiles.map((profile) => {
+      const doc = profile as unknown as { userId: { toString(): string }; verificationStatus?: BrandVerificationData["verificationStatus"] };
+      return [doc.userId.toString(), doc.verificationStatus ?? "unverified"];
+    }),
+  );
+
+  return users.map((user) => {
+    const doc = user as unknown as PopulatedUserDocument;
+    const userId = doc._id.toString();
+    const profileStatus =
+      doc.role === "brand"
+        ? brandStatusByUserId.get(userId) ?? (doc.isVerified ? "verified" : "unverified")
+        : creatorStatusByUserId.get(userId) ?? (doc.isVerified ? "verified" : "unverified");
+
+    return {
+      userId,
+      avatar: doc.avatar ?? "",
+      name: doc.name,
+      username: doc.username,
+      email: doc.email,
+      role: doc.role,
+      verificationStatus: profileStatus,
+      accountStatus: accountStatus(doc),
+      joinedDate: doc.createdAt?.toISOString(),
+    };
+  });
+}
+
+export async function searchAdminDirectory(query: string): Promise<AdminSearchResultData[]> {
+  const search = query.trim();
+  if (!hasMongoUri() || search.length < 2) return [];
+
+  await connectDB();
+  const regex = new RegExp(search.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i");
+  const [users, creators, brands] = await Promise.all([
+    User.find({
+      role: { $in: ["creator", "brand"] },
+      $or: [{ name: regex }, { username: regex }, { email: regex }],
+    })
+      .select("_id username name email role accountStatus isVerified")
+      .limit(8)
+      .exec(),
+    CreatorProfile.find({ $or: [{ bio: regex }, { niche: regex }] })
+      .populate({ path: "userId", match: { role: "creator" } })
+      .limit(8)
+      .exec(),
+    BrandProfile.find({ $or: [{ companyName: regex }, { contactEmail: regex }, { industry: regex }] })
+      .populate({ path: "userId", match: { role: "brand" } })
+      .limit(8)
+      .exec(),
+  ]);
+
+  const results = new Map<string, AdminSearchResultData>();
+
+  for (const user of users) {
+    const doc = user as unknown as PopulatedUserDocument;
+    results.set(`user:${doc._id.toString()}`, {
+      id: doc._id.toString(),
+      type: "user",
+      title: doc.name,
+      subtitle: `${doc.role} - @${doc.username} - ${doc.email}`,
+      href: "/admin/users",
+      status: accountStatus(doc),
+    });
+  }
+
+  for (const creator of creators) {
+    const doc = creator as unknown as AdminCreatorDocument;
+    if (!doc.userId) continue;
+    results.set(`creator:${doc.userId._id.toString()}`, {
+      id: doc.userId._id.toString(),
+      type: "creator",
+      title: doc.userId.name,
+      subtitle: `Creator - @${doc.userId.username}`,
+      href: `/creators/${doc.userId.username}`,
+      status: doc.verificationStatus ?? "unverified",
+    });
+  }
+
+  for (const brand of brands) {
+    const doc = brand as unknown as AdminBrandDocument;
+    if (!doc.userId) continue;
+    results.set(`brand:${doc.userId._id.toString()}`, {
+      id: doc.userId._id.toString(),
+      type: "brand",
+      title: doc.companyName,
+      subtitle: `Brand - @${doc.userId.username} - ${doc.contactEmail || doc.userId.email}`,
+      href: `/brands/${doc.userId.username}`,
+      status: doc.verificationStatus ?? "unverified",
+    });
+  }
+
+  return Array.from(results.values()).slice(0, 12);
 }
 
 export async function getPendingCreatorVerifications(): Promise<CreatorVerificationData[]> {
@@ -312,4 +732,60 @@ export async function getPendingBrandVerifications(): Promise<BrandVerificationD
   return docs
     .filter((doc) => Boolean(doc.userId))
     .map((doc) => mapBrandVerification(doc as unknown as BrandVerificationDocument));
+}
+
+export async function getAdminContactDetails(): Promise<AdminContactData[]> {
+  if (!hasMongoUri()) return [];
+
+  await connectDB();
+  const users = await User.find({ role: { $in: ["creator", "brand"] }, onboardingComplete: true })
+    .select("username name email phoneNumber phoneVerified role updatedAt")
+    .sort({ updatedAt: -1 })
+    .limit(200)
+    .exec();
+
+  const userIds = users.map((user) => user._id);
+  const [creatorProfiles, brandProfiles] = await Promise.all([
+    CreatorProfile.find({ userId: { $in: userIds } }).select("userId country verificationStatus").exec(),
+    BrandProfile.find({ userId: { $in: userIds } })
+      .select("userId companyName contactName contactRole contactEmail country verificationStatus")
+      .exec(),
+  ]);
+
+  const creatorProfileByUserId = new Map(
+    creatorProfiles.map((profile) => {
+      const doc = profile as unknown as AdminCreatorContactProfileDocument;
+      return [doc.userId.toString(), doc];
+    }),
+  );
+  const brandProfileByUserId = new Map(
+    brandProfiles.map((profile) => {
+      const doc = profile as unknown as AdminBrandContactProfileDocument;
+      return [doc.userId.toString(), doc];
+    }),
+  );
+
+  return users.map((user) => {
+    const doc = user as unknown as AdminContactUserDocument;
+    const userId = doc._id.toString();
+    const creatorProfile = creatorProfileByUserId.get(userId);
+    const brandProfile = brandProfileByUserId.get(userId);
+
+    return {
+      userId,
+      username: doc.username,
+      role: doc.role,
+      displayName: doc.name,
+      accountEmail: doc.email,
+      contactName: brandProfile?.contactName,
+      contactEmail: brandProfile?.contactEmail,
+      contactRole: brandProfile?.contactRole,
+      companyName: brandProfile?.companyName,
+      phoneNumber: doc.phoneNumber,
+      phoneVerified: Boolean(doc.phoneVerified),
+      profileStatus: brandProfile?.verificationStatus ?? creatorProfile?.verificationStatus,
+      country: brandProfile?.country ?? creatorProfile?.country,
+      updatedAt: doc.updatedAt?.toISOString(),
+    };
+  });
 }

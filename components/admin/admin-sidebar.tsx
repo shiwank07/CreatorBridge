@@ -1,12 +1,15 @@
 import Link from "next/link";
-import { ClipboardList, LayoutDashboard, ShieldCheck, Users } from "lucide-react";
+import { Building2, ClipboardList, Flag, LayoutDashboard, Mail, ShieldCheck, UserCog, Users } from "lucide-react";
 
 const links = [
   { href: "/admin", label: "Overview", icon: LayoutDashboard },
   { href: "/admin/creators", label: "Creators", icon: Users },
-  { href: "/admin/verification", label: "Verification", icon: ShieldCheck },
-  { href: "/admin/brand-verifications", label: "Brands", icon: ShieldCheck },
-  { href: "/admin/inquiries", label: "Collaborations", icon: ClipboardList },
+  { href: "/admin/brands", label: "Brands", icon: Building2 },
+  { href: "/admin/collaborations", label: "Collaborations", icon: ClipboardList },
+  { href: "/admin/verification", label: "Verification Queue", icon: ShieldCheck },
+  { href: "/admin/reports", label: "Reports", icon: Flag },
+  { href: "/admin/email-logs", label: "Email Logs", icon: Mail },
+  { href: "/admin/users", label: "Users", icon: UserCog },
 ];
 
 export function AdminSidebar() {

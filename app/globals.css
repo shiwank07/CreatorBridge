@@ -118,12 +118,12 @@ textarea {
 }
 
 .bridge-button-primary {
-  @apply focus-ring inline-flex items-center justify-center gap-2 rounded-[8px] bg-[var(--accent)] px-5 py-3 text-sm font-semibold text-white shadow-[0_12px_28px_rgba(124,58,237,0.24)] transition hover:-translate-y-0.5 hover:bg-violet-500 disabled:cursor-not-allowed disabled:opacity-60;
+  @apply focus-ring inline-flex items-center justify-center gap-2 rounded-[8px] bg-[var(--accent)] px-5 py-3 text-sm font-semibold text-white shadow-[0_12px_28px_rgba(124,58,237,0.24)] transition hover:-translate-y-0.5 hover:bg-violet-500 disabled:cursor-not-allowed disabled:opacity-55;
   transform: translateZ(0);
 }
 
 .bridge-button-secondary {
-  @apply focus-ring inline-flex items-center justify-center gap-2 rounded-[8px] border border-[var(--border)] bg-[rgba(17,19,26,0.72)] px-5 py-3 text-sm font-semibold text-[var(--text-primary)] transition hover:-translate-y-0.5 hover:border-[var(--border-accent)] hover:bg-[var(--bg-elevated)];
+  @apply focus-ring inline-flex items-center justify-center gap-2 rounded-[8px] border border-[var(--border)] bg-[rgba(17,19,26,0.72)] px-5 py-3 text-sm font-semibold text-[var(--text-primary)] transition hover:-translate-y-0.5 hover:border-[var(--border-accent)] hover:bg-[var(--bg-elevated)] disabled:cursor-not-allowed disabled:opacity-55;
   transform: translateZ(0);
 }
 
@@ -139,9 +139,43 @@ textarea {
     0 0 24px rgba(103, 232, 249, 0.12);
 }
 
+.bridge-button-primary:disabled,
+.bridge-button-secondary:disabled,
+.bridge-button-primary:disabled:hover,
+.bridge-button-secondary:disabled:hover {
+  transform: none;
+  box-shadow: none;
+}
+
 .bridge-button-primary:active,
 .bridge-button-secondary:active {
   transform: translateY(1px) scale(0.985);
+}
+
+.bridge-action-button {
+  @apply focus-ring inline-flex items-center gap-2 rounded-[8px] border px-3 py-2 text-xs font-semibold transition hover:-translate-y-0.5 hover:bg-white/[0.055] disabled:cursor-not-allowed disabled:opacity-50;
+  transform: translateZ(0);
+}
+
+.bridge-action-button:disabled,
+.bridge-action-button:disabled:hover {
+  transform: none;
+}
+
+.bridge-skeleton {
+  position: relative;
+  overflow: hidden;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.065);
+}
+
+.bridge-skeleton::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.12), transparent);
+  animation: skeleton-shimmer 1.35s ease-in-out infinite;
 }
 
 .bridge-section {
@@ -695,6 +729,12 @@ textarea {
   }
 }
 
+@keyframes skeleton-shimmer {
+  100% {
+    transform: translateX(100%);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   ::before,
@@ -729,5 +769,10 @@ textarea {
 
   .creator-premium-card:hover {
     transform: none;
+  }
+
+  .bridge-action-button {
+    min-height: 38px;
+    justify-content: center;
   }
 }

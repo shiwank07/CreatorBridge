@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+import { isValidPhoneNumber, normalizePhoneNumber } from "@/lib/phone";
+
 const urlish = z
   .string()
   .trim()
@@ -16,6 +18,12 @@ export const creatorOnboardingSchema = z.object({
     .min(3, "Username must be at least 3 characters.")
     .max(24, "Username must be 24 characters or less.")
     .regex(/^[a-z0-9]+$/, "Username can only contain lowercase letters and numbers."),
+  phoneNumber: z
+    .string()
+    .trim()
+    .optional()
+    .transform((value) => normalizePhoneNumber(value))
+    .refine(isValidPhoneNumber, "Enter a valid phone number, including country code if needed."),
   avatar: urlish,
   bio: z.string().trim().min(30, "Bio should be at least 30 characters.").max(500),
   niche: z.array(z.string().trim().min(1)).min(1, "Choose at least one niche.").max(5),

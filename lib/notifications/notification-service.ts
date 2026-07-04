@@ -3,7 +3,9 @@ import mongoose from "mongoose";
 
 import CreatorAcceptedEmail from "@/emails/creator-accepted";
 import CreatorDeclinedEmail from "@/emails/creator-declined";
+import CollaborationCompletedEmail from "@/emails/collaboration-completed";
 import DeliveryApprovedEmail from "@/emails/delivery-approved";
+import DeliveryChangesRequestedEmail from "@/emails/delivery-changes-requested";
 import NewCollaborationEmail from "@/emails/new-collaboration";
 import ProofSubmittedEmail from "@/emails/proof-submitted";
 import VerificationApprovedEmail from "@/emails/verification-approved";
@@ -25,6 +27,7 @@ export type NotificationEvent =
   | "proof_submitted"
   | "delivery_approved"
   | "delivery_changes_requested"
+  | "collaboration_completed"
   | "verification_approved"
   | "verification_rejected"
   | "featured_creator"
@@ -615,6 +618,7 @@ export const notificationService = {
       const creator = await resolveCreatorUser(collaboration);
       const brand = await resolveBrandUser(collaboration);
       const companyName = trimText(collaboration.companyName, "The brand");
+      const href = collaborationHref(collaboration);
 
       await createInAppNotification({
         recipientUserId: userObjectId(creator),
@@ -622,7 +626,50 @@ export const notificationService = {
         event,
         title: "Changes requested",
         message: `${companyName} requested changes to your delivery proof.${trimText(note) ? ` ${trimText(note)}` : ""}`,
-        href: collaborationHref(collaboration),
+        href,
+      });
+
+      await sendAndRecord({
+        recipient: creator?.email,
+        event,
+        subject: `${companyName} requested revisions`,
+        react: createElement(DeliveryChangesRequestedEmail, {
+          creatorName: userDisplayName(creator, "Creator"),
+          companyName,
+          note: trimText(note),
+          collaborationUrl: appUrl(href),
+        }),
+      });
+    });
+  },
+
+  async notifyCollaborationCompleted({ collaboration, note }: { collaboration: CollaborationLike; note?: string }) {
+    const event: NotificationEvent = "collaboration_completed";
+    await safeNotify(event, async () => {
+      const creator = await resolveCreatorUser(collaboration);
+      const brand = await resolveBrandUser(collaboration);
+      const companyName = trimText(collaboration.companyName, "The brand");
+      const href = collaborationHref(collaboration);
+
+      await createInAppNotification({
+        recipientUserId: userObjectId(creator),
+        actorUserId: userObjectId(brand),
+        event,
+        title: "Collaboration completed",
+        message: `${companyName} marked the collaboration complete. It is now in Working History.`,
+        href,
+      });
+
+      await sendAndRecord({
+        recipient: creator?.email,
+        event,
+        subject: `${companyName} completed the collaboration`,
+        react: createElement(CollaborationCompletedEmail, {
+          creatorName: userDisplayName(creator, "Creator"),
+          companyName,
+          note: trimText(note),
+          collaborationUrl: appUrl(href),
+        }),
       });
     });
   },

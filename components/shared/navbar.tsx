@@ -39,7 +39,7 @@ export async function Navbar() {
           : [
               { label: "Browse Creators", href: "/creators" },
               { label: "For Brands", href: "/#for-brands" },
-              { label: "About", href: "/#how-it-works" },
+              { label: "About", href: "/about" },
             ];
 
   const primaryHref = user?.role === "brand" && user.onboardingComplete ? "/dashboard/brand" : user?.role === "creator" && user.onboardingComplete ? "/dashboard/creator" : isSignedIn ? "/onboarding" : authHref("/sign-up", onboardingHref);

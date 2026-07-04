@@ -1,7 +1,15 @@
 import { auth } from "@clerk/nextjs/server";
 import mongoose from "mongoose";
 
-import { normalizeCollaborationStatus, type BrandInquiryStatus, type CollaborationStatus } from "@/lib/collaborations";
+import {
+  appendCollaborationTimeline,
+  canRevealCollaborationContactEmail,
+  hasCollaborationTimelineEvent,
+  normalizeCollaborationStatus,
+  type BrandInquiryStatus,
+  type CollaborationTimelineEvent,
+  type CollaborationStatus,
+} from "@/lib/collaborations";
 import { connectDB, hasMongoUri } from "@/lib/db";
 import { BrandInquiry } from "@/lib/models/BrandInquiry";
 import { BrandProfile } from "@/lib/models/BrandProfile";
@@ -16,6 +24,15 @@ type OfferHistoryDocument = {
   action?: "offer_sent" | "counter_requested" | "counter_sent" | "offer_accepted" | "offer_declined";
   amount?: number;
   currency?: "INR";
+  note?: string;
+  createdAt?: Date | null;
+};
+
+type StatusHistoryDocument = {
+  _id?: { toString(): string };
+  event?: CollaborationTimelineEvent;
+  status?: BrandInquiryStatus;
+  actor?: "brand" | "creator" | "admin" | "system";
   note?: string;
   createdAt?: Date | null;
 };
@@ -47,6 +64,7 @@ type CollaborationDocument = {
   creatorResponseAt?: Date | null;
   creatorResponseNote?: string;
   status: BrandInquiryStatus;
+  statusHistory?: StatusHistoryDocument[];
   deliveryProof?: {
     videoUrl?: string;
     timestampStart?: string;
@@ -88,6 +106,15 @@ export type CollaborationHistorySummaryData = {
 };
 
 const ACTIVE_HISTORY_QUERY_STATUSES: BrandInquiryStatus[] = [
+  "NEW",
+  "PENDING_CREATOR_RESPONSE",
+  "ACCEPTED",
+  "IN_PROGRESS",
+  "PROOF_SUBMITTED",
+  "REVISION_REQUESTED",
+  "APPROVED",
+  "new",
+  "viewed",
   "offer_sent",
   "counter_requested",
   "counter_sent",
@@ -96,8 +123,6 @@ const ACTIVE_HISTORY_QUERY_STATUSES: BrandInquiryStatus[] = [
   "proof_submitted",
   "changes_requested",
   "approved",
-  "new",
-  "viewed",
   "interested",
   "reviewed",
   "contacted",
@@ -106,10 +131,12 @@ const ACTIVE_HISTORY_QUERY_STATUSES: BrandInquiryStatus[] = [
   "contact_shared",
 ];
 
-const COMPLETED_HISTORY_QUERY_STATUSES: BrandInquiryStatus[] = ["completed", "closed"];
-const DECLINED_HISTORY_QUERY_STATUSES: BrandInquiryStatus[] = ["offer_declined", "creator_declined", "rejected"];
+const COMPLETED_HISTORY_QUERY_STATUSES: BrandInquiryStatus[] = ["COMPLETED", "completed", "closed"];
+const DECLINED_HISTORY_QUERY_STATUSES: BrandInquiryStatus[] = ["DECLINED", "CANCELLED", "offer_declined", "creator_declined", "rejected"];
 
 function mapCollaboration(doc: CollaborationDocument): BrandInquiryData {
+  const contactEmailRevealed = canRevealCollaborationContactEmail(doc.status);
+  const normalizedStatus = normalizeCollaborationStatus(doc.status);
   const offerHistory = (doc.offerHistory ?? []).map((entry) => ({
     id: entry._id?.toString(),
     actor: entry.actor ?? "brand",
@@ -120,12 +147,32 @@ function mapCollaboration(doc: CollaborationDocument): BrandInquiryData {
     createdAt: entry.createdAt?.toISOString(),
   }));
   const latestOfferAmount = [...offerHistory].reverse().find((entry) => entry.amount)?.amount;
+  const statusHistory =
+    doc.statusHistory?.length
+      ? doc.statusHistory.map((entry) => ({
+          id: entry._id?.toString(),
+          event: entry.event ?? "CREATED",
+          status: normalizeCollaborationStatus(entry.status),
+          actor: entry.actor ?? "system",
+          note: entry.note,
+          createdAt: entry.createdAt?.toISOString(),
+        }))
+      : [
+          {
+            event: "CREATED" as const,
+            status: normalizedStatus,
+            actor: "system" as const,
+            note: "Collaboration created.",
+            createdAt: doc.createdAt?.toISOString(),
+          },
+        ];
 
   return {
     id: doc._id.toString(),
     companyName: doc.companyName,
     contactName: doc.contactName,
-    email: doc.email,
+    email: contactEmailRevealed ? doc.email : "",
+    contactEmailRevealed,
     website: doc.website,
     campaignGoal: doc.campaignGoal,
     deliverables: doc.deliverables ?? [],
@@ -142,7 +189,8 @@ function mapCollaboration(doc: CollaborationDocument): BrandInquiryData {
     creatorUsername: doc.creatorUsername,
     creatorResponseAt: doc.creatorResponseAt?.toISOString(),
     creatorResponseNote: doc.creatorResponseNote,
-    status: normalizeCollaborationStatus(doc.status),
+    status: normalizedStatus,
+    statusHistory,
     deliveryProof: doc.deliveryProof
       ? {
           videoUrl: doc.deliveryProof.videoUrl,
@@ -203,6 +251,24 @@ async function getCreatorVerificationStatus(collaboration: CollaborationDocument
       : null;
 
   return (profile?.verificationStatus as VerificationStatus | undefined) ?? "unverified";
+}
+
+async function getSharedContactEmails(collaboration: CollaborationDocument): Promise<{
+  brandContactEmail?: string;
+  creatorContactEmail?: string;
+}> {
+  if (!canRevealCollaborationContactEmail(collaboration.status)) return {};
+
+  const creator = collaboration.creatorUserId
+    ? await User.findById(collaboration.creatorUserId).select("email").exec()
+    : collaboration.creatorUsername
+      ? await User.findOne({ username: collaboration.creatorUsername, role: "creator" }).select("email").exec()
+      : null;
+
+  return {
+    brandContactEmail: collaboration.email,
+    creatorContactEmail: creator?.email,
+  };
 }
 
 async function getCurrentUserRecord() {
@@ -317,10 +383,23 @@ export async function getCurrentUserCollaborationDetails(id: string): Promise<Co
 
   if (!canView) return null;
 
+  if ((user.role === "creator" || user.role === "brand") && !hasCollaborationTimelineEvent(doc, "VIEWED", user.role)) {
+    appendCollaborationTimeline(collaboration, {
+      event: "VIEWED",
+      status: doc.status,
+      actor: user.role,
+      note: `${user.role === "creator" ? "Creator" : "Brand"} viewed the collaboration.`,
+    });
+    await collaboration.save();
+  }
+
+  const updatedDoc = collaboration as unknown as CollaborationDocument;
+
   return {
-    ...mapCollaboration(doc),
-    ...(await getBrandVerificationStatus(doc)),
-    creatorVerificationStatus: await getCreatorVerificationStatus(doc),
+    ...mapCollaboration(updatedDoc),
+    ...(await getSharedContactEmails(updatedDoc)),
+    ...(await getBrandVerificationStatus(updatedDoc)),
+    creatorVerificationStatus: await getCreatorVerificationStatus(updatedDoc),
   };
 }
 

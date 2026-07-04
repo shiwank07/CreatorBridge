@@ -14,6 +14,7 @@ type FormState = {
   contactName: string;
   contactRole: string;
   contactEmail: string;
+  phoneNumber: string;
   website: string;
   industry: string;
   companySize: string;
@@ -33,6 +34,7 @@ export function BrandOnboardingForm({ initialContactName, initialEmail }: BrandO
     contactName: initialContactName,
     contactRole: "",
     contactEmail: initialEmail,
+    phoneNumber: "",
     website: "",
     industry: "",
     companySize: COMPANY_SIZES[1],
@@ -137,6 +139,20 @@ export function BrandOnboardingForm({ initialContactName, initialEmail }: BrandO
           <label className="lg:col-span-2">
             <span className="bridge-label">Work email</span>
             <input type="email" value={form.contactEmail} onChange={(event) => setField("contactEmail", event.target.value)} className="bridge-input mt-2" required />
+          </label>
+          <label className="lg:col-span-2">
+            <span className="bridge-label">Phone number</span>
+            <input
+              value={form.phoneNumber}
+              onChange={(event) => setField("phoneNumber", event.target.value)}
+              className="bridge-input mt-2"
+              autoComplete="tel"
+              inputMode="tel"
+              placeholder="+91 98765 43210"
+            />
+            <span className="mt-2 block text-xs leading-5 text-[var(--text-secondary)]">
+              Your phone is used for trust, support, and urgent contact only. It is never shown publicly or shared with creators.
+            </span>
           </label>
           <label className="lg:col-span-2">
             <span className="bridge-label">Notes</span>

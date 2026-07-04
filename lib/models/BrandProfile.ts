@@ -9,6 +9,8 @@ export interface IBrandProfile extends Document {
   contactName: string;
   contactRole?: string;
   contactEmail: string;
+  phoneNumber?: string;
+  phoneVerified: boolean;
   website?: string;
   industry: string;
   companySize?: string;
@@ -25,6 +27,7 @@ export interface IBrandProfile extends Document {
   verificationReviewedByAdminId?: string;
   verificationNote?: string;
   rejectionReason?: string;
+  completedCampaigns: number;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -36,6 +39,8 @@ const BrandProfileSchema = new Schema<IBrandProfile>(
     contactName: { type: String, required: true, trim: true, maxlength: 100 },
     contactRole: { type: String, trim: true, maxlength: 100, default: "" },
     contactEmail: { type: String, required: true, lowercase: true, trim: true, maxlength: 160 },
+    phoneNumber: { type: String, trim: true, default: "" },
+    phoneVerified: { type: Boolean, default: false, index: true },
     website: { type: String, trim: true, default: "" },
     industry: { type: String, required: true, trim: true, maxlength: 80, index: true },
     companySize: { type: String, trim: true, maxlength: 80, default: "" },
@@ -61,6 +66,7 @@ const BrandProfileSchema = new Schema<IBrandProfile>(
     verificationReviewedByAdminId: { type: String, default: "" },
     verificationNote: { type: String, trim: true, maxlength: 500, default: "" },
     rejectionReason: { type: String, trim: true, maxlength: 500, default: "" },
+    completedCampaigns: { type: Number, default: 0, min: 0 },
   },
   { timestamps: true },
 );

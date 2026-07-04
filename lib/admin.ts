@@ -19,9 +19,10 @@ export async function getAdminState() {
   if (!userId) return { isAdmin: false, userId: null, email: null };
 
   const user = await currentUser();
-  const primaryEmail = user?.emailAddresses.find((email) => email.id === user.primaryEmailAddressId)?.emailAddress;
-  const metadataRole = user?.publicMetadata?.role;
-  const isAdmin = metadataRole === "admin" || (primaryEmail ? adminEmailSet().has(primaryEmail.toLowerCase()) : false);
+  const primaryEmail =
+    user?.emailAddresses.find((email) => email.id === user.primaryEmailAddressId)?.emailAddress ??
+    user?.emailAddresses[0]?.emailAddress;
+  const isAdmin = primaryEmail ? adminEmailSet().has(primaryEmail.toLowerCase()) : false;
 
   return {
     isAdmin,
@@ -33,6 +34,6 @@ export async function getAdminState() {
 export async function requireAdmin() {
   const state = await getAdminState();
   if (!state.userId) redirect("/sign-in");
-  if (!state.isAdmin) redirect("/");
+  if (!state.isAdmin) redirect("/403");
   return state;
 }

@@ -57,7 +57,12 @@ function offerActivityDetail(entry: OfferHistoryEntryData, collaboration: BrandI
 }
 
 function notificationTone(notification: InAppNotificationData): ActivityItem["tone"] {
-  if (notification.event === "verification_approved" || notification.event === "delivery_approved" || notification.event === "creator_accepted") {
+  if (
+    notification.event === "verification_approved" ||
+    notification.event === "delivery_approved" ||
+    notification.event === "creator_accepted" ||
+    notification.event === "collaboration_completed"
+  ) {
     return "green";
   }
   if (notification.event === "verification_rejected" || notification.event === "creator_declined") return "neutral";
@@ -80,7 +85,7 @@ function collaborationDeliveryActivities(collaboration: BrandInquiryData): Activ
     });
   }
 
-  if (collaboration.status === "approved" && collaboration.deliveryProof?.reviewedAt) {
+  if (collaboration.status === "APPROVED" && collaboration.deliveryProof?.reviewedAt) {
     items.push({
       id: `${collaboration.id}-delivery-approved`,
       title: "Delivery approved",
@@ -91,7 +96,7 @@ function collaborationDeliveryActivities(collaboration: BrandInquiryData): Activ
     });
   }
 
-  if (collaboration.status === "changes_requested" && collaboration.deliveryProof?.reviewedAt) {
+  if (collaboration.status === "REVISION_REQUESTED" && collaboration.deliveryProof?.reviewedAt) {
     items.push({
       id: `${collaboration.id}-changes-requested`,
       title: "Changes requested",

@@ -1,7 +1,30 @@
 export type Role = "creator" | "brand" | "agency" | "talent";
+export type AccountStatus = "active" | "hidden" | "suspended";
 export type VerificationStatus = "unverified" | "pending" | "verified" | "rejected" | "pending_ownership" | "ownership_verified" | "stats_verified";
 export type BrandVerificationStatus = "unverified" | "pending" | "verified" | "rejected";
 export type CreatorVerificationPlatform = "youtube" | "instagram" | "twitch" | "other";
+export type CollaborationStatus =
+  | "NEW"
+  | "PENDING_CREATOR_RESPONSE"
+  | "ACCEPTED"
+  | "DECLINED"
+  | "IN_PROGRESS"
+  | "PROOF_SUBMITTED"
+  | "REVISION_REQUESTED"
+  | "APPROVED"
+  | "COMPLETED"
+  | "CANCELLED";
+export type CollaborationTimelineEvent =
+  | "CREATED"
+  | "VIEWED"
+  | "ACCEPTED"
+  | "DECLINED"
+  | "IN_PROGRESS"
+  | "PROOF_SUBMITTED"
+  | "REVISION_REQUESTED"
+  | "APPROVED"
+  | "COMPLETED"
+  | "CANCELLED";
 
 export type CreatorCardData = {
   id: string;
@@ -31,6 +54,7 @@ export type CreatorCardData = {
   isOpenToDeals: boolean;
   isFeatured: boolean;
   isVerified: boolean;
+  phoneVerified?: boolean;
   createdAt?: string;
 };
 
@@ -54,12 +78,14 @@ export type CreatorVerificationData = {
   verificationReviewedAt?: string;
   verificationCodeExpiresAt?: string;
   lastVerifiedAt?: string;
+  phoneVerified?: boolean;
   createdAt?: string;
 };
 
 export type BrandProfileData = {
   id: string;
   username: string;
+  avatar?: string;
   companyName: string;
   contactName: string;
   contactRole?: string;
@@ -68,9 +94,11 @@ export type BrandProfileData = {
   industry: string;
   companySize?: string;
   country?: string;
+  notes?: string;
   verificationStatus: BrandVerificationStatus;
   verificationNote?: string;
   companyRegistrationText?: string;
+  phoneVerified?: boolean;
   createdAt?: string;
 };
 
@@ -95,11 +123,23 @@ export type OfferHistoryEntryData = {
   createdAt?: string;
 };
 
+export type CollaborationTimelineEntryData = {
+  id?: string;
+  event: CollaborationTimelineEvent;
+  status: CollaborationStatus;
+  actor: "brand" | "creator" | "admin" | "system";
+  note?: string;
+  createdAt?: string;
+};
+
 export type BrandInquiryData = {
   id: string;
   companyName: string;
   contactName: string;
   email: string;
+  contactEmailRevealed?: boolean;
+  brandContactEmail?: string;
+  creatorContactEmail?: string;
   website?: string;
   campaignGoal: string;
   deliverables: string[];
@@ -116,21 +156,8 @@ export type BrandInquiryData = {
   creatorUsername?: string;
   creatorResponseAt?: string;
   creatorResponseNote?: string;
-  status:
-    | "new"
-    | "viewed"
-    | "offer_sent"
-    | "counter_requested"
-    | "counter_sent"
-    | "offer_accepted"
-    | "offer_declined"
-    | "interested"
-    | "work_started"
-    | "proof_submitted"
-    | "changes_requested"
-    | "approved"
-    | "completed"
-    | "closed";
+  status: CollaborationStatus;
+  statusHistory: CollaborationTimelineEntryData[];
   deliveryProof?: {
     videoUrl?: string;
     timestampStart?: string;
@@ -156,4 +183,98 @@ export type InAppNotificationData = {
   isRead: boolean;
   readAt: string | null;
   createdAt?: string;
+};
+
+export type AdminContactData = {
+  userId: string;
+  username: string;
+  role: Extract<Role, "creator" | "brand">;
+  displayName: string;
+  accountEmail: string;
+  contactName?: string;
+  contactEmail?: string;
+  contactRole?: string;
+  companyName?: string;
+  phoneNumber?: string;
+  phoneVerified: boolean;
+  profileStatus?: VerificationStatus | BrandVerificationStatus;
+  country?: string;
+  updatedAt?: string;
+};
+
+export type AdminCreatorData = {
+  userId: string;
+  profileId: string;
+  avatar: string;
+  name: string;
+  username: string;
+  email: string;
+  verificationStatus: VerificationStatus;
+  accountStatus: AccountStatus;
+  joinedDate?: string;
+};
+
+export type AdminBrandData = {
+  userId: string;
+  profileId: string;
+  logo: string;
+  companyName: string;
+  username: string;
+  email: string;
+  verificationStatus: BrandVerificationStatus;
+  accountStatus: AccountStatus;
+  joinedDate?: string;
+};
+
+export type AdminCollaborationData = {
+  id: string;
+  brand: string;
+  brandEmail: string;
+  creator: string;
+  status: CollaborationStatus;
+  budget: string;
+  createdAt?: string;
+  updatedAt?: string;
+};
+
+export type AdminReportStatus = "open" | "resolved" | "dismissed";
+
+export type AdminReportData = {
+  id: string;
+  reporter: string;
+  reportedUser: string;
+  reportedUsername?: string;
+  reason: string;
+  status: AdminReportStatus;
+  createdAt?: string;
+};
+
+export type AdminEmailLogData = {
+  id: string;
+  recipient: string;
+  event: string;
+  status: "sent" | "failed" | "skipped";
+  error?: string | null;
+  createdAt?: string;
+};
+
+export type AdminUserData = {
+  userId: string;
+  avatar: string;
+  name: string;
+  username: string;
+  email: string;
+  role: Role;
+  verificationStatus: VerificationStatus | BrandVerificationStatus;
+  accountStatus: AccountStatus;
+  joinedDate?: string;
+};
+
+export type AdminSearchResultData = {
+  id: string;
+  type: "user" | "creator" | "brand";
+  title: string;
+  subtitle: string;
+  href: string;
+  status: AccountStatus | VerificationStatus | BrandVerificationStatus;
 };

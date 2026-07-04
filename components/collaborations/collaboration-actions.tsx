@@ -24,20 +24,24 @@ type ProofState = {
 type OfferAction = BrandInquiryData["offerHistory"][number]["action"];
 
 function canCreatorSubmitProof(status: BrandInquiryData["status"]) {
-  return ["offer_accepted", "interested", "work_started", "proof_submitted", "changes_requested"].includes(status);
+  return ["ACCEPTED", "IN_PROGRESS", "PROOF_SUBMITTED", "REVISION_REQUESTED"].includes(status);
 }
 
 function canCreatorRespond(status: BrandInquiryData["status"]) {
-  return ["offer_sent", "counter_sent", "new", "viewed"].includes(status);
+  return ["NEW", "PENDING_CREATOR_RESPONSE"].includes(status);
 }
 
-function canBrandRespondToCounter(status: BrandInquiryData["status"]) {
-  return status === "counter_requested";
+function canBrandRespondToCounter(collaboration: BrandInquiryData) {
+  return collaboration.status === "REVISION_REQUESTED" && collaboration.offerHistory.at(-1)?.action === "counter_requested";
+}
+
+function canBrandReviewProof(status: BrandInquiryData["status"]) {
+  return ["PROOF_SUBMITTED", "REVISION_REQUESTED"].includes(status);
 }
 
 function proofLabel(status: BrandInquiryData["status"]) {
-  if (status === "changes_requested") return "Resubmit Proof";
-  if (status === "proof_submitted") return "Update Proof";
+  if (status === "REVISION_REQUESTED") return "Resubmit Proof";
+  if (status === "PROOF_SUBMITTED") return "Update Proof";
   return "Submit Proof";
 }
 
@@ -120,10 +124,9 @@ export function CollaborationActions({ collaboration, mode }: CollaborationActio
   const router = useRouter();
   const proof = collaboration.deliveryProof;
   const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
   const [isSaving, setIsSaving] = useState(false);
   const [responseNote, setResponseNote] = useState("");
-  const [counterOfferAmount, setCounterOfferAmount] = useState("");
-  const [counterOfferNote, setCounterOfferNote] = useState("");
   const [revisedOfferAmount, setRevisedOfferAmount] = useState("");
   const [brandNegotiationNote, setBrandNegotiationNote] = useState("");
   const [reviewNote, setReviewNote] = useState("");
@@ -140,8 +143,9 @@ export function CollaborationActions({ collaboration, mode }: CollaborationActio
     setProofForm((current) => ({ ...current, [key]: value }));
   }
 
-  async function request(path: string, body?: Record<string, unknown>) {
+  async function request(path: string, body?: Record<string, unknown>, successMessage = "Collaboration updated.") {
     setError("");
+    setSuccess("");
     setIsSaving(true);
 
     try {
@@ -157,6 +161,7 @@ export function CollaborationActions({ collaboration, mode }: CollaborationActio
         return;
       }
 
+      setSuccess(successMessage);
       router.refresh();
     } catch {
       setError("Could not reach the server. Please try again.");
@@ -167,28 +172,33 @@ export function CollaborationActions({ collaboration, mode }: CollaborationActio
 
   async function submitProof(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    await request(`/api/collaborations/${collaboration.id}/proof`, proofForm);
+    await request(`/api/collaborations/${collaboration.id}/proof`, proofForm, "Delivery proof was submitted.");
   }
 
   async function review(action: "approve_delivery" | "request_changes" | "report_issue" | "mark_completed", note = "") {
-    await request(`/api/collaborations/${collaboration.id}/review`, { action, note });
+    const messages = {
+      approve_delivery: "Delivery was approved.",
+      request_changes: "Revision request was sent.",
+      report_issue: "Issue report was submitted.",
+      mark_completed: "Collaboration was closed as completed.",
+    };
+    await request(`/api/collaborations/${collaboration.id}/review`, { action, note }, messages[action]);
   }
 
   async function creatorResponse(action: "accept_offer" | "decline_offer") {
-    await request(`/api/collaborations/${collaboration.id}/creator-response`, { action, note: responseNote });
-  }
-
-  async function requestCounter(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    await request(`/api/collaborations/${collaboration.id}/creator-response`, {
-      action: "request_revision",
-      counterOfferAmount,
-      counterOfferNote,
-    });
+    await request(
+      `/api/collaborations/${collaboration.id}/creator-response`,
+      { action, note: responseNote },
+      action === "accept_offer" ? "Offer accepted. Contact details are now unlocked." : "Offer declined.",
+    );
   }
 
   async function brandResponse(action: "accept_counter" | "decline_negotiation") {
-    await request(`/api/collaborations/${collaboration.id}/brand-response`, { action, note: brandNegotiationNote });
+    await request(
+      `/api/collaborations/${collaboration.id}/brand-response`,
+      { action, note: brandNegotiationNote },
+      action === "accept_counter" ? "Creator counter offer accepted." : "Negotiation declined.",
+    );
   }
 
   async function sendRevisedOffer(event: FormEvent<HTMLFormElement>) {
@@ -197,7 +207,7 @@ export function CollaborationActions({ collaboration, mode }: CollaborationActio
       action: "send_revised_offer",
       revisedOfferAmount,
       note: brandNegotiationNote,
-    });
+    }, "Revised offer was sent.");
   }
 
   if (mode === "creator") {
@@ -208,7 +218,16 @@ export function CollaborationActions({ collaboration, mode }: CollaborationActio
           <OfferTimeline collaboration={collaboration} />
           <div className="rounded-[8px] border border-white/10 bg-white/[0.035] p-3">
           <p className="text-xs font-bold uppercase text-cyan-100">Request Details</p>
-          {error ? <div className="mt-3 rounded-[8px] border border-red-900 bg-red-950/40 px-3 py-2 text-xs text-red-200">{error}</div> : null}
+          {error ? (
+            <div role="alert" className="mt-3 rounded-[8px] border border-red-900 bg-red-950/40 px-3 py-2 text-xs text-red-200">
+              {error}
+            </div>
+          ) : null}
+          {success ? (
+            <div role="status" className="mt-3 rounded-[8px] border border-emerald-800 bg-emerald-950/40 px-3 py-2 text-xs text-emerald-100">
+              {success}
+            </div>
+          ) : null}
 
           <div className="mt-3 grid gap-2 text-xs leading-5 text-[var(--text-secondary)]">
             <p>
@@ -257,40 +276,9 @@ export function CollaborationActions({ collaboration, mode }: CollaborationActio
             </button>
           </div>
 
-          {collaboration.isNegotiable ? (
-            <form onSubmit={requestCounter} className="mt-3 grid gap-2 rounded-[8px] border border-white/10 bg-black/20 p-3">
-              <p className="text-xs font-bold uppercase text-[var(--text-muted)]">Request revised offer</p>
-              <label>
-                <span className="text-xs font-semibold text-[var(--text-primary)]">Counter offer amount (INR)</span>
-                <input
-                  value={counterOfferAmount}
-                  onChange={(event) => setCounterOfferAmount(event.target.value.replace(/[^\d]/g, ""))}
-                  className="bridge-input mt-1 px-3 py-2 text-xs"
-                  inputMode="numeric"
-                  placeholder="60000"
-                  required
-                />
-              </label>
-              <label>
-                <span className="text-xs font-semibold text-[var(--text-primary)]">Counter offer note</span>
-                <textarea
-                  value={counterOfferNote}
-                  onChange={(event) => setCounterOfferNote(event.target.value)}
-                  className="bridge-input mt-1 min-h-16 px-3 py-2 text-xs"
-                  placeholder="Explain the scope or pricing change."
-                  required
-                />
-              </label>
-              <button type="submit" disabled={isSaving} className="bridge-button-secondary w-full px-3 py-2 text-xs">
-                {isSaving ? <Loader2 size={14} className="animate-spin" /> : <RotateCcw size={14} />}
-                Request Revised Offer
-              </button>
-            </form>
-          ) : (
-            <p className="mt-3 rounded-[8px] border border-white/10 bg-black/20 px-3 py-2 text-xs leading-5 text-[var(--text-secondary)]">
-              The brand marked this offer as non-negotiable.
-            </p>
-          )}
+          <p className="mt-3 rounded-[8px] border border-white/10 bg-black/20 px-3 py-2 text-xs leading-5 text-[var(--text-secondary)]">
+            Accept to unlock contact email and move the collaboration into active work, or decline to close the request.
+          </p>
           </div>
         </div>
       );
@@ -319,7 +307,16 @@ export function CollaborationActions({ collaboration, mode }: CollaborationActio
         <OfferSummary collaboration={collaboration} />
         <OfferTimeline collaboration={collaboration} />
         <div className="rounded-[8px] border border-white/10 bg-white/[0.035] p-3">
-        {error ? <div className="mb-3 rounded-[8px] border border-red-900 bg-red-950/40 px-3 py-2 text-xs text-red-200">{error}</div> : null}
+        {error ? (
+          <div role="alert" className="mb-3 rounded-[8px] border border-red-900 bg-red-950/40 px-3 py-2 text-xs text-red-200">
+            {error}
+          </div>
+        ) : null}
+        {success ? (
+          <div role="status" className="mb-3 rounded-[8px] border border-emerald-800 bg-emerald-950/40 px-3 py-2 text-xs text-emerald-100">
+            {success}
+          </div>
+        ) : null}
 
         {collaboration.creatorResponseNote ? (
           <div className="mb-3 rounded-[8px] border border-emerald-900/50 bg-emerald-950/25 px-3 py-2 text-xs leading-5 text-emerald-100">
@@ -327,25 +324,25 @@ export function CollaborationActions({ collaboration, mode }: CollaborationActio
           </div>
         ) : null}
 
-        {collaboration.status === "offer_accepted" || collaboration.status === "interested" ? (
+        {collaboration.status === "ACCEPTED" ? (
           <button
             type="button"
-            onClick={() => request(`/api/collaborations/${collaboration.id}/work-started`)}
+            onClick={() => request(`/api/collaborations/${collaboration.id}/work-started`, undefined, "Work status moved to in progress.")}
             disabled={isSaving}
             className="bridge-button-secondary mb-3 w-full px-3 py-2 text-xs"
           >
             {isSaving ? <Loader2 size={14} className="animate-spin" /> : <PlayCircle size={14} />}
-            Mark Work Started
+            Mark In Progress
           </button>
         ) : null}
 
-        {proof?.reviewNote && collaboration.status === "changes_requested" ? (
+        {proof?.reviewNote && collaboration.status === "REVISION_REQUESTED" ? (
           <div className="mb-3 rounded-[8px] border border-yellow-700/50 bg-yellow-950/30 px-3 py-2 text-xs leading-5 text-yellow-100">
             {proof.reviewNote}
           </div>
         ) : null}
 
-        <form onSubmit={submitProof} className="grid gap-3">
+        <form onSubmit={submitProof} aria-busy={isSaving} className="grid gap-3">
           <label>
             <span className="text-xs font-semibold text-[var(--text-primary)]">Video URL</span>
             <input
@@ -407,14 +404,23 @@ export function CollaborationActions({ collaboration, mode }: CollaborationActio
     );
   }
 
-  if (canBrandRespondToCounter(collaboration.status)) {
+  if (canBrandRespondToCounter(collaboration)) {
     return (
       <div className="mt-4 grid gap-3">
         <OfferSummary collaboration={collaboration} />
         <OfferTimeline collaboration={collaboration} />
         <div className="rounded-[8px] border border-cyan-300/20 bg-cyan-300/10 p-3">
           <p className="text-xs font-bold uppercase text-cyan-100">Negotiation Response</p>
-          {error ? <div className="mt-3 rounded-[8px] border border-red-900 bg-red-950/40 px-3 py-2 text-xs text-red-200">{error}</div> : null}
+          {error ? (
+            <div role="alert" className="mt-3 rounded-[8px] border border-red-900 bg-red-950/40 px-3 py-2 text-xs text-red-200">
+              {error}
+            </div>
+          ) : null}
+          {success ? (
+            <div role="status" className="mt-3 rounded-[8px] border border-emerald-800 bg-emerald-950/40 px-3 py-2 text-xs text-emerald-100">
+              {success}
+            </div>
+          ) : null}
 
           {collaboration.creatorResponseNote ? (
             <p className="mt-3 rounded-[8px] border border-white/10 bg-black/20 px-3 py-2 text-xs leading-5 text-[var(--text-secondary)]">
@@ -443,7 +449,7 @@ export function CollaborationActions({ collaboration, mode }: CollaborationActio
             </button>
           </div>
 
-          <form onSubmit={sendRevisedOffer} className="mt-3 grid gap-2 rounded-[8px] border border-white/10 bg-black/20 p-3">
+          <form onSubmit={sendRevisedOffer} aria-busy={isSaving} className="mt-3 grid gap-2 rounded-[8px] border border-white/10 bg-black/20 p-3">
             <p className="text-xs font-bold uppercase text-[var(--text-muted)]">Send revised offer</p>
             <label>
               <span className="text-xs font-semibold text-[var(--text-primary)]">Revised offer amount (INR)</span>
@@ -472,7 +478,16 @@ export function CollaborationActions({ collaboration, mode }: CollaborationActio
       <OfferTimeline collaboration={collaboration} />
       <div className="rounded-[8px] border border-white/10 bg-white/[0.035] p-3">
       <p className="text-xs font-bold uppercase text-[var(--text-muted)]">Delivery Proof</p>
-      {error ? <div className="mt-3 rounded-[8px] border border-red-900 bg-red-950/40 px-3 py-2 text-xs text-red-200">{error}</div> : null}
+      {error ? (
+        <div role="alert" className="mt-3 rounded-[8px] border border-red-900 bg-red-950/40 px-3 py-2 text-xs text-red-200">
+          {error}
+        </div>
+      ) : null}
+      {success ? (
+        <div role="status" className="mt-3 rounded-[8px] border border-emerald-800 bg-emerald-950/40 px-3 py-2 text-xs text-emerald-100">
+          {success}
+        </div>
+      ) : null}
 
       {proof?.videoUrl ? (
         <div className="mt-3 grid gap-3">
@@ -502,17 +517,14 @@ export function CollaborationActions({ collaboration, mode }: CollaborationActio
             ) : null}
           </div>
 
-          <div className="grid gap-2">
-            <button
-              type="button"
-              onClick={() => review("approve_delivery")}
-              disabled={isSaving || collaboration.status === "approved" || collaboration.status === "completed"}
-              className="bridge-button-primary w-full px-3 py-2 text-xs"
-            >
-              {isSaving ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
-              Approve Delivery
-            </button>
-            {collaboration.status === "approved" ? (
+          {collaboration.status === "COMPLETED" ? (
+            <div className="rounded-[8px] border border-emerald-800 bg-emerald-950/30 px-3 py-2 text-xs leading-5 text-emerald-100">
+              This collaboration is complete. No further review actions are available.
+            </div>
+          ) : null}
+
+          {collaboration.status === "APPROVED" ? (
+            <div className="grid gap-2">
               <button
                 type="button"
                 onClick={() => review("mark_completed")}
@@ -520,48 +532,66 @@ export function CollaborationActions({ collaboration, mode }: CollaborationActio
                 className="bridge-button-secondary w-full px-3 py-2 text-xs"
               >
                 {isSaving ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
-                Mark Completed
+                Close Collaboration
               </button>
-            ) : null}
-          </div>
+            </div>
+          ) : null}
 
-          <form
-            onSubmit={(event) => {
-              event.preventDefault();
-              void review("request_changes", reviewNote);
-            }}
-            className="grid gap-2"
-          >
-            <textarea
-              value={reviewNote}
-              onChange={(event) => setReviewNote(event.target.value)}
-              className="bridge-input min-h-16 px-3 py-2 text-xs"
-              placeholder="Note for requested changes"
-            />
-            <button type="submit" disabled={isSaving} className="bridge-button-secondary w-full px-3 py-2 text-xs">
-              {isSaving ? <Loader2 size={14} className="animate-spin" /> : <RotateCcw size={14} />}
-              Request Changes
-            </button>
-          </form>
+          {canBrandReviewProof(collaboration.status) ? (
+            <>
+              <button
+                type="button"
+                onClick={() => review("approve_delivery")}
+                disabled={isSaving}
+                className="bridge-button-primary w-full px-3 py-2 text-xs"
+              >
+                {isSaving ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
+                Approve Delivery
+              </button>
 
-          <form
-            onSubmit={(event) => {
-              event.preventDefault();
-              void review("report_issue", issueNote);
-            }}
-            className="grid gap-2"
-          >
-            <textarea
-              value={issueNote}
-              onChange={(event) => setIssueNote(event.target.value)}
-              className="bridge-input min-h-16 px-3 py-2 text-xs"
-              placeholder="Describe an issue"
-            />
-            <button type="submit" disabled={isSaving} className="bridge-button-secondary w-full px-3 py-2 text-xs">
-              {isSaving ? <Loader2 size={14} className="animate-spin" /> : <Flag size={14} />}
-              Report Issue
-            </button>
-          </form>
+              <form
+                onSubmit={(event) => {
+                  event.preventDefault();
+                  void review("request_changes", reviewNote);
+                }}
+                aria-busy={isSaving}
+                className="grid gap-2"
+              >
+                <textarea
+                  value={reviewNote}
+                  onChange={(event) => setReviewNote(event.target.value)}
+                  className="bridge-input min-h-16 px-3 py-2 text-xs"
+                  placeholder="Revision note"
+                  required
+                />
+                <button type="submit" disabled={isSaving} className="bridge-button-secondary w-full px-3 py-2 text-xs">
+                  {isSaving ? <Loader2 size={14} className="animate-spin" /> : <RotateCcw size={14} />}
+                  Request Revision
+                </button>
+              </form>
+
+              <form
+                onSubmit={(event) => {
+                  event.preventDefault();
+                  void review("report_issue", issueNote);
+                }}
+                aria-busy={isSaving}
+                className="grid gap-2"
+              >
+                <textarea
+                  value={issueNote}
+                  onChange={(event) => setIssueNote(event.target.value)}
+                  className="bridge-input min-h-16 px-3 py-2 text-xs"
+                  placeholder="Describe an issue"
+                  required
+                />
+                <button type="submit" disabled={isSaving} className="bridge-button-secondary w-full px-3 py-2 text-xs">
+                  {isSaving ? <Loader2 size={14} className="animate-spin" /> : <Flag size={14} />}
+                  Report Issue
+                </button>
+              </form>
+            </>
+          ) : null}
         </div>
       ) : (
         <p className="mt-2 text-xs leading-5 text-[var(--text-secondary)]">No delivery proof has been submitted yet.</p>

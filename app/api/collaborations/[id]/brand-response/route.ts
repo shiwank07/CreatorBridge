@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 
 import { handleRouteError, parseJsonBody } from "@/lib/api-errors";
 import { hasClerkKeys } from "@/lib/clerk-config";
-import { normalizeCollaborationStatus } from "@/lib/collaborations";
+import { appendCollaborationTimeline, normalizeCollaborationStatus } from "@/lib/collaborations";
 import { connectDB, hasMongoUri } from "@/lib/db";
 import { BrandInquiry } from "@/lib/models/BrandInquiry";
 import { BrandProfile } from "@/lib/models/BrandProfile";
@@ -56,7 +56,7 @@ export async function POST(req: Request, { params }: RouteContext) {
     }
 
     const currentStatus = normalizeCollaborationStatus(collaboration.status);
-    if (currentStatus !== "counter_requested") {
+    if (currentStatus !== "REVISION_REQUESTED") {
       return NextResponse.json({ error: "This collaboration is not waiting on a brand negotiation response." }, { status: 400 });
     }
 
@@ -71,8 +71,15 @@ export async function POST(req: Request, { params }: RouteContext) {
 
       const note = parsed.data.note || "Brand accepted the creator counter offer.";
       collaboration.set({
-        status: "offer_accepted",
+        status: "ACCEPTED",
         currentOfferAmount,
+      });
+      appendCollaborationTimeline(collaboration, {
+        event: "ACCEPTED",
+        status: "ACCEPTED",
+        actor: "brand",
+        note,
+        createdAt: now,
       });
       collaboration.offerHistory.push({
         actor: "brand",
@@ -88,7 +95,7 @@ export async function POST(req: Request, { params }: RouteContext) {
       const amount = parsed.data.revisedOfferAmount ?? 0;
       const note = parsed.data.note || "Brand sent a revised offer.";
       collaboration.set({
-        status: "counter_sent",
+        status: "PENDING_CREATOR_RESPONSE",
         currentOfferAmount: amount,
       });
       collaboration.offerHistory.push({
@@ -104,8 +111,15 @@ export async function POST(req: Request, { params }: RouteContext) {
     if (parsed.data.action === "decline_negotiation") {
       const note = parsed.data.note || "Brand declined the negotiation.";
       collaboration.set({
-        status: "offer_declined",
+        status: "DECLINED",
         closedAt: now,
+      });
+      appendCollaborationTimeline(collaboration, {
+        event: "DECLINED",
+        status: "DECLINED",
+        actor: "brand",
+        note,
+        createdAt: now,
       });
       collaboration.offerHistory.push({
         actor: "brand",

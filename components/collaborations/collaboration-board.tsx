@@ -62,7 +62,7 @@ export function CollaborationBoard({ columns, mode }: CollaborationBoardProps) {
                           {collaboration.creatorUsername ? `@${collaboration.creatorUsername}` : "Open creator brief"}
                         </p>
                       </div>
-                      <Badge tone={collaboration.status === "closed" || collaboration.status === "offer_declined" ? "neutral" : "green"} className="shrink-0">
+                      <Badge tone={collaboration.status === "DECLINED" || collaboration.status === "CANCELLED" ? "neutral" : "green"} className="shrink-0">
                         {collaborationStatusLabel(collaboration.status)}
                       </Badge>
                     </div>

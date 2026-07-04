@@ -46,6 +46,7 @@ export async function POST(req: Request) {
     const userEmail = clerkEmail || parsed.data.contactEmail || `${userId}@creatorbridge.local`;
     const existingUser = await User.findOne({ clerkId: userId });
     const username = existingUser?.username ?? (await ensureUniqueUsername(parsed.data.companyName, userId));
+    const phoneVerified = Boolean(existingUser?.phoneVerified && (existingUser.phoneNumber ?? "") === parsed.data.phoneNumber);
 
     const user = await User.findOneAndUpdate(
       { clerkId: userId },
@@ -54,6 +55,8 @@ export async function POST(req: Request) {
           email: userEmail,
           username,
           name: parsed.data.contactName,
+          phoneNumber: parsed.data.phoneNumber,
+          phoneVerified,
           avatar: clerkUser?.imageUrl || existingUser?.avatar || "",
           role: "brand",
           onboardingComplete: true,
@@ -86,6 +89,8 @@ export async function POST(req: Request) {
           contactName: parsed.data.contactName,
           contactRole: parsed.data.contactRole,
           contactEmail: parsed.data.contactEmail,
+          phoneNumber: parsed.data.phoneNumber,
+          phoneVerified,
           website: parsed.data.website,
           industry: parsed.data.industry,
           companySize: parsed.data.companySize,

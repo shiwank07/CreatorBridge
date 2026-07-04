@@ -18,11 +18,13 @@ export function BrandVerificationCard({ brand }: BrandVerificationCardProps) {
   const [status, setStatus] = useState(brand?.verificationStatus ?? "unverified");
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
   const isVerified = status === "verified";
 
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError("");
+    setSuccess("");
     setIsSaving(true);
 
     try {
@@ -39,6 +41,7 @@ export function BrandVerificationCard({ brand }: BrandVerificationCardProps) {
       }
 
       setStatus((result.status as BrandProfileData["verificationStatus"]) ?? "pending");
+      setSuccess("Brand verification was submitted for admin review.");
     } catch {
       setError("Could not reach the server. Please try again.");
     } finally {
@@ -67,9 +70,23 @@ export function BrandVerificationCard({ brand }: BrandVerificationCardProps) {
         </Badge>
       </div>
 
-      {error ? <div className="mt-4 rounded-[8px] border border-red-900 bg-red-950/40 px-3 py-2 text-sm text-red-200">{error}</div> : null}
+      {error ? (
+        <div role="alert" className="mt-4 rounded-[8px] border border-red-900 bg-red-950/40 px-3 py-2 text-sm text-red-200">
+          {error}
+        </div>
+      ) : null}
+      {success ? (
+        <div role="status" className="mt-4 rounded-[8px] border border-emerald-800 bg-emerald-950/40 px-3 py-2 text-sm text-emerald-100">
+          {success}
+        </div>
+      ) : null}
 
-      <form onSubmit={onSubmit} className="mt-5 grid gap-3">
+      {isVerified ? (
+        <div role="status" className="mt-5 rounded-[8px] border border-emerald-800 bg-emerald-950/30 px-3 py-3 text-sm leading-6 text-emerald-100">
+          Brand verification is complete. No submission action is needed right now.
+        </div>
+      ) : (
+      <form onSubmit={onSubmit} aria-busy={isSaving} className="mt-5 grid gap-3">
         <label>
           <span className="bridge-label">Company website</span>
           <input value={website} onChange={(event) => setWebsite(event.target.value)} className="bridge-input mt-2" placeholder="https://company.com" required />
@@ -87,11 +104,12 @@ export function BrandVerificationCard({ brand }: BrandVerificationCardProps) {
             placeholder="Optional text only. No file uploads in MVP."
           />
         </label>
-        <button type="submit" disabled={isSaving || isVerified} className="bridge-button-primary w-full px-3 py-2 text-sm">
+        <button type="submit" disabled={isSaving} className="bridge-button-primary w-full px-3 py-2 text-sm">
           {isSaving ? <Loader2 size={16} className="animate-spin" /> : <BadgeCheck size={16} />}
-          {isVerified ? "Brand Verified" : "Submit Verification"}
+          Submit Verification
         </button>
       </form>
+      )}
     </section>
   );
 }

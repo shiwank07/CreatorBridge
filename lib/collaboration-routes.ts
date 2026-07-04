@@ -9,6 +9,7 @@ const collaborationEvents = new Set([
   "proof_submitted",
   "delivery_approved",
   "delivery_changes_requested",
+  "collaboration_completed",
 ]);
 
 export function collaborationDetailsHref(inquiryId?: string | null) {
