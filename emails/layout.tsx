@@ -189,7 +189,7 @@ export default function HaloEmailLayout({ preview, eyebrow, title, cta, children
                     </tr>
                     <tr>
                       <td className="halo-content" style={contentStyle}>
-                        <p style={eyebrowStyle}>Project Halo</p>
+                        <p style={eyebrowStyle}>Branzzo</p>
                         <p style={eyebrowStyle}>{eyebrow}</p>
                         <h1 className="halo-title" style={titleStyle}>
                           {title}

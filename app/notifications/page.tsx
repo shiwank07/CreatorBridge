@@ -11,7 +11,7 @@ export const dynamic = "force-dynamic";
 
 export const metadata = {
   title: "Notifications",
-  description: "View your CreatorBridge collaboration notifications.",
+  description: "View your Branzzo collaboration notifications.",
 };
 
 export default async function NotificationsPage() {

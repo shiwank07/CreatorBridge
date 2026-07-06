@@ -5,7 +5,7 @@ import { CONTACT_EMAILS, LEGAL_LAST_UPDATED } from "@/lib/constants";
 
 export const metadata = {
   title: "Community Guidelines",
-  description: "CreatorBridge Community Guidelines for brands and creators.",
+  description: "Branzzo Community Guidelines for brands and creators.",
 };
 
 const guidelineSections = [
@@ -14,7 +14,7 @@ const guidelineSections = [
     items: [
       "Use your real creator, brand, company, agency, or representative identity.",
       "Keep profile details, campaign details, social links, rates, availability, and contact information accurate.",
-      "Do not impersonate creators, brands, agencies, team members, or CreatorBridge staff.",
+      "Do not impersonate creators, brands, agencies, team members, or Branzzo staff.",
       "Do not exaggerate metrics, audience quality, brand authority, budgets, deliverables, timelines, or approvals.",
     ],
   },
@@ -41,7 +41,7 @@ const guidelineSections = [
     items: [
       "Do not share private emails, phone numbers, documents, contracts, screenshots, or internal campaign information without permission.",
       "Do not request passwords, one-time codes, banking credentials, private account access, or unnecessary personal information.",
-      "Use CreatorBridge contact-sharing and workflow tools as intended, especially before a collaboration is accepted.",
+      "Use Branzzo contact-sharing and workflow tools as intended, especially before a collaboration is accepted.",
     ],
   },
   {
@@ -55,9 +55,9 @@ const guidelineSections = [
   {
     title: "Enforcement",
     items: [
-      "CreatorBridge may remove content, limit features, pause collaborations, reject verification, suspend accounts, or terminate access when these Guidelines are violated.",
+      "Branzzo may remove content, limit features, pause collaborations, reject verification, suspend accounts, or terminate access when these Guidelines are violated.",
       "Serious or repeated violations may lead to permanent removal from the platform.",
-      "CreatorBridge may consider context, severity, user history, available evidence, and risk to the community when deciding what action to take.",
+      "Branzzo may consider context, severity, user history, available evidence, and risk to the community when deciding what action to take.",
     ],
   },
 ];
@@ -73,7 +73,7 @@ export default function CommunityGuidelinesPage() {
             A professional standard for creator collaboration.
           </h1>
           <p className="mt-5 text-base leading-8 text-[var(--text-secondary)]">
-            CreatorBridge works best when brands and creators bring accurate information, respectful communication, and
+            Branzzo works best when brands and creators bring accurate information, respectful communication, and
             realistic expectations to every conversation. These Guidelines explain the conduct we expect on the platform.
           </p>
           <p className="mt-4 text-sm font-semibold text-[var(--text-muted)]">Last updated: {LEGAL_LAST_UPDATED}</p>

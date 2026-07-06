@@ -3,8 +3,8 @@ import { connectDB, hasMongoUri } from "@/lib/db";
 import { CreatorProfile } from "@/lib/models/CreatorProfile";
 import { type IUser, User } from "@/lib/models/User";
 import { formatNumber } from "@/lib/format";
-import { type CreatorCardData, type VerificationStatus } from "@/lib/types";
-import { getPublicSubscriberCount, isCreatorVerifiedStatus } from "@/lib/verification";
+import { type CreatorCardData, type StatsVerificationStatus, type VerificationStatus } from "@/lib/types";
+import { getPublicAverageViews, getPublicSubscriberCount, isCreatorVerifiedStatus } from "@/lib/verification";
 import { generateUsername } from "@/lib/slug";
 
 export type CreatorFilters = {
@@ -26,11 +26,17 @@ type CreatorDocumentWithUser = {
   country?: string;
   languages?: string[];
   youtubeUrl?: string;
+  youtubeHandle?: string;
   instagramUrl?: string;
   podcastUrl?: string;
   subscribers?: number;
   claimedSubscribers?: number;
   verifiedSubscribers?: number;
+  claimedAverageViews?: number;
+  verifiedAverageViews?: number;
+  claimedEngagementRate?: number;
+  verifiedEngagementRate?: number;
+  statsVerificationStatus?: StatsVerificationStatus;
   verificationStatus?: VerificationStatus;
   verificationCode?: string;
   verificationPlatform?: "youtube" | "instagram" | "twitch" | "other";
@@ -42,6 +48,8 @@ type CreatorDocumentWithUser = {
   pastBrands?: string[];
   sampleWorkUrls?: string[];
   isOpenToDeals?: boolean;
+  verifiedAt?: Date | null;
+  lastVerifiedAt?: Date | null;
   createdAt?: Date;
 };
 
@@ -64,6 +72,11 @@ export const demoCreators: CreatorCardData[] = [
     subscribers: 680000,
     claimedSubscribers: 680000,
     verifiedSubscribers: 680000,
+    claimedAverageViews: 145000,
+    verifiedAverageViews: 145000,
+    claimedEngagementRate: 21.3,
+    verifiedEngagementRate: 21.3,
+    statsVerificationStatus: "verified",
     verificationStatus: "verified",
     avgViews: 145000,
     instagramFollowers: 94000,
@@ -88,6 +101,11 @@ export const demoCreators: CreatorCardData[] = [
     subscribers: 1200000,
     claimedSubscribers: 1200000,
     verifiedSubscribers: 1200000,
+    claimedAverageViews: 260000,
+    verifiedAverageViews: 260000,
+    claimedEngagementRate: 21.7,
+    verifiedEngagementRate: 21.7,
+    statsVerificationStatus: "verified",
     verificationStatus: "verified",
     avgViews: 260000,
     sponsorshipRate: 140000,
@@ -112,6 +130,9 @@ export const demoCreators: CreatorCardData[] = [
     subscribers: 420000,
     claimedSubscribers: 420000,
     verifiedSubscribers: 0,
+    claimedAverageViews: 87000,
+    claimedEngagementRate: 20.7,
+    statsVerificationStatus: "unverified",
     verificationStatus: "unverified",
     avgViews: 87000,
     instagramFollowers: 185000,
@@ -137,6 +158,11 @@ export const demoCreators: CreatorCardData[] = [
     subscribers: 190000,
     claimedSubscribers: 190000,
     verifiedSubscribers: 190000,
+    claimedAverageViews: 51000,
+    verifiedAverageViews: 51000,
+    claimedEngagementRate: 26.8,
+    verifiedEngagementRate: 26.8,
+    statsVerificationStatus: "verified",
     verificationStatus: "verified",
     avgViews: 51000,
     instagramFollowers: 320000,
@@ -161,6 +187,9 @@ export const demoCreators: CreatorCardData[] = [
     subscribers: 78000,
     claimedSubscribers: 78000,
     verifiedSubscribers: 0,
+    claimedAverageViews: 23000,
+    claimedEngagementRate: 29.5,
+    statsVerificationStatus: "unverified",
     verificationStatus: "unverified",
     avgViews: 23000,
     instagramFollowers: 410000,
@@ -186,6 +215,11 @@ export const demoCreators: CreatorCardData[] = [
     subscribers: 260000,
     claimedSubscribers: 260000,
     verifiedSubscribers: 260000,
+    claimedAverageViews: 64000,
+    verifiedAverageViews: 64000,
+    claimedEngagementRate: 24.6,
+    verifiedEngagementRate: 24.6,
+    statsVerificationStatus: "verified",
     verificationStatus: "verified",
     avgViews: 64000,
     instagramFollowers: 530000,
@@ -204,11 +238,28 @@ function mapCreator(doc: CreatorDocumentWithUser): CreatorCardData {
   const verificationStatus = doc.verificationStatus ?? (user.isVerified ? "verified" : "unverified");
   const claimedSubscribers = doc.claimedSubscribers ?? doc.subscribers ?? 0;
   const verifiedSubscribers = doc.verifiedSubscribers ?? (isCreatorVerifiedStatus(verificationStatus) ? claimedSubscribers : 0);
+  const claimedAverageViews = doc.claimedAverageViews ?? doc.avgViews ?? 0;
+  const verifiedAverageViews = doc.verifiedAverageViews ?? 0;
+  const claimedEngagementRate = doc.claimedEngagementRate ?? 0;
+  const verifiedEngagementRate = doc.verifiedEngagementRate ?? 0;
+  const hasVerifiedStatSnapshot = verifiedSubscribers > 0 || verifiedAverageViews > 0 || verifiedEngagementRate > 0;
+  const statsVerificationStatus =
+    doc.statsVerificationStatus && doc.statsVerificationStatus !== "unverified"
+      ? doc.statsVerificationStatus
+      : isCreatorVerifiedStatus(verificationStatus) && hasVerifiedStatSnapshot
+        ? "verified"
+        : doc.statsVerificationStatus ?? "unverified";
   const subscriberSnapshot = {
     verificationStatus,
+    statsVerificationStatus,
     claimedSubscribers,
     verifiedSubscribers,
     subscribers: doc.subscribers,
+    claimedAverageViews,
+    verifiedAverageViews,
+    claimedEngagementRate,
+    verifiedEngagementRate,
+    avgViews: doc.avgViews,
   } as CreatorCardData;
 
   return {
@@ -221,16 +272,22 @@ function mapCreator(doc: CreatorDocumentWithUser): CreatorCardData {
     country: doc.country,
     languages: doc.languages ?? [],
     youtubeUrl: doc.youtubeUrl,
+    youtubeHandle: doc.youtubeHandle,
     instagramUrl: doc.instagramUrl,
     podcastUrl: doc.podcastUrl,
     subscribers: getPublicSubscriberCount(subscriberSnapshot),
     claimedSubscribers,
     verifiedSubscribers,
+    claimedAverageViews,
+    verifiedAverageViews,
+    claimedEngagementRate,
+    verifiedEngagementRate,
+    statsVerificationStatus,
     verificationStatus,
     verificationCode: doc.verificationCode,
     verificationPlatform: doc.verificationPlatform,
     verificationProfileUrl: doc.verificationProfileUrl,
-    avgViews: doc.avgViews,
+    avgViews: getPublicAverageViews(subscriberSnapshot),
     instagramFollowers: doc.instagramFollowers,
     sponsorshipRate: doc.sponsorshipRate,
     rateType: doc.rateType,
@@ -240,6 +297,8 @@ function mapCreator(doc: CreatorDocumentWithUser): CreatorCardData {
     isFeatured: Boolean(user.isFeatured),
     isVerified: isCreatorVerifiedStatus(verificationStatus),
     phoneVerified: Boolean(user.phoneVerified || doc.phoneVerified),
+    verifiedAt: doc.verifiedAt?.toISOString(),
+    lastVerifiedAt: doc.lastVerifiedAt?.toISOString(),
     createdAt: doc.createdAt?.toISOString(),
   };
 }
@@ -424,5 +483,5 @@ export function creatorMetaDescription(creator: CreatorCardData) {
   const primaryNiche = creator.niche[0] ?? "creator";
   return `Hire ${creator.name}, a ${primaryNiche} creator with ${formatNumber(
     getPublicSubscriberCount(creator),
-  )} subscribers and ${formatNumber(creator.avgViews)} average views.`;
+  )} subscribers and ${formatNumber(getPublicAverageViews(creator))} average views.`;
 }

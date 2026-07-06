@@ -1,9 +1,10 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { BadgeCheck, Building2, ExternalLink, MapPin } from "lucide-react";
+import { BadgeCheck, ExternalLink, MapPin } from "lucide-react";
 
 import { Badge } from "@/components/shared/badge";
+import { InitialsAvatar } from "@/components/shared/initials-avatar";
 import { Navbar } from "@/components/shared/navbar";
 import { ProfileCompletionCard } from "@/components/shared/profile-completion-card";
 import { TrustPassportCard } from "@/components/verification/trust-passport-card";
@@ -36,8 +37,8 @@ export async function generateMetadata({ params }: { params: BrandProfileParams 
   }
 
   return {
-    title: `${brand.companyName} on CreatorBridge`,
-    description: `${brand.companyName} is a ${brand.industry} brand on CreatorBridge.`,
+    title: `${brand.companyName} on Branzzo`,
+    description: `${brand.companyName} is a ${brand.industry} brand on Branzzo.`,
   };
 }
 
@@ -63,9 +64,15 @@ export default async function BrandProfilePage({ params }: { params: BrandProfil
         <header className="surface-grid border-b border-[var(--border)] bg-[rgba(8,11,17,0.88)]">
           <div className="bridge-section py-8 sm:py-10">
             <div className="flex flex-col gap-5 sm:flex-row sm:items-center">
-              <div className="flex h-20 w-20 shrink-0 items-center justify-center rounded-[8px] border border-[var(--border)] bg-[#0b0f16]">
-                <Building2 size={34} className="text-[var(--cyan)]" />
-              </div>
+              <InitialsAvatar
+                imageUrl={brand.avatar}
+                name={brand.companyName}
+                username={brand.username}
+                alt={`${brand.companyName} brand avatar`}
+                sizes="80px"
+                className="h-20 w-20 rounded-[8px] border-[var(--border)]"
+                textClassName="text-2xl"
+              />
               <div className="min-w-0">
                 <div className="flex flex-wrap items-center gap-3">
                   <h1 className="font-display text-3xl font-black leading-tight sm:text-4xl md:text-5xl">{brand.companyName}</h1>
@@ -137,7 +144,7 @@ export default async function BrandProfilePage({ params }: { params: BrandProfil
                 <p className="mt-3 text-sm leading-6 text-[var(--text-secondary)]">
                   Manage your brand profile, sent collaborations, and proof review from the brand dashboard.
                 </p>
-                <Link href="/onboarding?role=brand" className="bridge-button-secondary mt-5 w-full">
+                <Link href="/dashboard/brand/edit" className="bridge-button-secondary mt-5 w-full">
                   Edit Brand Profile
                 </Link>
                 <Link href="/dashboard/brand" className="bridge-button-primary mt-3 w-full">
@@ -146,7 +153,7 @@ export default async function BrandProfilePage({ params }: { params: BrandProfil
               </div>
             ) : null}
             {isOwner ? (
-              <ProfileCompletionCard completion={ownerProfileCompletion} updateHref="/onboarding?role=brand" className="bridge-card p-5" />
+              <ProfileCompletionCard completion={ownerProfileCompletion} updateHref="/dashboard/brand/edit" className="bridge-card p-5" />
             ) : null}
             <div className="bridge-card p-5">
               <h2 className="font-display text-xl font-bold">Verification</h2>

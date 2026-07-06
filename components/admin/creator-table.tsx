@@ -2,9 +2,10 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { BadgeCheck, Ban, ExternalLink, EyeOff, Loader2, RotateCcw, UserRound, XCircle } from "lucide-react";
+import { BadgeCheck, Ban, ExternalLink, EyeOff, Loader2, RotateCcw, XCircle } from "lucide-react";
 
 import { Badge } from "@/components/shared/badge";
+import { InitialsAvatar } from "@/components/shared/initials-avatar";
 import { type AdminCreatorData } from "@/lib/types";
 
 type CreatorTableProps = {
@@ -27,7 +28,7 @@ function dateLabel(value?: string) {
 
 function verificationTone(status: AdminCreatorData["verificationStatus"]) {
   if (status === "verified" || status === "ownership_verified" || status === "stats_verified") return "green";
-  if (status === "pending" || status === "pending_ownership") return "yellow";
+  if (status === "pending" || status === "pending_ownership" || status === "needs_review") return "yellow";
   return "neutral";
 }
 
@@ -99,16 +100,14 @@ export function CreatorTable({ creators }: CreatorTableProps) {
   }
 
   function Avatar({ creator }: { creator: AdminCreatorData }) {
-    return creator.avatar ? (
-      <span
-        aria-hidden="true"
-        className="block h-11 w-11 rounded-[8px] bg-cover bg-center"
-        style={{ backgroundImage: `url("${creator.avatar}")` }}
+    return (
+      <InitialsAvatar
+        imageUrl={creator.avatar}
+        name={creator.name}
+        username={creator.username}
+        alt={`${creator.name} avatar`}
+        className="h-11 w-11 rounded-[8px] border-[var(--border)]"
       />
-    ) : (
-      <span className="flex h-11 w-11 items-center justify-center rounded-[8px] border border-[var(--border)] bg-white/[0.04]">
-        <UserRound size={18} className="text-[var(--text-secondary)]" />
-      </span>
     );
   }
 
@@ -127,7 +126,7 @@ export function CreatorTable({ creators }: CreatorTableProps) {
       ...(!isHidden && !isSuspended
         ? [{ action: "hide_profile" as const, label: "Hide Profile", icon: EyeOff, className: "border-[var(--border)] text-[var(--text-secondary)]" }]
         : []),
-      ...(!isSuspended
+      ...(!isHidden && !isSuspended
         ? [{ action: "suspend" as const, label: "Suspend", icon: Ban, className: "border-yellow-800 text-yellow-200" }]
         : []),
       ...(isHidden || isSuspended
@@ -144,6 +143,12 @@ export function CreatorTable({ creators }: CreatorTableProps) {
           View
           <ExternalLink size={14} />
         </Link>
+        {isVerified ? (
+          <button type="button" disabled className="bridge-action-button border-emerald-800 text-emerald-200">
+            <BadgeCheck size={14} />
+            Verified
+          </button>
+        ) : null}
         {actions.map(({ action, label, icon: Icon, className }) => {
           const key = `${creator.username}:${action}`;
           return (

@@ -72,16 +72,14 @@ export function NavbarClient({
       <div className="mx-auto flex min-h-16 max-w-7xl items-center gap-3 px-4 sm:px-6 lg:px-8">
         <Link
           href="/"
-          aria-label="CreatorBridge home"
+          aria-label="Branzzo home"
           className="group flex min-w-0 shrink-0 items-center gap-2 font-display text-base font-bold sm:gap-3 sm:text-lg"
         >
           <span className="relative flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-[8px] border border-cyan-300/35 bg-white/[0.06] text-sm text-cyan-100 shadow-[0_0_32px_rgba(103,232,249,0.22)]">
             <span className="absolute inset-0 bg-gradient-to-br from-violet-500/35 via-transparent to-cyan-300/25" />
-            <span className="relative">CB</span>
+            <span className="relative">BZ</span>
           </span>
-          <span className="hidden truncate sm:inline">
-            Creator<span className="text-cyan-200">Bridge</span>
-          </span>
+          <span className="hidden truncate sm:inline">Branzzo</span>
         </Link>
 
         <nav className="ml-auto hidden min-w-0 items-center rounded-full border border-white/10 bg-white/[0.045] px-1.5 py-1 text-xs text-[var(--text-secondary)] shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] lg:flex xl:text-sm">
@@ -157,11 +155,9 @@ export function NavbarClient({
             <div className="flex items-center justify-between gap-3 border-b border-white/10 pb-4">
               <Link href="/" onClick={closeMenu} className="flex min-w-0 items-center gap-3 font-display text-lg font-bold">
                 <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[8px] border border-cyan-300/35 bg-white/[0.06] text-sm text-cyan-100">
-                  CB
+                  BZ
                 </span>
-                <span className="truncate">
-                  Creator<span className="text-cyan-200">Bridge</span>
-                </span>
+                <span className="truncate">Branzzo</span>
               </Link>
               <button
                 type="button"

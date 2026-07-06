@@ -5,7 +5,7 @@ import { Navbar } from "@/components/shared/navbar";
 
 export const metadata = {
   title: "Pricing",
-  description: "CreatorBridge pricing placeholder.",
+  description: "Branzzo pricing placeholder.",
 };
 
 export default function PricingPage() {
@@ -25,7 +25,7 @@ export default function PricingPage() {
               Plans are coming soon.
             </h1>
             <p className="mx-auto mt-5 max-w-xl text-base leading-7 text-[var(--text-secondary)]">
-              CreatorBridge is currently focused on verified discovery, collaboration requests, and trust workflows before paid plans are introduced.
+              Branzzo is currently focused on verified discovery, collaboration requests, and trust workflows before paid plans are introduced.
             </p>
             <div className="mt-8 flex flex-col justify-center gap-3 sm:flex-row">
               <Link href="/creators" className="bridge-button-primary">

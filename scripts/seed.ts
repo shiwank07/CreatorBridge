@@ -39,7 +39,7 @@ async function seed() {
       {
         $set: {
           clerkId: `seed_${creator.username}`,
-          email: `${creator.username}@creatorbridge.local`,
+          email: `${creator.username}@branzzo.local`,
           username: creator.username,
           name: creator.name,
           avatar: creator.avatar,

@@ -67,8 +67,8 @@ function TrustRow({
   tone?: "violet" | "green" | "yellow" | "neutral";
 }) {
   return (
-    <div className="flex items-center justify-between gap-3 rounded-[8px] border border-white/10 bg-black/20 px-3 py-2 text-sm">
-      <span className="text-[var(--text-secondary)]">{label}</span>
+    <div className="flex min-w-0 items-center justify-between gap-3 rounded-[8px] border border-white/10 bg-black/20 px-3 py-2 text-sm">
+      <span className="min-w-0 text-[var(--text-secondary)]">{label}</span>
       <Badge tone={tone} className="shrink-0">
         {value}
       </Badge>
@@ -110,7 +110,11 @@ export function TrustPassportCard(props: TrustPassportCardProps) {
           value={brandVerificationStatus ? verificationBadgeLabel(brandVerificationStatus, "brand") : "Not applicable"}
           tone={brandVerificationStatus ? statusTone(brandVerificationStatus, "brand") : "neutral"}
         />
-        <TrustRow label="Completed Collaborations" value={completedCollaborations} tone={completedCollaborations > 0 ? "green" : "neutral"} />
+        <TrustRow
+          label="Completed Collaborations"
+          value={completedCollaborations > 0 ? completedCollaborations : "Stats pending"}
+          tone={completedCollaborations > 0 ? "green" : "neutral"}
+        />
         <TrustRow label="Joined Date" value={formattedDate(props.joinedDate)} />
         <TrustRow label="Response Time" value={props.responseTimeLabel ?? "No data"} tone={hasResponseTime ? "green" : "neutral"} />
         <TrustRow label="Disputes" value={disputes > 0 ? `${disputes} reported` : "None"} tone={disputes > 0 ? "yellow" : "green"} />

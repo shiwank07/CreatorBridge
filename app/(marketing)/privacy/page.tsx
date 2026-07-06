@@ -4,7 +4,7 @@ import { CONTACT_EMAILS, LEGAL_LAST_UPDATED } from "@/lib/constants";
 
 export const metadata = {
   title: "Privacy Policy",
-  description: "CreatorBridge Privacy Policy.",
+  description: "Branzzo Privacy Policy.",
 };
 
 const privacySections = [
@@ -22,7 +22,7 @@ const privacySections = [
   {
     title: "How we use information",
     items: [
-      "Operate CreatorBridge, create accounts, publish profiles, route collaboration requests, and provide dashboards.",
+      "Operate Branzzo, create accounts, publish profiles, route collaboration requests, and provide dashboards.",
       "Help brands discover creators and help creators evaluate brand outreach with useful context.",
       "Verify trust signals, prevent abuse, investigate fraud, enforce our policies, and protect users and the platform.",
       "Send product, collaboration, notification, support, verification, and administrative messages.",
@@ -34,7 +34,7 @@ const privacySections = [
     title: "How information is shared",
     items: [
       "Public profile fields are visible to visitors and users when you publish a creator or brand profile.",
-      "Collaboration details are shared with the creator, brand, and CreatorBridge team members who need them to operate or review the workflow.",
+      "Collaboration details are shared with the creator, brand, and Branzzo team members who need them to operate or review the workflow.",
       "Contact information may be shared between a brand and creator only when the relevant workflow or user action allows it.",
       "Service providers may process information for authentication, hosting, database, email delivery, analytics, support, security, and infrastructure needs.",
       "Information may be shared when required by law, to protect rights and safety, to investigate abuse, or as part of a business transfer such as a merger or acquisition.",
@@ -53,7 +53,7 @@ const privacySections = [
   {
     title: "Retention",
     items: [
-      "We keep information for as long as needed to provide CreatorBridge, support users, satisfy legal obligations, resolve disputes, and enforce agreements.",
+      "We keep information for as long as needed to provide Branzzo, support users, satisfy legal obligations, resolve disputes, and enforce agreements.",
       "Collaboration, trust, verification, fraud, and safety records may be retained longer when needed to protect users or document platform decisions.",
       "When deletion is available and appropriate, we may keep limited records where required for security, legal compliance, accounting, or abuse prevention.",
     ],
@@ -69,21 +69,21 @@ const privacySections = [
   {
     title: "Children and minors",
     items: [
-      "CreatorBridge is intended for professional use and is not directed to children under 13.",
-      "Users who are minors in their jurisdiction should use CreatorBridge only with appropriate parent, guardian, or legal representative involvement.",
+      "Branzzo is intended for professional use and is not directed to children under 13.",
+      "Users who are minors in their jurisdiction should use Branzzo only with appropriate parent, guardian, or legal representative involvement.",
     ],
   },
   {
     title: "International processing",
     items: [
-      "CreatorBridge may process and store information in countries other than where you live.",
+      "Branzzo may process and store information in countries other than where you live.",
       "By using the platform, you understand that privacy laws and access rules may differ across jurisdictions.",
     ],
   },
   {
     title: "Changes to this policy",
     items: [
-      "We may update this Privacy Policy as CreatorBridge changes. Material updates will be reflected by changing the last updated date and, when appropriate, providing additional notice.",
+      "We may update this Privacy Policy as Branzzo changes. Material updates will be reflected by changing the last updated date and, when appropriate, providing additional notice.",
     ],
   },
 ];
@@ -96,10 +96,10 @@ export default function PrivacyPolicyPage() {
         <div className="max-w-3xl">
           <p className="bridge-eyebrow">Privacy Policy</p>
           <h1 className="mt-4 font-display text-4xl font-black leading-tight sm:text-5xl">
-            How CreatorBridge handles personal information.
+            How Branzzo handles personal information.
           </h1>
           <p className="mt-5 text-base leading-8 text-[var(--text-secondary)]">
-            This Privacy Policy explains what information CreatorBridge collects, how we use it, when we share it, and
+            This Privacy Policy explains what information Branzzo collects, how we use it, when we share it, and
             the choices users have when using our creator marketplace and collaboration tools.
           </p>
           <p className="mt-4 text-sm font-semibold text-[var(--text-muted)]">Last updated: {LEGAL_LAST_UPDATED}</p>

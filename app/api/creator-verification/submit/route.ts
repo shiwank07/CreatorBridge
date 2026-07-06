@@ -16,7 +16,7 @@ async function generateUniqueCreatorCode() {
     if (!existing) return code;
   }
 
-  return `HALO-${Date.now().toString().slice(-6)}`;
+  return `BZ-${Date.now().toString().slice(-6)}`;
 }
 
 const creatorVerificationSubmitSchema = z.object({

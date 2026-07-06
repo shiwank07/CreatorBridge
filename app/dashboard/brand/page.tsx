@@ -44,7 +44,7 @@ export const dynamic = "force-dynamic";
 
 export const metadata = {
   title: "Brand Command Center",
-  description: "Track brand collaboration requests on CreatorBridge.",
+  description: "Track brand collaboration requests on Branzzo.",
 };
 
 type MetricCardProps = {
@@ -172,7 +172,7 @@ function BrandVerificationStatus({ brand }: { brand: BrandProfileData | null }) 
           {brand.verificationNote}
         </p>
       ) : null}
-      <Link href="/onboarding?role=brand" className="bridge-button-secondary mt-5 w-full px-3 py-2 text-xs">
+      <Link href="/dashboard/brand/edit" className="bridge-button-secondary mt-5 w-full px-3 py-2 text-xs">
         Update brand profile
         <ArrowRight size={14} />
       </Link>
@@ -460,7 +460,7 @@ export default async function BrandDashboardPage() {
           </div>
           <div className="grid gap-4">
             <BrandVerificationStatus brand={brandProfile} />
-            <ProfileCompletionCard completion={profileCompletion} updateHref="/onboarding?role=brand" />
+            <ProfileCompletionCard completion={profileCompletion} updateHref="/dashboard/brand/edit" />
             <BrandVerificationCard brand={brandProfile} />
             <TrustPassportCard
               accountType="brand"

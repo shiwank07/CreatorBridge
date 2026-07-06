@@ -97,6 +97,11 @@ type CreatorVerificationDocument = {
   subscribers?: number;
   claimedSubscribers?: number;
   verifiedSubscribers?: number;
+  claimedAverageViews?: number;
+  verifiedAverageViews?: number;
+  claimedEngagementRate?: number;
+  verifiedEngagementRate?: number;
+  statsVerificationStatus?: CreatorVerificationData["statsVerificationStatus"];
   verificationStatus?: VerificationStatus;
   verificationCode?: string;
   verificationPlatform?: CreatorVerificationData["verificationPlatform"];
@@ -107,6 +112,8 @@ type CreatorVerificationDocument = {
   verificationSubmittedAt?: Date | null;
   verificationReviewedAt?: Date | null;
   verificationCodeExpiresAt?: Date | null;
+  avgViews?: number;
+  verifiedAt?: Date | null;
   lastVerifiedAt?: Date | null;
   createdAt?: Date;
 };
@@ -292,6 +299,18 @@ function mapInquiry(doc: InquiryDocument): BrandInquiryData {
 
 function mapCreatorVerification(doc: CreatorVerificationDocument): CreatorVerificationData {
   const user = doc.userId;
+  const claimedAverageViews = doc.claimedAverageViews ?? doc.avgViews ?? 0;
+  const verifiedSubscribers = doc.verifiedSubscribers ?? 0;
+  const verifiedAverageViews = doc.verifiedAverageViews ?? 0;
+  const verifiedEngagementRate = doc.verifiedEngagementRate ?? 0;
+  const hasVerifiedStatSnapshot = verifiedSubscribers > 0 || verifiedAverageViews > 0 || verifiedEngagementRate > 0;
+  const statsVerificationStatus =
+    doc.statsVerificationStatus && doc.statsVerificationStatus !== "unverified"
+      ? doc.statsVerificationStatus
+      : (doc.verificationStatus === "verified" || doc.verificationStatus === "stats_verified" || doc.verificationStatus === "ownership_verified") &&
+          hasVerifiedStatSnapshot
+        ? "verified"
+        : doc.statsVerificationStatus ?? "unverified";
 
   return {
     id: doc._id.toString(),
@@ -301,7 +320,12 @@ function mapCreatorVerification(doc: CreatorVerificationDocument): CreatorVerifi
     youtubeUrl: doc.youtubeUrl,
     youtubeHandle: doc.youtubeHandle,
     claimedSubscribers: doc.claimedSubscribers ?? doc.subscribers ?? 0,
-    verifiedSubscribers: doc.verifiedSubscribers ?? 0,
+    verifiedSubscribers,
+    claimedAverageViews,
+    verifiedAverageViews,
+    claimedEngagementRate: doc.claimedEngagementRate ?? 0,
+    verifiedEngagementRate,
+    statsVerificationStatus,
     verificationStatus: doc.verificationStatus ?? "unverified",
     verificationCode: doc.verificationCode,
     verificationPlatform: doc.verificationPlatform,
@@ -312,6 +336,7 @@ function mapCreatorVerification(doc: CreatorVerificationDocument): CreatorVerifi
     verificationSubmittedAt: doc.verificationSubmittedAt?.toISOString(),
     verificationReviewedAt: doc.verificationReviewedAt?.toISOString(),
     verificationCodeExpiresAt: doc.verificationCodeExpiresAt?.toISOString(),
+    verifiedAt: doc.verifiedAt?.toISOString(),
     lastVerifiedAt: doc.lastVerifiedAt?.toISOString(),
     createdAt: doc.createdAt?.toISOString(),
   };
@@ -466,7 +491,10 @@ export async function getAdminMetrics() {
       },
     }),
     CreatorProfile.countDocuments({
-      verificationStatus: { $in: ["pending", "pending_ownership"] },
+      $or: [
+        { verificationStatus: { $in: ["pending", "pending_ownership", "needs_review"] } },
+        { statsVerificationStatus: { $in: ["pending", "needs_review"] } },
+      ],
     }),
     BrandProfile.countDocuments({ verificationStatus: "pending" }),
     BrandInquiry.countDocuments({
@@ -707,7 +735,10 @@ export async function getPendingCreatorVerifications(): Promise<CreatorVerificat
 
   await connectDB();
   const docs = await CreatorProfile.find({
-    verificationStatus: { $in: ["pending", "pending_ownership"] },
+    $or: [
+      { verificationStatus: { $in: ["pending", "pending_ownership", "needs_review"] } },
+      { statsVerificationStatus: { $in: ["pending", "needs_review"] } },
+    ],
   })
     .populate("userId")
     .sort({ updatedAt: -1 })

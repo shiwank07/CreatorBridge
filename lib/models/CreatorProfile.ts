@@ -1,6 +1,15 @@
 import mongoose, { type Document, type Model, Schema } from "mongoose";
 
-export type VerificationStatus = "unverified" | "pending" | "verified" | "rejected" | "pending_ownership" | "ownership_verified" | "stats_verified";
+export type VerificationStatus =
+  | "unverified"
+  | "pending"
+  | "verified"
+  | "rejected"
+  | "pending_ownership"
+  | "ownership_verified"
+  | "stats_verified"
+  | "needs_review";
+export type StatsVerificationStatus = "unverified" | "pending" | "verified" | "needs_review" | "rejected";
 export type CreatorVerificationPlatform = "youtube" | "instagram" | "twitch" | "other";
 
 export interface ICreatorProfile extends Document {
@@ -15,8 +24,13 @@ export interface ICreatorProfile extends Document {
   youtubeHandle?: string;
   subscribers?: number;
   verificationStatus: VerificationStatus;
+  statsVerificationStatus: StatsVerificationStatus;
   claimedSubscribers?: number;
   verifiedSubscribers?: number;
+  claimedAverageViews?: number;
+  verifiedAverageViews?: number;
+  claimedEngagementRate?: number;
+  verifiedEngagementRate?: number;
   verificationCode?: string;
   verificationPlatform?: CreatorVerificationPlatform;
   verificationProfileUrl?: string;
@@ -29,6 +43,7 @@ export interface ICreatorProfile extends Document {
   verificationCodeExpiresAt?: Date | null;
   normalizedYoutubeChannelKey?: string;
   lastVerifiedAt?: Date | null;
+  verifiedAt?: Date | null;
   avgViews?: number;
   totalVideos?: number;
   instagramUrl?: string;
@@ -63,12 +78,22 @@ const CreatorProfileSchema = new Schema<ICreatorProfile>(
     subscribers: { type: Number, default: 0, min: 0 },
     verificationStatus: {
       type: String,
-      enum: ["unverified", "pending", "verified", "rejected", "pending_ownership", "ownership_verified", "stats_verified"],
+      enum: ["unverified", "pending", "verified", "rejected", "pending_ownership", "ownership_verified", "stats_verified", "needs_review"],
+      default: "unverified",
+      index: true,
+    },
+    statsVerificationStatus: {
+      type: String,
+      enum: ["unverified", "pending", "verified", "needs_review", "rejected"],
       default: "unverified",
       index: true,
     },
     claimedSubscribers: { type: Number, default: 0, min: 0 },
     verifiedSubscribers: { type: Number, default: 0, min: 0 },
+    claimedAverageViews: { type: Number, default: 0, min: 0 },
+    verifiedAverageViews: { type: Number, default: 0, min: 0 },
+    claimedEngagementRate: { type: Number, default: 0, min: 0 },
+    verifiedEngagementRate: { type: Number, default: 0, min: 0 },
     verificationCode: { type: String, default: "" },
     verificationPlatform: { type: String, enum: ["youtube", "instagram", "twitch", "other"], default: "youtube" },
     verificationProfileUrl: { type: String, trim: true, default: "" },
@@ -81,6 +106,7 @@ const CreatorProfileSchema = new Schema<ICreatorProfile>(
     verificationCodeExpiresAt: { type: Date, default: null },
     normalizedYoutubeChannelKey: { type: String, default: "", index: true },
     lastVerifiedAt: { type: Date, default: null },
+    verifiedAt: { type: Date, default: null },
     avgViews: { type: Number, default: 0, min: 0 },
     totalVideos: { type: Number, default: 0, min: 0 },
     instagramUrl: { type: String, default: "" },

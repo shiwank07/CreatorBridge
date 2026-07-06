@@ -64,7 +64,7 @@ export default async function AdminPage() {
     <div>
       <div className="flex flex-col justify-between gap-4 md:flex-row md:items-end">
         <div>
-          <p className="text-sm font-semibold uppercase text-violet-300">Project Halo Admin</p>
+          <p className="text-sm font-semibold uppercase text-violet-300">Branzzo Admin</p>
           <h1 className="mt-3 font-display text-4xl font-black">Overview</h1>
           <p className="mt-3 max-w-2xl text-sm leading-6 text-[var(--text-secondary)]">
             Monitor accounts, verification, collaboration activity, reports, and email delivery.

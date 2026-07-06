@@ -23,7 +23,7 @@ export function LandingHero({ viewerRole }: LandingHeroProps) {
               India-first creator economy marketplace
             </Badge>
             <h1 className="mt-6 max-w-4xl font-display text-4xl font-black leading-[1.05] text-[var(--text-primary)] sm:text-5xl md:text-6xl xl:text-7xl">
-              CreatorBridge
+              Branzzo
             </h1>
             <p className="mt-5 max-w-2xl text-base font-semibold text-[var(--text-primary)] sm:text-lg md:text-xl">
               Where brands meet campaign-ready creators.

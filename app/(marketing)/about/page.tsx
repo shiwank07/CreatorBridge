@@ -3,7 +3,7 @@ import { ArrowRight, Eye, Handshake, ShieldCheck, Target } from "lucide-react";
 
 export const metadata = {
   title: "About Us",
-  description: "Learn about CreatorBridge mission, vision, and trust-first collaboration philosophy.",
+  description: "Learn about Branzzo mission, vision, and trust-first collaboration philosophy.",
 };
 
 const principles = [
@@ -33,10 +33,10 @@ export default function AboutPage() {
         <div className="max-w-3xl">
           <p className="bridge-eyebrow">About Us</p>
           <h1 className="mt-4 font-display text-4xl font-black leading-tight sm:text-5xl">
-            CreatorBridge helps trusted creators and serious brands find each other with less noise.
+            Branzzo helps trusted creators and serious brands find each other with less noise.
           </h1>
           <p className="mt-5 text-base leading-8 text-[var(--text-secondary)]">
-            CreatorBridge is an India-first marketplace for creator discovery, public profiles, structured campaign
+            Branzzo is an India-first marketplace for creator discovery, public profiles, structured campaign
             requests, and trust-aware collaboration workflows. We are building the connective layer between people who
             make culture and teams who want to work with them responsibly.
           </p>
@@ -71,7 +71,7 @@ export default function AboutPage() {
             </div>
             <h2 className="mt-5 font-display text-2xl font-bold">Why We Exist</h2>
             <p className="mt-3 text-sm leading-6 text-[var(--text-secondary)]">
-              Creator partnerships too often start in scattered DMs, vague briefs, and unclear expectations. CreatorBridge
+              Creator partnerships too often start in scattered DMs, vague briefs, and unclear expectations. Branzzo
               gives both sides a cleaner place to evaluate fit before they commit time, money, or reputation.
             </p>
           </article>
@@ -99,7 +99,7 @@ export default function AboutPage() {
               <p className="bridge-eyebrow mt-5">Trust-first philosophy</p>
               <h2 className="mt-3 font-display text-3xl font-bold">Trust is a workflow, not a tagline.</h2>
               <p className="mt-4 text-sm leading-6 text-[var(--text-secondary)]">
-                CreatorBridge is designed around practical collaboration signals: identity, campaign context, creator
+                Branzzo is designed around practical collaboration signals: identity, campaign context, creator
                 control, review history, and clear escalation paths.
               </p>
             </div>

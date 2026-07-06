@@ -2,9 +2,10 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { BadgeCheck, Ban, Building2, ExternalLink, EyeOff, Loader2, RotateCcw, XCircle } from "lucide-react";
+import { BadgeCheck, Ban, ExternalLink, EyeOff, Loader2, RotateCcw, XCircle } from "lucide-react";
 
 import { Badge } from "@/components/shared/badge";
+import { InitialsAvatar } from "@/components/shared/initials-avatar";
 import { type AdminBrandData } from "@/lib/types";
 
 type BrandTableProps = {
@@ -87,16 +88,14 @@ export function BrandTable({ brands }: BrandTableProps) {
   }
 
   function Logo({ brand }: { brand: AdminBrandData }) {
-    return brand.logo ? (
-      <span
-        aria-hidden="true"
-        className="block h-11 w-11 rounded-[8px] bg-cover bg-center"
-        style={{ backgroundImage: `url("${brand.logo}")` }}
+    return (
+      <InitialsAvatar
+        imageUrl={brand.logo}
+        name={brand.companyName}
+        username={brand.username}
+        alt={`${brand.companyName} logo`}
+        className="h-11 w-11 rounded-[8px] border-[var(--border)]"
       />
-    ) : (
-      <span className="flex h-11 w-11 items-center justify-center rounded-[8px] border border-[var(--border)] bg-white/[0.04]">
-        <Building2 size={18} className="text-[var(--text-secondary)]" />
-      </span>
     );
   }
 
@@ -107,7 +106,7 @@ export function BrandTable({ brands }: BrandTableProps) {
     const isSuspended = brand.accountStatus === "suspended";
     const actions: { action: BrandAction; label: string; icon: typeof BadgeCheck; className: string }[] = [
       ...(!isVerified
-        ? [{ action: "approve" as const, label: "Approve", icon: BadgeCheck, className: "border-emerald-800 text-emerald-200" }]
+        ? [{ action: "approve" as const, label: "Approve Verification", icon: BadgeCheck, className: "border-emerald-800 text-emerald-200" }]
         : []),
       ...(!isRejected
         ? [{ action: "reject" as const, label: "Reject", icon: XCircle, className: "border-red-900 text-red-200" }]
@@ -115,7 +114,7 @@ export function BrandTable({ brands }: BrandTableProps) {
       ...(!isHidden && !isSuspended
         ? [{ action: "hide" as const, label: "Hide", icon: EyeOff, className: "border-[var(--border)] text-[var(--text-secondary)]" }]
         : []),
-      ...(!isSuspended
+      ...(!isHidden && !isSuspended
         ? [{ action: "suspend" as const, label: "Suspend", icon: Ban, className: "border-yellow-800 text-yellow-200" }]
         : []),
       ...(isHidden || isSuspended
@@ -132,6 +131,12 @@ export function BrandTable({ brands }: BrandTableProps) {
           View
           <ExternalLink size={14} />
         </Link>
+        {isVerified ? (
+          <button type="button" disabled className="bridge-action-button border-emerald-800 text-emerald-200">
+            <BadgeCheck size={14} />
+            Verified
+          </button>
+        ) : null}
         {actions.map(({ action, label, icon: Icon, className }) => {
           const key = `${brand.username}:${action}`;
           return (

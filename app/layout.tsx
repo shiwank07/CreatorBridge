@@ -6,8 +6,8 @@ import { hasClerkKeys } from "@/lib/clerk-config";
 
 export const metadata: Metadata = {
   title: {
-    default: "CreatorBridge | Where Brands Meet Creators",
-    template: "%s | CreatorBridge",
+    default: "Branzzo | Where Brands Meet Creators",
+    template: "%s | Branzzo",
   },
   description:
     "India's creator economy marketplace for discovering creators, building creator profiles, and collecting collaboration requests.",

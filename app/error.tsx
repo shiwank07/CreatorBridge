@@ -11,7 +11,7 @@ export default function ErrorPage({ reset }: { reset: () => void }) {
           <AlertTriangle size={22} />
         </div>
         <p className="mt-5 text-sm font-semibold uppercase text-red-200">Something broke</p>
-        <h1 className="mt-3 font-display text-3xl font-bold sm:text-4xl">CreatorBridge hit a snag.</h1>
+        <h1 className="mt-3 font-display text-3xl font-bold sm:text-4xl">Branzzo hit a snag.</h1>
         <p className="mx-auto mt-4 max-w-md text-sm leading-6 text-[var(--text-secondary)]">
           Try again first. If the problem repeats, head home and come back to this workflow from the dashboard.
         </p>

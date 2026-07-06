@@ -53,6 +53,8 @@ export async function PATCH(req: Request) {
       const profile = await CreatorProfile.findOne({ userId: updated._id });
       if (!profile) return NextResponse.json({ error: "Creator profile not found." }, { status: 404 });
       const claimedSubscribers = profile?.claimedSubscribers ?? profile?.subscribers ?? 0;
+      const claimedAverageViews = profile?.claimedAverageViews ?? profile?.avgViews ?? 0;
+      const claimedEngagementRate = profile?.claimedEngagementRate ?? 0;
       const isApproved = parsed.data.action === "approve_verification" || parsed.data.isVerified === true;
       const isRejected = parsed.data.action === "reject_verification";
       const now = new Date();
@@ -63,10 +65,14 @@ export async function PATCH(req: Request) {
           $set: {
             verificationStatus: isRejected ? "rejected" : isApproved ? "verified" : "unverified",
             verifiedSubscribers: isApproved ? claimedSubscribers : 0,
+            verifiedAverageViews: isApproved ? claimedAverageViews : 0,
+            verifiedEngagementRate: isApproved ? claimedEngagementRate : 0,
+            statsVerificationStatus: isRejected ? "rejected" : isApproved ? "verified" : "unverified",
             verificationReviewedAt: now,
             verificationReviewedByAdminId: admin.userId ?? "",
             verificationNote: parsed.data.note,
             verificationRejectedReason: isRejected ? parsed.data.note : "",
+            verifiedAt: isApproved ? now : null,
             lastVerifiedAt: isApproved ? now : null,
           },
         },

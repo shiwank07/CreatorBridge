@@ -1,4 +1,4 @@
-﻿import Link from "next/link";
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import {
   ArrowRight,
@@ -35,7 +35,7 @@ import { getCreatorCollaborationDashboard, groupCollaborationsByStatus } from "@
 import { getCreatorByUsername } from "@/lib/queries/creators";
 import { getCurrentUserNotificationSummary } from "@/lib/queries/notifications";
 import { averageResponseTimeLabel, countDisputes } from "@/lib/trust-metrics";
-import { getPublicSubscriberCount, verificationBadgeLabel } from "@/lib/verification";
+import { getPublicAverageViews, getPublicSubscriberCount, verificationBadgeLabel } from "@/lib/verification";
 import { type BrandInquiryData, type CreatorCardData, type InAppNotificationData } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
@@ -43,7 +43,7 @@ export const dynamic = "force-dynamic";
 
 export const metadata = {
   title: "Creator Command Center",
-  description: "Track creator collaboration requests on CreatorBridge.",
+  description: "Track creator collaboration requests on Branzzo.",
 };
 
 type MetricCardProps = {
@@ -86,6 +86,14 @@ function DashboardMetricCard({ label, value, detail, Icon, tone, delay = "" }: M
 function verificationCopy(creator: CreatorCardData | null) {
   if (!creator) return "Profile pending";
   return verificationBadgeLabel(creator.verificationStatus);
+}
+
+function statNumberLabel(value?: number | null, fallback = "Stats pending") {
+  return value && value > 0 ? formatNumber(value) : fallback;
+}
+
+function priceLabel(value?: number | null) {
+  return value && value > 0 ? formatINR(value) : "Pricing not set";
 }
 
 function StageCard({
@@ -141,6 +149,7 @@ function StageCard({
 
 function CreatorPassport({ creator }: { creator: CreatorCardData | null }) {
   const reach = creator ? getPublicSubscriberCount(creator) : 0;
+  const averageViews = creator ? getPublicAverageViews(creator) : 0;
 
   return (
     <section className="rounded-[8px] border border-white/10 bg-white/[0.04] p-5">
@@ -159,13 +168,15 @@ function CreatorPassport({ creator }: { creator: CreatorCardData | null }) {
 
       <div className="mt-5 grid gap-3 sm:grid-cols-3">
         {[
-          ["Reach", formatNumber(reach)],
-          ["Avg views", formatNumber(creator?.avgViews)],
-          ["Base rate", formatINR(creator?.sponsorshipRate)],
-        ].map(([label, value]) => (
-          <div key={label} className="rounded-[8px] border border-white/10 bg-black/20 p-3">
-            <p className="font-mono text-lg font-bold text-[var(--text-primary)]">{value}</p>
-            <p className="mt-1 text-xs text-[var(--text-secondary)]">{label}</p>
+          { label: "Reach", value: statNumberLabel(reach, "Not added yet"), muted: reach <= 0 },
+          { label: "Avg views", value: statNumberLabel(averageViews), muted: averageViews <= 0 },
+          { label: "Base rate", value: priceLabel(creator?.sponsorshipRate), muted: !creator?.sponsorshipRate },
+        ].map((stat) => (
+          <div key={stat.label} className="min-w-0 rounded-[8px] border border-white/10 bg-black/20 p-3">
+            <p className={`${stat.muted ? "text-sm font-semibold leading-5 text-cyan-100" : "font-mono text-lg font-bold text-[var(--text-primary)]"} break-words`}>
+              {stat.value}
+            </p>
+            <p className="mt-1 text-xs text-[var(--text-secondary)]">{stat.label}</p>
           </div>
         ))}
       </div>
@@ -339,7 +350,7 @@ export default async function CreatorDashboardPage() {
           </div>
           <div className="grid gap-4">
             <CreatorVerificationCard creator={creatorProfile} />
-            <ProfileCompletionCard completion={profileCompletion} updateHref="/onboarding?role=creator" />
+            <ProfileCompletionCard completion={profileCompletion} updateHref="/dashboard/creator/edit" />
             <UpcomingDeadlines collaborations={activeWork} />
           </div>
         </section>

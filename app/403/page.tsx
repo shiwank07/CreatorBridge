@@ -14,7 +14,7 @@ export default function ForbiddenPage() {
           This area is limited to accounts listed in the admin email allowlist.
         </p>
         <Link href="/" className="bridge-button-primary mt-6 w-full">
-          Back to CreatorBridge
+          Back to Branzzo
         </Link>
       </section>
     </main>

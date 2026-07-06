@@ -42,7 +42,7 @@ export function CollaborationTimeline({ status = "NEW", history = [], compact = 
 
   if (compact) {
     return (
-      <ol className={cn("flex items-center gap-3 flex-wrap", className)} aria-label={`Collaboration status: ${currentStatus.replaceAll("_", " ")}`}>
+      <ol className={cn("flex max-w-full flex-wrap items-center gap-2 overflow-hidden", className)} aria-label={`Collaboration status: ${currentStatus.replaceAll("_", " ")}`}>
         {COLLABORATION_TIMELINE_STEPS.map((step, index) => {
           const isComplete = index < currentIndex;
           const isCurrent = index === currentIndex;
@@ -52,7 +52,7 @@ export function CollaborationTimeline({ status = "NEW", history = [], compact = 
             <li key={step.label} className="block">
               <div
                 className={cn(
-                  "grid h-10 w-10 place-items-center rounded-full border text-sm font-semibold leading-none",
+                  "grid h-8 w-8 place-items-center rounded-full border text-xs font-semibold leading-none",
                   isActive ? "border-cyan-300/50 bg-cyan-300/15 text-cyan-100" : "border-white/15 bg-black/20 text-[var(--text-secondary)]",
                   isComplete ? "border-emerald-300/45 bg-emerald-300/10 text-emerald-100" : "",
                   isCurrent ? "border-cyan-300/70 bg-cyan-300/20 text-cyan-50" : "",
@@ -69,14 +69,14 @@ export function CollaborationTimeline({ status = "NEW", history = [], compact = 
 
   return (
     <div className={cn("w-full", className)} aria-label={`Collaboration status: ${currentStatus.replaceAll("_", " ")}`}>
-      <ol className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-8 xl:gap-2">
+      <ol className="grid gap-3 lg:flex lg:overflow-x-auto lg:pb-2">
         {COLLABORATION_TIMELINE_STEPS.map((step, index) => {
           const isComplete = index < currentIndex;
           const isCurrent = index === currentIndex;
           const isActive = index <= currentIndex;
 
           return (
-            <li key={step.label} className="relative min-w-0">
+            <li key={step.label} className="relative min-w-0 lg:min-w-[10.75rem] lg:flex-1">
               <div
                 className={cn(
                   "flex h-full min-w-0 items-start gap-3 rounded-[8px] border px-3 py-3",
@@ -95,7 +95,7 @@ export function CollaborationTimeline({ status = "NEW", history = [], compact = 
                   {isComplete ? <Check size={13} /> : index + 1}
                 </span>
                 <span className="min-w-0">
-                  <span className="block truncate text-xs font-bold uppercase">{step.label}</span>
+                  <span className="block text-sm font-bold leading-5 text-[var(--text-primary)]">{step.label}</span>
                   {!compact ? (
                     <span className="mt-1 block text-xs leading-5 text-[var(--text-secondary)]">{step.description}</span>
                   ) : null}
@@ -111,8 +111,8 @@ export function CollaborationTimeline({ status = "NEW", history = [], compact = 
             <li key={entry.id ?? `${entry.event}-${entry.createdAt ?? index}`} className="rounded-[8px] border border-white/10 bg-black/20 p-3">
               <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
                 <div className="min-w-0">
-                  <p className="text-sm font-semibold text-[var(--text-primary)]">{collaborationTimelineEventLabel(entry.event)}</p>
-                  <p className="mt-1 text-xs leading-5 text-[var(--text-secondary)]">
+                  <p className="break-words text-sm font-semibold text-[var(--text-primary)]">{collaborationTimelineEventLabel(entry.event)}</p>
+                  <p className="mt-1 break-words text-xs leading-5 text-[var(--text-secondary)]">
                     {actorLabel(entry.actor)} - {entry.note || collaborationStatusLabel(entry.status)}
                   </p>
                 </div>

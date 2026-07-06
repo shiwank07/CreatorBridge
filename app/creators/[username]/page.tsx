@@ -16,7 +16,16 @@ import { getCurrentAppUser } from "@/lib/current-user";
 import { calculateCreatorProfileCompletion } from "@/lib/profile-completion";
 import { getCreatorCollaborationHistorySummary } from "@/lib/queries/collaborations";
 import { creatorMetaDescription, getCreatorByUsername } from "@/lib/queries/creators";
-import { getPublicSubscriberCount, hasVerifiedStats, normalizeCreatorVerificationStatus, verificationBadgeLabel } from "@/lib/verification";
+import {
+  getPublicAverageViews,
+  getPublicEngagementRate,
+  getPublicSubscriberCount,
+  getStatsLastVerifiedAt,
+  hasVerifiedStats,
+  normalizeCreatorVerificationStatus,
+  normalizeStatsVerificationStatus,
+  verificationBadgeLabel,
+} from "@/lib/verification";
 
 export const dynamic = "force-dynamic";
 
@@ -29,6 +38,23 @@ function displayUrl(url: string) {
   } catch {
     return url;
   }
+}
+
+function statNumberLabel(value?: number | null, fallback = "Stats pending") {
+  return value && value > 0 ? formatNumber(value) : fallback;
+}
+
+function priceLabel(value?: number | null) {
+  return value && value > 0 ? formatINR(value) : "Pricing not set";
+}
+
+function percentLabel(value?: number | null) {
+  return value && value > 0 ? `${value.toFixed(1)}%` : "Stats pending";
+}
+
+function dateLabel(value?: string) {
+  if (!value) return "";
+  return new Intl.DateTimeFormat("en", { month: "short", day: "numeric", year: "numeric" }).format(new Date(value));
 }
 
 export async function generateMetadata({ params }: { params: CreatorProfileParams }): Promise<Metadata> {
@@ -45,7 +71,7 @@ export async function generateMetadata({ params }: { params: CreatorProfileParam
     title: `${creator.name} - ${formatNumber(getPublicSubscriberCount(creator))} Creator`,
     description: creatorMetaDescription(creator),
     openGraph: {
-      title: `${creator.name} on CreatorBridge`,
+      title: `${creator.name} on Branzzo`,
       description: creatorMetaDescription(creator),
       images: creator.avatar ? [{ url: creator.avatar }] : [],
       type: "profile",
@@ -65,6 +91,11 @@ export default async function CreatorProfilePage({ params }: { params: CreatorPr
   const viewerRole = viewer?.onboardingComplete && (viewer.role === "creator" || viewer.role === "brand") ? viewer.role : undefined;
   const isOwner = viewerRole === "creator" && viewer?.username === creator.username;
   const statsVerified = hasVerifiedStats(creator);
+  const statsStatus = normalizeStatsVerificationStatus(creator.statsVerificationStatus);
+  const statsLastVerifiedAt = getStatsLastVerifiedAt(creator);
+  const publicSubscriberCount = getPublicSubscriberCount(creator);
+  const publicAverageViews = getPublicAverageViews(creator);
+  const publicEngagementRate = getPublicEngagementRate(creator);
   const normalizedVerification = normalizeCreatorVerificationStatus(creator.verificationStatus);
   const ownerProfileCompletion = calculateCreatorProfileCompletion({
     creator,
@@ -102,18 +133,30 @@ export default async function CreatorProfilePage({ params }: { params: CreatorPr
                 <p className="bridge-eyebrow">Audience Snapshot</p>
                 <h2 className="mt-2 font-display text-2xl font-bold">Platform Stats</h2>
               </div>
-              <Badge tone={statsVerified ? "green" : normalizedVerification === "pending" ? "yellow" : "neutral"}>
+              <Badge tone={statsVerified ? "green" : statsStatus === "pending" ? "yellow" : normalizedVerification === "pending" ? "yellow" : "neutral"}>
                 <ShieldCheck size={13} />
-                {verificationBadgeLabel(creator.verificationStatus)}
+                {statsVerified ? "Verified Stats" : creator.statsVerificationStatus === "needs_review" ? "Stats Need Review" : verificationBadgeLabel(creator.verificationStatus)}
               </Badge>
             </div>
-            <div className="mt-5 grid gap-3 sm:grid-cols-3">
+            {statsLastVerifiedAt ? (
+              <p className="mt-3 text-xs font-semibold uppercase text-[var(--text-muted)]">
+                Last verified {dateLabel(statsLastVerifiedAt)}
+              </p>
+            ) : null}
+            {creator.statsVerificationStatus === "needs_review" ? (
+              <p className="mt-2 text-xs leading-5 text-[var(--text-secondary)]">
+                Updated claimed stats are waiting for admin review. Previously verified stats are shown where available.
+              </p>
+            ) : null}
+            <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
               <StatBox
                 label="YouTube Subs"
-                value={formatNumber(getPublicSubscriberCount(creator))}
+                value={statNumberLabel(publicSubscriberCount, "Not added yet")}
+                muted={publicSubscriberCount <= 0}
               />
-              <StatBox label="Avg Views" value={formatNumber(creator.avgViews)} />
-              <StatBox label="Instagram" value={formatNumber(creator.instagramFollowers)} />
+              <StatBox label="Avg Views" value={statNumberLabel(publicAverageViews)} muted={publicAverageViews <= 0} />
+              <StatBox label="Engagement" value={percentLabel(publicEngagementRate)} muted={publicEngagementRate <= 0} />
+              <StatBox label="Instagram" value={statNumberLabel(creator.instagramFollowers)} muted={!creator.instagramFollowers} />
             </div>
           </section>
 
@@ -149,7 +192,7 @@ export default async function CreatorProfilePage({ params }: { params: CreatorPr
           <section className="bridge-card p-5">
             <h2 className="font-display text-2xl font-bold">Sponsorship Info</h2>
             <div className="mt-5 grid gap-3 sm:grid-cols-3">
-              <StatBox label="Base Rate" value={formatINR(creator.sponsorshipRate)} />
+              <StatBox label="Base Rate" value={priceLabel(creator.sponsorshipRate)} muted={!creator.sponsorshipRate} />
               <StatBox label="Rate Type" value={rateType} />
               <StatBox label="Past Brands" value={String(creator.pastBrands.length)} />
             </div>
@@ -216,7 +259,7 @@ export default async function CreatorProfilePage({ params }: { params: CreatorPr
               </Link>
             ) : isOwner ? (
               <>
-                <Link href="/onboarding?role=creator" className="bridge-button-secondary mt-5 w-full">
+                <Link href="/dashboard/creator/edit" className="bridge-button-secondary mt-5 w-full">
                   Edit Profile
                 </Link>
                 <Link href="/dashboard/creator" className="bridge-button-primary mt-3 w-full">
@@ -235,7 +278,7 @@ export default async function CreatorProfilePage({ params }: { params: CreatorPr
           </div>
 
           {isOwner ? (
-            <ProfileCompletionCard completion={ownerProfileCompletion} updateHref="/onboarding?role=creator" className="bridge-card p-5" />
+            <ProfileCompletionCard completion={ownerProfileCompletion} updateHref="/dashboard/creator/edit" className="bridge-card p-5" />
           ) : null}
 
           <TrustPassportCard

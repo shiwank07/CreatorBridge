@@ -1,26 +1,23 @@
-import Image from "next/image";
 import Link from "next/link";
 import { BadgeCheck, Camera, Crown, Eye, Globe2, Languages, Radio, Send, Sparkles, TvMinimalPlay } from "lucide-react";
 
 import { Badge } from "@/components/shared/badge";
+import { InitialsAvatar } from "@/components/shared/initials-avatar";
 import { authHref } from "@/lib/auth-redirect";
 import { formatINR, formatNumber } from "@/lib/format";
 import { type CreatorCardData } from "@/lib/types";
-import { getPublicSubscriberCount, hasVerifiedStats, normalizeCreatorVerificationStatus, verificationBadgeLabel } from "@/lib/verification";
+import {
+  getPublicAverageViews,
+  getPublicEngagementRate,
+  getPublicSubscriberCount,
+  normalizeCreatorVerificationStatus,
+  verificationBadgeLabel,
+} from "@/lib/verification";
 
 type CreatorCardProps = {
   creator: CreatorCardData;
   viewerRole?: "creator" | "brand";
 };
-
-function engagementRate(creator: CreatorCardData) {
-  const subscribers = getPublicSubscriberCount(creator);
-  const views = creator.avgViews ?? 0;
-
-  if (!subscribers || !views) return "N/A";
-
-  return `${Math.min((views / subscribers) * 100, 99).toFixed(1)}%`;
-}
 
 function coverClass(username: string) {
   const variants = [
@@ -34,9 +31,10 @@ function coverClass(username: string) {
 }
 
 export function CreatorCard({ creator, viewerRole }: CreatorCardProps) {
-  const statsVerified = hasVerifiedStats(creator);
   const normalizedVerification = normalizeCreatorVerificationStatus(creator.verificationStatus);
   const subscriberCount = getPublicSubscriberCount(creator);
+  const averageViews = getPublicAverageViews(creator);
+  const engagement = getPublicEngagementRate(creator);
   const platforms = [
     creator.youtubeUrl ? { label: "YouTube", icon: TvMinimalPlay } : null,
     creator.instagramUrl ? { label: "Instagram", icon: Camera } : null,
@@ -54,8 +52,8 @@ export function CreatorCard({ creator, viewerRole }: CreatorCardProps) {
               Featured
             </Badge>
           ) : null}
-          <Badge tone={statsVerified ? "green" : normalizedVerification === "pending" ? "yellow" : "neutral"} className="border-white/10 bg-black/25 text-white backdrop-blur-md">
-            {statsVerified ? <BadgeCheck size={12} /> : <Sparkles size={12} />}
+          <Badge tone={normalizedVerification === "verified" ? "green" : normalizedVerification === "pending" ? "yellow" : "neutral"} className="border-white/10 bg-black/25 text-white backdrop-blur-md">
+            {normalizedVerification === "verified" ? <BadgeCheck size={12} /> : <Sparkles size={12} />}
             {verificationBadgeLabel(creator.verificationStatus)}
           </Badge>
         </div>
@@ -74,15 +72,15 @@ export function CreatorCard({ creator, viewerRole }: CreatorCardProps) {
 
       <div className="relative flex flex-1 flex-col p-5 pt-0">
         <div className="-mt-9 flex items-end gap-4">
-          <div className="relative h-20 w-20 shrink-0 overflow-hidden rounded-full border border-cyan-200/35 bg-[#0b0f16] shadow-[0_0_30px_rgba(103,232,249,0.18)]">
-            <Image
-              src={creator.avatar || "https://i.pravatar.cc/160?img=12"}
-              alt={`${creator.name} profile photo`}
-              fill
-              sizes="80px"
-              className="object-cover"
-            />
-          </div>
+          <InitialsAvatar
+            imageUrl={creator.avatar}
+            name={creator.name}
+            username={creator.username}
+            alt={`${creator.name} profile photo`}
+            sizes="80px"
+            className="h-20 w-20 rounded-full border-cyan-200/35"
+            textClassName="text-xl"
+          />
           <div className="min-w-0 pb-2">
             <div className="flex min-w-0 items-center gap-2">
               <h3 className="truncate font-display text-xl font-bold text-white">{creator.name}</h3>
@@ -107,13 +105,15 @@ export function CreatorCard({ creator, viewerRole }: CreatorCardProps) {
 
         <div className="mt-5 grid grid-cols-2 gap-2">
           {[
-            { label: "Subscribers", value: formatNumber(subscriberCount) },
-            { label: "Avg Views", value: formatNumber(creator.avgViews) },
-            { label: "Engagement", value: engagementRate(creator) },
-            { label: "Starting Price", value: formatINR(creator.sponsorshipRate) },
+            { label: "Subscribers", value: subscriberCount > 0 ? formatNumber(subscriberCount) : "Not added yet", muted: subscriberCount <= 0 },
+            { label: "Avg Views", value: averageViews > 0 ? formatNumber(averageViews) : "Stats pending", muted: averageViews <= 0 },
+            { label: "Engagement", value: engagement > 0 ? `${engagement.toFixed(1)}%` : "Complete profile", muted: engagement <= 0 },
+            { label: "Starting Price", value: creator.sponsorshipRate && creator.sponsorshipRate > 0 ? formatINR(creator.sponsorshipRate) : "Pricing not set", muted: !creator.sponsorshipRate },
           ].map((stat) => (
-            <div key={stat.label} className="rounded-[8px] border border-white/10 bg-white/[0.045] p-3">
-              <p className="truncate font-mono text-base font-bold text-white">{stat.value}</p>
+            <div key={stat.label} className="min-w-0 rounded-[8px] border border-white/10 bg-white/[0.045] p-3">
+              <p className={`${stat.muted ? "text-sm font-semibold leading-5 text-cyan-100" : "font-mono text-base font-bold text-white"} break-words`}>
+                {stat.value}
+              </p>
               <p className="mt-1 text-[11px] uppercase text-[var(--text-muted)]">{stat.label}</p>
             </div>
           ))}

@@ -15,7 +15,7 @@ export const dynamic = "force-dynamic";
 
 export const metadata = {
   title: "Collaboration History",
-  description: "Review active, completed, and declined CreatorBridge collaborations.",
+  description: "Review active, completed, and declined Branzzo collaborations.",
 };
 
 type AccountType = "creator" | "brand";
@@ -241,7 +241,7 @@ export default async function CollaborationHistoryPage() {
             <CircleDollarSign size={24} className="mx-auto text-cyan-200" />
             <h2 className="mt-3 font-display text-2xl font-bold">No collaboration history yet</h2>
             <p className="mx-auto mt-2 max-w-xl text-sm leading-6 text-[var(--text-secondary)]">
-              Active, completed, and declined collaborations will appear here once offers move through Halo.
+              Active, completed, and declined collaborations will appear here once offers move through Branzzo.
             </p>
           </section>
         ) : null}

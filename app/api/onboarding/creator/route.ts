@@ -7,7 +7,12 @@ import { hasClerkKeys } from "@/lib/clerk-config";
 import { CreatorProfile } from "@/lib/models/CreatorProfile";
 import { User } from "@/lib/models/User";
 import { creatorOnboardingSchema } from "@/lib/validators/creator";
+import { isCreatorVerifiedStatus } from "@/lib/verification";
 import { normalizeYoutubeChannelKey } from "@/lib/verification-helpers";
+
+function hasNumberChanged(previous?: number | null, next?: number | null) {
+  return Number(previous ?? 0) !== Number(next ?? 0);
+}
 
 export async function POST(req: Request) {
   try {
@@ -46,7 +51,7 @@ export async function POST(req: Request) {
     const clerkUser = await currentUser();
     const email =
       clerkUser?.emailAddresses.find((item) => item.id === clerkUser.primaryEmailAddressId)?.emailAddress ??
-      `${userId}@creatorbridge.local`;
+      `${userId}@branzzo.local`;
 
     const user = await User.findOneAndUpdate(
       { clerkId: userId },
@@ -58,7 +63,7 @@ export async function POST(req: Request) {
           phoneNumber: parsed.data.phoneNumber,
           phoneVerified,
           // TODO: Add Cloudflare R2 or UploadThing upload support. Keep MongoDB storage to the image URL only.
-          avatar: parsed.data.avatar || clerkUser?.imageUrl || "",
+          avatar: parsed.data.avatar || existingUser?.avatar || clerkUser?.imageUrl || "",
           role: "creator",
           onboardingComplete: true,
         },
@@ -73,13 +78,41 @@ export async function POST(req: Request) {
     );
 
     const existingProfile = await CreatorProfile.findOne({ userId: user._id });
-    const youtubeChanged = Boolean(
+    const platformChanged = Boolean(
       existingProfile &&
-        (existingProfile.youtubeUrl !== parsed.data.youtubeUrl || existingProfile.youtubeHandle !== parsed.data.youtubeHandle),
+        (existingProfile.youtubeUrl !== parsed.data.youtubeUrl ||
+          existingProfile.youtubeHandle !== parsed.data.youtubeHandle ||
+          existingProfile.instagramUrl !== parsed.data.instagramUrl ||
+          existingProfile.podcastUrl !== parsed.data.podcastUrl),
     );
-    const verificationCode = youtubeChanged ? "" : existingProfile?.verificationCode ?? "";
-    const verificationStatus = youtubeChanged ? "unverified" : existingProfile?.verificationStatus ?? "unverified";
-    const verificationCodeExpiresAt = youtubeChanged ? null : existingProfile?.verificationCodeExpiresAt ?? null;
+    const existingClaimedSubscribers = existingProfile?.claimedSubscribers ?? existingProfile?.subscribers ?? 0;
+    const existingClaimedAverageViews = existingProfile?.claimedAverageViews ?? existingProfile?.avgViews ?? 0;
+    const existingClaimedEngagementRate = existingProfile?.claimedEngagementRate ?? 0;
+    const statsChanged = Boolean(
+      existingProfile &&
+        (hasNumberChanged(existingClaimedSubscribers, parsed.data.subscribers) ||
+          hasNumberChanged(existingClaimedAverageViews, parsed.data.avgViews) ||
+          hasNumberChanged(existingClaimedEngagementRate, parsed.data.engagementRate)),
+    );
+    const previousStatsStatus =
+      existingProfile?.statsVerificationStatus && existingProfile.statsVerificationStatus !== "unverified"
+        ? existingProfile.statsVerificationStatus
+        : isCreatorVerifiedStatus(existingProfile?.verificationStatus)
+          ? "verified"
+          : existingProfile?.statsVerificationStatus ?? "unverified";
+    const statsVerificationStatus =
+      existingProfile && previousStatsStatus === "verified" && (statsChanged || platformChanged)
+        ? "needs_review"
+        : previousStatsStatus;
+    const verificationCode = platformChanged ? "" : existingProfile?.verificationCode ?? "";
+    const verificationStatus = platformChanged
+      ? isCreatorVerifiedStatus(existingProfile?.verificationStatus)
+        ? "needs_review"
+        : existingProfile?.verificationStatus === "pending" || existingProfile?.verificationStatus === "pending_ownership"
+          ? "pending"
+          : "unverified"
+      : existingProfile?.verificationStatus ?? "unverified";
+    const verificationCodeExpiresAt = platformChanged ? null : existingProfile?.verificationCodeExpiresAt ?? null;
 
     await CreatorProfile.findOneAndUpdate(
       { userId: user._id },
@@ -95,13 +128,15 @@ export async function POST(req: Request) {
           youtubeHandle: parsed.data.youtubeHandle,
           subscribers: parsed.data.subscribers,
           claimedSubscribers: parsed.data.subscribers,
+          claimedAverageViews: parsed.data.avgViews,
+          claimedEngagementRate: parsed.data.engagementRate,
+          statsVerificationStatus,
           verificationStatus,
           verificationCode,
           verificationCodeExpiresAt,
           normalizedYoutubeChannelKey: normalizeYoutubeChannelKey(parsed.data.youtubeUrl, parsed.data.youtubeHandle),
-          ...(youtubeChanged
+          ...(platformChanged
             ? {
-                verifiedSubscribers: 0,
                 verificationPlatform: "youtube",
                 verificationProfileUrl: "",
                 verificationSubmittedNote: "",
@@ -111,6 +146,7 @@ export async function POST(req: Request) {
                 verificationReviewedByAdminId: "",
                 verificationRejectedReason: "",
                 lastVerifiedAt: null,
+                verifiedAt: existingProfile?.verifiedAt ?? existingProfile?.lastVerifiedAt ?? null,
               }
             : {}),
           avgViews: parsed.data.avgViews,
@@ -127,7 +163,7 @@ export async function POST(req: Request) {
       { upsert: true, new: true },
     );
 
-    if (youtubeChanged) {
+    if (platformChanged) {
       await User.updateOne({ _id: user._id }, { $set: { isVerified: false } });
     }
 

@@ -9,7 +9,7 @@ export const dynamic = "force-dynamic";
 
 export const metadata = {
   title: "Dashboard",
-  description: "Open your CreatorBridge collaboration dashboard.",
+  description: "Open your Branzzo collaboration dashboard.",
 };
 
 export default async function DashboardPage() {
@@ -31,7 +31,7 @@ export default async function DashboardPage() {
           </div>
           <h1 className="mt-6 font-display text-4xl font-black sm:text-5xl">Choose your workspace</h1>
           <p className="mx-auto mt-4 max-w-xl text-sm leading-6 text-[var(--text-secondary)]">
-            Open the dashboard that matches how you use CreatorBridge.
+            Open the dashboard that matches how you use Branzzo.
           </p>
         </div>
 

@@ -20,6 +20,7 @@ export const brandOnboardingSchema = z.object({
     .optional()
     .transform((value) => normalizePhoneNumber(value))
     .refine(isValidPhoneNumber, "Enter a valid phone number, including country code if needed."),
+  logo: optionalUrl,
   website: optionalUrl,
   industry: z.string().trim().min(2, "Industry is required.").max(80),
   companySize: z.string().trim().max(80).optional().default(""),

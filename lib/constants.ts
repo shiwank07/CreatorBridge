@@ -1,12 +1,15 @@
-export const APP_NAME = "CreatorBridge";
+export const APP_NAME = "Branzzo";
+export const APP_INITIALS = "BZ";
+
+const contactEmailDomain = process.env.NEXT_PUBLIC_CONTACT_EMAIL_DOMAIN?.trim() || "branzzo.com";
 
 export const CONTACT_EMAILS = {
-  support: "support@creatorbridge.app",
-  partnerships: "partnerships@creatorbridge.app",
-  legal: "legal@creatorbridge.app",
+  support: process.env.NEXT_PUBLIC_SUPPORT_EMAIL?.trim() || `support@${contactEmailDomain}`,
+  partnerships: process.env.NEXT_PUBLIC_PARTNERSHIPS_EMAIL?.trim() || `partnerships@${contactEmailDomain}`,
+  legal: process.env.NEXT_PUBLIC_LEGAL_EMAIL?.trim() || `legal@${contactEmailDomain}`,
 } as const;
 
-export const LEGAL_LAST_UPDATED = "July 4, 2026";
+export const LEGAL_LAST_UPDATED = "July 6, 2026";
 
 export const NICHES = [
   "Gaming",

@@ -1,6 +1,15 @@
 export type Role = "creator" | "brand" | "agency" | "talent";
 export type AccountStatus = "active" | "hidden" | "suspended";
-export type VerificationStatus = "unverified" | "pending" | "verified" | "rejected" | "pending_ownership" | "ownership_verified" | "stats_verified";
+export type VerificationStatus =
+  | "unverified"
+  | "pending"
+  | "verified"
+  | "rejected"
+  | "pending_ownership"
+  | "ownership_verified"
+  | "stats_verified"
+  | "needs_review";
+export type StatsVerificationStatus = "unverified" | "pending" | "verified" | "needs_review" | "rejected";
 export type BrandVerificationStatus = "unverified" | "pending" | "verified" | "rejected";
 export type CreatorVerificationPlatform = "youtube" | "instagram" | "twitch" | "other";
 export type CollaborationStatus =
@@ -36,11 +45,17 @@ export type CreatorCardData = {
   country?: string;
   languages: string[];
   youtubeUrl?: string;
+  youtubeHandle?: string;
   instagramUrl?: string;
   podcastUrl?: string;
   subscribers?: number;
   claimedSubscribers?: number;
   verifiedSubscribers?: number;
+  claimedAverageViews?: number;
+  verifiedAverageViews?: number;
+  claimedEngagementRate?: number;
+  verifiedEngagementRate?: number;
+  statsVerificationStatus?: StatsVerificationStatus;
   verificationStatus: VerificationStatus;
   verificationCode?: string;
   verificationPlatform?: CreatorVerificationPlatform;
@@ -55,6 +70,8 @@ export type CreatorCardData = {
   isFeatured: boolean;
   isVerified: boolean;
   phoneVerified?: boolean;
+  verifiedAt?: string;
+  lastVerifiedAt?: string;
   createdAt?: string;
 };
 
@@ -67,6 +84,11 @@ export type CreatorVerificationData = {
   youtubeHandle?: string;
   claimedSubscribers?: number;
   verifiedSubscribers?: number;
+  claimedAverageViews?: number;
+  verifiedAverageViews?: number;
+  claimedEngagementRate?: number;
+  verifiedEngagementRate?: number;
+  statsVerificationStatus?: StatsVerificationStatus;
   verificationStatus: VerificationStatus;
   verificationCode?: string;
   verificationPlatform?: CreatorVerificationPlatform;
@@ -77,6 +99,7 @@ export type CreatorVerificationData = {
   verificationSubmittedAt?: string;
   verificationReviewedAt?: string;
   verificationCodeExpiresAt?: string;
+  verifiedAt?: string;
   lastVerifiedAt?: string;
   phoneVerified?: boolean;
   createdAt?: string;

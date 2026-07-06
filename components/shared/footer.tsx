@@ -11,7 +11,7 @@ export async function Footer() {
     <footer className="border-t border-[var(--border)] bg-[#09090d]">
       <div className="mx-auto grid max-w-7xl gap-8 px-4 py-10 sm:px-6 md:grid-cols-[1.35fr_0.9fr_0.9fr_0.9fr] lg:px-8">
         <div>
-          <p className="font-display text-lg font-bold">CreatorBridge</p>
+          <p className="font-display text-lg font-bold">Branzzo</p>
           <p className="mt-3 max-w-md text-sm leading-6 text-[var(--text-secondary)]">
             India-first creator marketplace for discovery, public profiles, and cleaner collaboration requests.
           </p>

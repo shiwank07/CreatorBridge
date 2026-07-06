@@ -148,7 +148,7 @@ export default async function CreatorsPage({ searchParams }: { searchParams: Cre
                 <div className="flex items-center justify-between border-b border-white/10 pb-4">
                   <div>
                     <p className="text-xs font-semibold uppercase text-cyan-200">Signal Console</p>
-                    <p className="mt-1 font-display text-xl font-bold">CreatorBridge OS</p>
+                    <p className="mt-1 font-display text-xl font-bold">Branzzo OS</p>
                   </div>
                   <Radar size={22} className="text-cyan-200" />
                 </div>

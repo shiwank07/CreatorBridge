@@ -5,7 +5,7 @@ import { CONTACT_EMAILS } from "@/lib/constants";
 
 export const metadata = {
   title: "Contact Us",
-  description: "Contact CreatorBridge support, partnerships, or legal.",
+  description: "Contact Branzzo support, partnerships, or legal.",
 };
 
 const contactRoutes = [
@@ -44,7 +44,7 @@ export default function ContactPage() {
         <div className="max-w-3xl">
           <p className="bridge-eyebrow">Contact Us</p>
           <h1 className="mt-4 font-display text-4xl font-black leading-tight sm:text-5xl">
-            Reach the CreatorBridge team.
+            Reach the Branzzo team.
           </h1>
           <p className="mt-5 text-base leading-8 text-[var(--text-secondary)]">
             Use the best contact route for your request so the right team can review it. Include your account email,

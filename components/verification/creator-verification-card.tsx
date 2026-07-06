@@ -54,7 +54,7 @@ export function CreatorVerificationCard({ creator }: CreatorVerificationCardProp
 
       setStatus(result.status ?? "pending");
       setVerificationCode(result.verificationCode ?? verificationCode);
-      setSuccess("Creator verification was submitted. Add the HALO code to your public bio before admin review.");
+      setSuccess("Creator verification was submitted. Add the BZ code to your public bio before admin review.");
     } catch {
       setError("Could not reach the server. Please try again.");
     } finally {
@@ -66,10 +66,10 @@ export function CreatorVerificationCard({ creator }: CreatorVerificationCardProp
     <section className="rounded-[8px] border border-white/10 bg-white/[0.04] p-5">
       <div className="flex items-start justify-between gap-3">
         <div>
-          <p className="bridge-eyebrow">Project Halo</p>
+          <p className="bridge-eyebrow">Branzzo</p>
           <h2 className="mt-2 font-display text-2xl font-bold">Creator verification</h2>
           <p className="mt-2 text-sm leading-6 text-[var(--text-secondary)]">
-            Submit the platform bio where admins should check your HALO code.
+            Submit the platform bio where admins should check your BZ code.
           </p>
         </div>
         <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[8px] border border-cyan-300/20 bg-cyan-300/10 text-cyan-100">

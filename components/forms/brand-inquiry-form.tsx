@@ -431,7 +431,7 @@ export function BrandInquiryForm({ creatorUsername = "" }: BrandInquiryFormProps
 
               {!success && stepIndex === 2 ? (
                 <label>
-                  <span className="bridge-label">Message to CreatorBridge</span>
+                  <span className="bridge-label">Message to Branzzo</span>
                   <textarea
                     value={form.message}
                     onChange={(event) => setField("message", event.target.value)}

@@ -17,7 +17,7 @@ export const dynamic = "force-dynamic";
 
 export const metadata = {
   title: "Verification Center",
-  description: "Manage Project Halo creator and brand verification.",
+  description: "Manage Branzzo creator and brand verification.",
 };
 
 type VerificationStep = {
@@ -34,7 +34,7 @@ function progressPercent(steps: VerificationStep[]) {
 
 function statusTone(status?: string) {
   if (status === "verified" || status === "stats_verified" || status === "ownership_verified") return "green";
-  if (status === "pending" || status === "pending_ownership") return "yellow";
+  if (status === "pending" || status === "pending_ownership" || status === "needs_review") return "yellow";
   return "neutral";
 }
 
@@ -65,7 +65,7 @@ function ProgressPanel({
     <section className="rounded-[8px] border border-white/10 bg-white/[0.04] p-5">
       <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-start">
         <div className="min-w-0">
-          <p className="bridge-eyebrow">Project Halo</p>
+          <p className="bridge-eyebrow">Branzzo</p>
           <h2 className="mt-2 font-display text-2xl font-bold">{title}</h2>
           <p className="mt-2 max-w-2xl text-sm leading-6 text-[var(--text-secondary)]">{description}</p>
         </div>
@@ -125,7 +125,7 @@ function creatorSteps(userEmail: string, phoneVerified: boolean, creator: Creato
   return [
     {
       label: "Email verified",
-      detail: userEmail ? "Your Clerk email is available on your Halo account." : "Add and verify an email before review.",
+      detail: userEmail ? "Your Clerk email is available on your Branzzo account." : "Add and verify an email before review.",
       done: Boolean(userEmail),
     },
     {
@@ -166,7 +166,7 @@ function brandSteps(userEmail: string, phoneVerified: boolean, brand: BrandProfi
   return [
     {
       label: "Email verified",
-      detail: userEmail ? "Your Clerk email is available on your Halo account." : "Add and verify an email before review.",
+      detail: userEmail ? "Your Clerk email is available on your Branzzo account." : "Add and verify an email before review.",
       done: Boolean(userEmail),
     },
     {
@@ -219,7 +219,7 @@ export default async function VerificationCenterPage() {
   if (user.role === "creator") {
     const creator = await getCreatorByUsername(user.username);
     const normalizedStatus = normalizeCreatorVerificationStatus(creator?.verificationStatus);
-    const code = creator?.verificationCode || "HALO-123456";
+    const code = creator?.verificationCode || "BZ-123456";
 
     return (
       <>
@@ -248,7 +248,7 @@ export default async function VerificationCenterPage() {
           <div className="grid gap-6 lg:grid-cols-[1fr_390px]">
             <ProgressPanel
               title="Creator verification"
-              description="Place your HALO code in your YouTube About section, Instagram bio, Twitch profile, or other platform bio, then submit the public link for admin review."
+              description="Place your BZ code in your YouTube About section, Instagram bio, Twitch profile, or other platform bio, then submit the public link for admin review."
               status={normalizedStatus}
               statusLabel={verificationBadgeLabel(normalizedStatus)}
               steps={creatorSteps(user.email, user.phoneVerified, creator)}
@@ -257,7 +257,7 @@ export default async function VerificationCenterPage() {
               codeHelp={
                 creator?.verificationCode
                   ? "This exact code must be visible in the submitted platform bio or About section before admin review."
-                  : "Submit your platform link below to generate and store your unique HALO code, then place it in your bio/About section before admin review."
+                  : "Submit your platform link below to generate and store your unique BZ code, then place it in your bio/About section before admin review."
               }
             >
               <div className="rounded-[8px] border border-white/10 bg-black/20 p-4 text-sm leading-6 text-[var(--text-secondary)]">

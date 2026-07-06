@@ -43,6 +43,13 @@ export async function GET() {
       verificationNote: profile.verificationNote,
       verificationRejectedReason: profile.verificationRejectedReason,
       verifiedSubscribers: profile.verifiedSubscribers,
+      verifiedAverageViews: profile.verifiedAverageViews,
+      verifiedEngagementRate: profile.verifiedEngagementRate,
+      claimedSubscribers: profile.claimedSubscribers,
+      claimedAverageViews: profile.claimedAverageViews ?? profile.avgViews,
+      claimedEngagementRate: profile.claimedEngagementRate,
+      statsVerificationStatus: profile.statsVerificationStatus,
+      verifiedAt: profile.verifiedAt?.toISOString(),
     });
   } catch (error) {
     return handleRouteError(error, "Creator verification status failed", "Could not load verification status.");

@@ -40,11 +40,11 @@ export async function PATCH(req: Request) {
     try {
       const result = await sendEmail({
         to: log.recipient,
-        subject: "CreatorBridge notification retry",
+        subject: "Branzzo notification retry",
         react: createElement(
           "div",
           null,
-          createElement("p", null, "A CreatorBridge notification was retried by the admin team."),
+          createElement("p", null, "A Branzzo notification was retried by the admin team."),
           createElement("p", null, `Event: ${log.event}`),
         ),
       });

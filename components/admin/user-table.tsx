@@ -2,9 +2,10 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { Ban, ExternalLink, EyeOff, Loader2, RotateCcw, UserRound } from "lucide-react";
+import { Ban, ExternalLink, EyeOff, Loader2, RotateCcw } from "lucide-react";
 
 import { Badge } from "@/components/shared/badge";
+import { InitialsAvatar } from "@/components/shared/initials-avatar";
 import { type AdminUserData } from "@/lib/types";
 
 type UserTableProps = {
@@ -29,7 +30,7 @@ function dateLabel(value?: string) {
 
 function verificationTone(status: AdminUserData["verificationStatus"]) {
   if (status === "verified" || status === "ownership_verified" || status === "stats_verified") return "green";
-  if (status === "pending" || status === "pending_ownership") return "yellow";
+  if (status === "pending" || status === "pending_ownership" || status === "needs_review") return "yellow";
   return "neutral";
 }
 
@@ -102,16 +103,14 @@ export function UserTable({ users }: UserTableProps) {
   }
 
   function Avatar({ user }: { user: AdminUserData }) {
-    return user.avatar ? (
-      <span
-        aria-hidden="true"
-        className="block h-11 w-11 rounded-[8px] bg-cover bg-center"
-        style={{ backgroundImage: `url("${user.avatar}")` }}
+    return (
+      <InitialsAvatar
+        imageUrl={user.avatar}
+        name={user.name}
+        username={user.username}
+        alt={`${user.name} avatar`}
+        className="h-11 w-11 rounded-[8px] border-[var(--border)]"
       />
-    ) : (
-      <span className="flex h-11 w-11 items-center justify-center rounded-[8px] border border-[var(--border)] bg-white/[0.04]">
-        <UserRound size={18} className="text-[var(--text-secondary)]" />
-      </span>
     );
   }
 
@@ -122,7 +121,7 @@ export function UserTable({ users }: UserTableProps) {
       ...(!isHidden && !isSuspended
         ? [{ action: "hide" as const, label: "Hide", icon: EyeOff, className: "border-[var(--border)] text-[var(--text-secondary)]" }]
         : []),
-      ...(!isSuspended
+      ...(!isHidden && !isSuspended
         ? [{ action: "suspend" as const, label: "Suspend", icon: Ban, className: "border-yellow-800 text-yellow-200" }]
         : []),
       ...(isHidden || isSuspended

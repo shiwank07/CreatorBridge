@@ -5,7 +5,7 @@ import { CONTACT_EMAILS, LEGAL_LAST_UPDATED } from "@/lib/constants";
 
 export const metadata = {
   title: "Trust & Safety",
-  description: "How CreatorBridge approaches verification, reporting, fraud prevention, and platform safety.",
+  description: "How Branzzo approaches verification, reporting, fraud prevention, and platform safety.",
 };
 
 const trustLayers = [
@@ -23,7 +23,7 @@ const trustLayers = [
   },
   {
     title: "Admin escalation paths",
-    description: "Reports, verification decisions, and suspicious activity can be reviewed by the CreatorBridge team.",
+    description: "Reports, verification decisions, and suspicious activity can be reviewed by the Branzzo team.",
   },
 ];
 
@@ -31,10 +31,10 @@ const safetySections = [
   {
     title: "Verification and trust signals",
     items: [
-      "Verification status is a CreatorBridge signal based on submitted information and admin review. It is not a guarantee of performance, payment, legal compliance, or identity beyond what we can reasonably review.",
+      "Verification status is a Branzzo signal based on submitted information and admin review. It is not a guarantee of performance, payment, legal compliance, or identity beyond what we can reasonably review.",
       "Creators may be reviewed for profile completeness, public platform links, support phone availability, and consistency across submitted details.",
       "Brands may be reviewed for company website, work email, contact details, company registration context, and consistency across submitted details.",
-      "CreatorBridge may approve, reject, revisit, or remove verification signals if information changes or new risk appears.",
+      "Branzzo may approve, reject, revisit, or remove verification signals if information changes or new risk appears.",
     ],
   },
   {
@@ -48,9 +48,9 @@ const safetySections = [
   {
     title: "Fraud prevention",
     items: [
-      "CreatorBridge monitors for suspicious patterns such as impersonation, fabricated metrics, fake companies, phishing, spam, forged proof, and abuse of collaboration workflows.",
+      "Branzzo monitors for suspicious patterns such as impersonation, fabricated metrics, fake companies, phishing, spam, forged proof, and abuse of collaboration workflows.",
       "We may limit account features, pause a collaboration, require additional verification, or suspend access while reviewing suspected fraud.",
-      "Users should verify payment terms, usage rights, deadlines, and identity before starting work outside CreatorBridge workflows.",
+      "Users should verify payment terms, usage rights, deadlines, and identity before starting work outside Branzzo workflows.",
     ],
   },
   {
@@ -58,13 +58,13 @@ const safetySections = [
     items: [
       "Report suspected fraud, harassment, impersonation, non-payment, unsafe campaign instructions, or privacy violations through Contact Us or support email.",
       "Useful reports include profile links, account emails, collaboration IDs, dates, screenshots, payment records, and a short description of what happened.",
-      "CreatorBridge reviews reports based on urgency, available evidence, policy impact, and risk to users.",
+      "Branzzo reviews reports based on urgency, available evidence, policy impact, and risk to users.",
     ],
   },
   {
     title: "Enforcement approach",
     items: [
-      "CreatorBridge may remove content, reject verification, limit profile visibility, pause workflows, warn users, suspend accounts, or terminate access.",
+      "Branzzo may remove content, reject verification, limit profile visibility, pause workflows, warn users, suspend accounts, or terminate access.",
       "We may prioritize urgent risks, including fraud, harassment, impersonation, credential requests, unsafe campaign demands, and threats to user privacy.",
       "Platform decisions may rely on available evidence and may not resolve every contractual or payment dispute between brands and creators.",
     ],
@@ -91,7 +91,7 @@ export default function TrustSafetyPage() {
             Safer collaboration starts before the first brief is accepted.
           </h1>
           <p className="mt-5 text-base leading-8 text-[var(--text-secondary)]">
-            CreatorBridge builds trust through clearer profiles, structured requests, verification review, admin tooling,
+            Branzzo builds trust through clearer profiles, structured requests, verification review, admin tooling,
             and practical safety expectations for both sides of a collaboration.
           </p>
           <p className="mt-4 text-sm font-semibold text-[var(--text-muted)]">Last updated: {LEGAL_LAST_UPDATED}</p>

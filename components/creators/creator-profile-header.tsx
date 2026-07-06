@@ -1,8 +1,8 @@
-import Image from "next/image";
 import Link from "next/link";
 import { ArrowLeft, BadgeCheck, Crown, MapPin, Send } from "lucide-react";
 
 import { Badge } from "@/components/shared/badge";
+import { InitialsAvatar } from "@/components/shared/initials-avatar";
 import { authHref } from "@/lib/auth-redirect";
 import { type CreatorCardData } from "@/lib/types";
 import { normalizeCreatorVerificationStatus, verificationBadgeLabel } from "@/lib/verification";
@@ -26,15 +26,15 @@ export function CreatorProfileHeader({ creator, viewerRole, viewerUsername }: Cr
         </Link>
         <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
           <div className="flex flex-col gap-5 sm:flex-row sm:items-center">
-            <div className="relative h-28 w-28 shrink-0 overflow-hidden rounded-[8px] border border-[var(--border)] bg-[#0b0f16]">
-              <Image
-                src={creator.avatar || "https://i.pravatar.cc/200?img=20"}
-                alt={`${creator.name} profile photo`}
-                fill
-                sizes="112px"
-                className="object-cover"
-              />
-            </div>
+            <InitialsAvatar
+              imageUrl={creator.avatar}
+              name={creator.name}
+              username={creator.username}
+              alt={`${creator.name} profile photo`}
+              sizes="112px"
+              className="h-28 w-28 rounded-[8px] border-[var(--border)]"
+              textClassName="text-3xl"
+            />
             <div className="min-w-0">
               <div className="flex flex-wrap items-center gap-3">
                 <h1 className="font-display text-3xl font-black leading-tight sm:text-4xl md:text-5xl">{creator.name}</h1>
@@ -67,7 +67,7 @@ export function CreatorProfileHeader({ creator, viewerRole, viewerUsername }: Cr
             </Link>
           ) : isOwner ? (
             <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
-              <Link href="/onboarding?role=creator" className="bridge-button-secondary w-full sm:w-auto">
+              <Link href="/dashboard/creator/edit" className="bridge-button-secondary w-full sm:w-auto">
                 Edit Profile
               </Link>
               <Link href="/dashboard/creator" className="bridge-button-primary w-full sm:w-auto">

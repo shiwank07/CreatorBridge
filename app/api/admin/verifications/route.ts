@@ -41,6 +41,8 @@ export async function PATCH(req: Request) {
 
     const now = new Date();
     const claimedSubscribers = profile.claimedSubscribers ?? profile.subscribers ?? 0;
+    const claimedAverageViews = profile.claimedAverageViews ?? profile.avgViews ?? 0;
+    const claimedEngagementRate = profile.claimedEngagementRate ?? 0;
     const verificationNote = parsed.data.note;
     const update: Record<string, unknown> = {
       verificationNote,
@@ -52,11 +54,16 @@ export async function PATCH(req: Request) {
     if (parsed.data.action === "approve" || parsed.data.action === "approve_ownership" || parsed.data.action === "approve_stats") {
       update.verificationStatus = "verified";
       update.verifiedSubscribers = parsed.data.verifiedSubscribers ?? claimedSubscribers;
+      update.verifiedAverageViews = parsed.data.verifiedAverageViews ?? claimedAverageViews;
+      update.verifiedEngagementRate = parsed.data.verifiedEngagementRate ?? claimedEngagementRate;
+      update.statsVerificationStatus = "verified";
+      update.verifiedAt = now;
       update.lastVerifiedAt = now;
     }
 
     if (parsed.data.action === "reject") {
       update.verificationStatus = "rejected";
+      update.statsVerificationStatus = "rejected";
       update.verificationRejectedReason = verificationNote;
     }
 

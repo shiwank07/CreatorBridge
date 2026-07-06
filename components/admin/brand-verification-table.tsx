@@ -149,7 +149,12 @@ export function BrandVerificationTable({ brands }: BrandVerificationTableProps) 
                         {savingKey === `${brand.username}:approve` ? <Loader2 size={14} className="animate-spin" /> : <BadgeCheck size={14} />}
                         Approve Verification
                       </button>
-                    ) : null}
+                    ) : (
+                      <button type="button" disabled className="bridge-action-button justify-center border-emerald-800 text-emerald-200">
+                        <BadgeCheck size={14} />
+                        Verified
+                      </button>
+                    )}
                     {brand.verificationStatus !== "rejected" ? (
                       <button
                         type="button"
@@ -210,7 +215,12 @@ export function BrandVerificationTable({ brands }: BrandVerificationTableProps) 
                   {savingKey === `${brand.username}:approve` ? <Loader2 size={14} className="animate-spin" /> : <BadgeCheck size={14} />}
                   Approve Verification
                 </button>
-              ) : null}
+              ) : (
+                <button type="button" disabled className="bridge-action-button border-emerald-800 text-emerald-200">
+                  <BadgeCheck size={14} />
+                  Verified
+                </button>
+              )}
               {brand.verificationStatus !== "rejected" ? (
                 <button
                   type="button"

@@ -12,6 +12,30 @@ type CreatorOnboardingFormProps = {
   initialName: string;
   initialUsername: string;
   initialAvatar?: string;
+  initialValues?: {
+    phoneNumber?: string;
+    avatar?: string;
+    bio?: string;
+    niche?: string[];
+    country?: string;
+    languagesText?: string;
+    youtubeUrl?: string;
+    youtubeHandle?: string;
+    subscribers?: string;
+    avgViews?: string;
+    engagementRate?: string;
+    instagramUrl?: string;
+    instagramFollowers?: string;
+    podcastUrl?: string;
+    sponsorshipRate?: string;
+    rateType?: "per_video" | "per_post" | "per_campaign";
+    pastBrandsText?: string;
+    sampleWorkText?: string;
+    isOpenToDeals?: boolean;
+  };
+  redirectHref?: string | null;
+  submitLabel?: string;
+  successMessage?: string;
 };
 
 type FormState = {
@@ -27,6 +51,7 @@ type FormState = {
   youtubeHandle: string;
   subscribers: string;
   avgViews: string;
+  engagementRate: string;
   instagramUrl: string;
   instagramFollowers: string;
   podcastUrl: string;
@@ -37,31 +62,41 @@ type FormState = {
   isOpenToDeals: boolean;
 };
 
-export function CreatorOnboardingForm({ initialName, initialUsername, initialAvatar = "" }: CreatorOnboardingFormProps) {
+export function CreatorOnboardingForm({
+  initialName,
+  initialUsername,
+  initialAvatar = "",
+  initialValues,
+  redirectHref = "/dashboard/creator",
+  submitLabel = "Publish Creator Profile",
+  successMessage = "Creator profile saved.",
+}: CreatorOnboardingFormProps) {
   const router = useRouter();
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
   const [form, setForm] = useState<FormState>({
     name: initialName,
     username: initialUsername,
-    phoneNumber: "",
-    avatar: initialAvatar,
-    bio: "",
-    niche: [],
-    country: "India",
-    languagesText: "English, Hindi",
-    youtubeUrl: "",
-    youtubeHandle: "",
-    subscribers: "",
-    avgViews: "",
-    instagramUrl: "",
-    instagramFollowers: "",
-    podcastUrl: "",
-    sponsorshipRate: "",
-    rateType: "per_video",
-    pastBrandsText: "",
-    sampleWorkText: "",
-    isOpenToDeals: true,
+    phoneNumber: initialValues?.phoneNumber ?? "",
+    avatar: initialValues?.avatar ?? initialAvatar,
+    bio: initialValues?.bio ?? "",
+    niche: initialValues?.niche ?? [],
+    country: initialValues?.country ?? "India",
+    languagesText: initialValues?.languagesText ?? "English, Hindi",
+    youtubeUrl: initialValues?.youtubeUrl ?? "",
+    youtubeHandle: initialValues?.youtubeHandle ?? "",
+    subscribers: initialValues?.subscribers ?? "",
+    avgViews: initialValues?.avgViews ?? "",
+    engagementRate: initialValues?.engagementRate ?? "",
+    instagramUrl: initialValues?.instagramUrl ?? "",
+    instagramFollowers: initialValues?.instagramFollowers ?? "",
+    podcastUrl: initialValues?.podcastUrl ?? "",
+    sponsorshipRate: initialValues?.sponsorshipRate ?? "",
+    rateType: initialValues?.rateType ?? "per_video",
+    pastBrandsText: initialValues?.pastBrandsText ?? "",
+    sampleWorkText: initialValues?.sampleWorkText ?? "",
+    isOpenToDeals: initialValues?.isOpenToDeals ?? true,
   });
 
   const selectedPlatforms = useMemo(
@@ -89,6 +124,7 @@ export function CreatorOnboardingForm({ initialName, initialUsername, initialAva
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError("");
+    setSuccess("");
     setIsSaving(true);
 
     const payload = {
@@ -104,6 +140,7 @@ export function CreatorOnboardingForm({ initialName, initialUsername, initialAva
       youtubeHandle: form.youtubeHandle,
       subscribers: Number(form.subscribers || 0),
       avgViews: Number(form.avgViews || 0),
+      engagementRate: Number(form.engagementRate || 0),
       instagramUrl: form.instagramUrl,
       instagramFollowers: Number(form.instagramFollowers || 0),
       podcastUrl: form.podcastUrl,
@@ -128,7 +165,8 @@ export function CreatorOnboardingForm({ initialName, initialUsername, initialAva
         return;
       }
 
-      router.replace("/dashboard/creator");
+      setSuccess(successMessage);
+      if (redirectHref) router.replace(redirectHref);
       router.refresh();
     } catch {
       setError("Could not reach the server. Please try again.");
@@ -142,6 +180,11 @@ export function CreatorOnboardingForm({ initialName, initialUsername, initialAva
       {error ? (
         <div role="alert" className="rounded-[8px] border border-red-900 bg-red-950/40 px-4 py-3 text-sm text-red-200">
           {error}
+        </div>
+      ) : null}
+      {success ? (
+        <div role="status" className="rounded-[8px] border border-emerald-800 bg-emerald-950/40 px-4 py-3 text-sm text-emerald-100">
+          {success}
         </div>
       ) : null}
 
@@ -173,7 +216,7 @@ export function CreatorOnboardingForm({ initialName, initialUsername, initialAva
               placeholder="+91 98765 43210"
             />
             <span className="mt-2 block text-xs leading-5 text-[var(--text-secondary)]">
-              Your phone is used for trust, support, and urgent contact only. It is never shown publicly or shared with brands.
+              Your phone number is private and used only for account trust, support, and urgent collaboration issues.
             </span>
           </label>
           <label className="lg:col-span-2">
@@ -181,7 +224,7 @@ export function CreatorOnboardingForm({ initialName, initialUsername, initialAva
             {/* TODO: Replace URL-only profile photos with Cloudflare R2 or UploadThing uploads. Do not store image files in MongoDB. */}
             <input value={form.avatar} onChange={(event) => setField("avatar", event.target.value)} className="bridge-input mt-2" placeholder="https://example.com/photo.jpg" />
             <span className="mt-2 block text-xs leading-5 text-[var(--text-secondary)]">
-              Paste a public image URL for now. Direct uploads are planned for a later release.
+              Paste a public image URL for now. Direct image uploads are not configured for this MVP.
             </span>
           </label>
           <label className="lg:col-span-2">
@@ -249,6 +292,10 @@ export function CreatorOnboardingForm({ initialName, initialUsername, initialAva
             <input value={form.avgViews} onChange={(event) => setField("avgViews", event.target.value)} className="bridge-input mt-2" inputMode="numeric" />
           </label>
           <label>
+            <span className="bridge-label">Engagement rate (%)</span>
+            <input value={form.engagementRate} onChange={(event) => setField("engagementRate", event.target.value)} className="bridge-input mt-2" inputMode="decimal" placeholder="4.8" />
+          </label>
+          <label>
             <span className="bridge-label">Instagram URL</span>
             <input value={form.instagramUrl} onChange={(event) => setField("instagramUrl", event.target.value)} className="bridge-input mt-2" placeholder="https://instagram.com/..." />
           </label>
@@ -311,7 +358,7 @@ export function CreatorOnboardingForm({ initialName, initialUsername, initialAva
         className="bridge-button-primary w-full py-4"
       >
         {isSaving ? <Loader2 size={17} className="animate-spin" /> : <UserPlus size={17} />}
-        {isSaving ? "Saving Profile" : "Publish Creator Profile"}
+        {isSaving ? "Saving Profile" : submitLabel}
       </button>
     </form>
   );

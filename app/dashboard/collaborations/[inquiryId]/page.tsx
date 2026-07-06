@@ -21,6 +21,7 @@ import {
 import { CollaborationDetailActions } from "@/components/collaborations/collaboration-detail-actions";
 import { CollaborationTimeline } from "@/components/collaborations/collaboration-timeline";
 import { Badge } from "@/components/shared/badge";
+import { InitialsAvatar } from "@/components/shared/initials-avatar";
 import { Navbar } from "@/components/shared/navbar";
 import { TrustPassportCard } from "@/components/verification/trust-passport-card";
 import { collaborationStatusLabel } from "@/lib/collaborations";
@@ -144,9 +145,11 @@ export default async function CollaborationDetailsPage({ params }: Collaboration
             <div className="grid gap-3 lg:w-80">
               <div className="rounded-[8px] border border-white/10 bg-black/20 p-4">
                 <div className="flex items-start gap-3">
-                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[8px] border border-violet-300/20 bg-violet-400/10 text-violet-100">
-                    <Building2 size={18} />
-                  </span>
+                  <InitialsAvatar
+                    name={collaboration.companyName}
+                    alt={`${collaboration.companyName} brand avatar`}
+                    className="h-10 w-10 rounded-[8px] border-violet-300/25"
+                  />
                   <div className="min-w-0">
                     <p className="text-xs font-semibold uppercase text-[var(--text-muted)]">Brand details</p>
                     <p className="mt-1 truncate font-semibold text-[var(--text-primary)]">{collaboration.companyName}</p>
@@ -156,9 +159,12 @@ export default async function CollaborationDetailsPage({ params }: Collaboration
               </div>
               <div className="rounded-[8px] border border-white/10 bg-black/20 p-4">
                 <div className="flex items-start gap-3">
-                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[8px] border border-cyan-300/20 bg-cyan-300/10 text-cyan-100">
-                    <UserRound size={18} />
-                  </span>
+                  <InitialsAvatar
+                    name={collaboration.creatorUsername}
+                    username={collaboration.creatorUsername}
+                    alt={`${collaboration.creatorUsername || "Creator"} avatar`}
+                    className="h-10 w-10 rounded-[8px] border-cyan-300/25"
+                  />
                   <div className="min-w-0">
                     <p className="text-xs font-semibold uppercase text-[var(--text-muted)]">Creator details</p>
                     <p className="mt-1 truncate font-semibold text-[var(--text-primary)]">

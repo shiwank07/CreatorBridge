@@ -82,7 +82,7 @@ export function ContactUsForm() {
 
       {submitted ? (
         <div role="status" className="mt-5 rounded-[8px] border border-emerald-800 bg-emerald-950/40 px-4 py-3 text-sm text-emerald-100">
-          Your email draft is ready. Send it from your email app so the CreatorBridge team receives it.
+          Your email draft is ready. Send it from your email app so the Branzzo team receives it.
         </div>
       ) : null}
 

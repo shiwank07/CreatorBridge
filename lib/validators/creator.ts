@@ -33,6 +33,7 @@ export const creatorOnboardingSchema = z.object({
   youtubeHandle: z.string().trim().max(60).optional().default(""),
   subscribers: z.coerce.number().int().nonnegative().optional().default(0),
   avgViews: z.coerce.number().int().nonnegative().optional().default(0),
+  engagementRate: z.coerce.number().nonnegative().max(100, "Engagement must be 100% or less.").optional().default(0),
   instagramUrl: urlish,
   instagramFollowers: z.coerce.number().int().nonnegative().optional().default(0),
   podcastUrl: urlish,

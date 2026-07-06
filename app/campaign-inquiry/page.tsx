@@ -10,7 +10,7 @@ import { getCurrentAppUser, getCurrentClerkUserId } from "@/lib/current-user";
 
 export const metadata: Metadata = {
   title: "Start Collaboration",
-  description: "Start a structured creator collaboration request on CreatorBridge.",
+  description: "Start a structured creator collaboration request on Branzzo.",
 };
 
 type InquirySearchParams = Promise<Record<string, string | string[] | undefined>>;

@@ -7,6 +7,24 @@ import { Building2, Loader2 } from "lucide-react";
 type BrandOnboardingFormProps = {
   initialContactName: string;
   initialEmail: string;
+  initialLogo?: string;
+  initialValues?: {
+    companyName?: string;
+    contactName?: string;
+    contactRole?: string;
+    contactEmail?: string;
+    phoneNumber?: string;
+    logo?: string;
+    website?: string;
+    industry?: string;
+    companySize?: string;
+    country?: string;
+    companyRegistrationText?: string;
+    notes?: string;
+  };
+  redirectHref?: string | null;
+  submitLabel?: string;
+  successMessage?: string;
 };
 
 type FormState = {
@@ -15,6 +33,7 @@ type FormState = {
   contactRole: string;
   contactEmail: string;
   phoneNumber: string;
+  logo: string;
   website: string;
   industry: string;
   companySize: string;
@@ -25,22 +44,32 @@ type FormState = {
 
 const COMPANY_SIZES = ["1-10", "11-50", "51-200", "201-1000", "1000+"] as const;
 
-export function BrandOnboardingForm({ initialContactName, initialEmail }: BrandOnboardingFormProps) {
+export function BrandOnboardingForm({
+  initialContactName,
+  initialEmail,
+  initialLogo = "",
+  initialValues,
+  redirectHref = "/dashboard/brand",
+  submitLabel = "Save Brand Profile",
+  successMessage = "Brand profile saved.",
+}: BrandOnboardingFormProps) {
   const router = useRouter();
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
   const [form, setForm] = useState<FormState>({
-    companyName: "",
-    contactName: initialContactName,
-    contactRole: "",
-    contactEmail: initialEmail,
-    phoneNumber: "",
-    website: "",
-    industry: "",
-    companySize: COMPANY_SIZES[1],
-    country: "India",
-    companyRegistrationText: "",
-    notes: "",
+    companyName: initialValues?.companyName ?? "",
+    contactName: initialValues?.contactName ?? initialContactName,
+    contactRole: initialValues?.contactRole ?? "",
+    contactEmail: initialValues?.contactEmail ?? initialEmail,
+    phoneNumber: initialValues?.phoneNumber ?? "",
+    logo: initialValues?.logo ?? initialLogo,
+    website: initialValues?.website ?? "",
+    industry: initialValues?.industry ?? "",
+    companySize: initialValues?.companySize ?? COMPANY_SIZES[1],
+    country: initialValues?.country ?? "India",
+    companyRegistrationText: initialValues?.companyRegistrationText ?? "",
+    notes: initialValues?.notes ?? "",
   });
 
   function setField<K extends keyof FormState>(key: K, value: FormState[K]) {
@@ -50,6 +79,7 @@ export function BrandOnboardingForm({ initialContactName, initialEmail }: BrandO
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError("");
+    setSuccess("");
     setIsSaving(true);
 
     try {
@@ -66,7 +96,8 @@ export function BrandOnboardingForm({ initialContactName, initialEmail }: BrandO
         return;
       }
 
-      router.replace("/dashboard/brand");
+      setSuccess(successMessage);
+      if (redirectHref) router.replace(redirectHref);
       router.refresh();
     } catch {
       setError("Could not reach the server. Please try again.");
@@ -80,6 +111,11 @@ export function BrandOnboardingForm({ initialContactName, initialEmail }: BrandO
       {error ? (
         <div role="alert" className="rounded-[8px] border border-red-900 bg-red-950/40 px-4 py-3 text-sm text-red-200">
           {error}
+        </div>
+      ) : null}
+      {success ? (
+        <div role="status" className="rounded-[8px] border border-emerald-800 bg-emerald-950/40 px-4 py-3 text-sm text-emerald-100">
+          {success}
         </div>
       ) : null}
 
@@ -112,6 +148,18 @@ export function BrandOnboardingForm({ initialContactName, initialEmail }: BrandO
           <label className="lg:col-span-2">
             <span className="bridge-label">Country</span>
             <input value={form.country} onChange={(event) => setField("country", event.target.value)} className="bridge-input mt-2" required />
+          </label>
+          <label className="lg:col-span-2">
+            <span className="bridge-label">Brand logo image URL</span>
+            <input
+              value={form.logo}
+              onChange={(event) => setField("logo", event.target.value)}
+              className="bridge-input mt-2"
+              placeholder="https://example.com/logo.png"
+            />
+            <span className="mt-2 block text-xs leading-5 text-[var(--text-secondary)]">
+              Paste a public logo URL for now. Direct image uploads are not configured for this MVP.
+            </span>
           </label>
           <label className="lg:col-span-2">
             <span className="bridge-label">GST, CIN, or company registration text</span>
@@ -151,7 +199,7 @@ export function BrandOnboardingForm({ initialContactName, initialEmail }: BrandO
               placeholder="+91 98765 43210"
             />
             <span className="mt-2 block text-xs leading-5 text-[var(--text-secondary)]">
-              Your phone is used for trust, support, and urgent contact only. It is never shown publicly or shared with creators.
+              Your phone number is private and used only for account trust, support, and urgent collaboration issues.
             </span>
           </label>
           <label className="lg:col-span-2">
@@ -168,7 +216,7 @@ export function BrandOnboardingForm({ initialContactName, initialEmail }: BrandO
         className="bridge-button-primary w-full py-4"
       >
         {isSaving ? <Loader2 size={17} className="animate-spin" /> : <Building2 size={17} />}
-        {isSaving ? "Saving Profile" : "Save Brand Profile"}
+        {isSaving ? "Saving Profile" : submitLabel}
       </button>
     </form>
   );

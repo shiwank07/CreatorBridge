@@ -35,6 +35,22 @@ export function VerificationTable({ creators }: VerificationTableProps) {
       ]),
     ),
   );
+  const [verifiedAverageViews, setVerifiedAverageViews] = useState<Record<string, string>>(() =>
+    Object.fromEntries(
+      creators.map((creator) => [
+        creator.username,
+        String(creator.verifiedAverageViews || creator.claimedAverageViews || 0),
+      ]),
+    ),
+  );
+  const [verifiedEngagementRates, setVerifiedEngagementRates] = useState<Record<string, string>>(() =>
+    Object.fromEntries(
+      creators.map((creator) => [
+        creator.username,
+        String(creator.verifiedEngagementRate || creator.claimedEngagementRate || 0),
+      ]),
+    ),
+  );
 
   async function updateVerification(creator: CreatorVerificationData, action: VerificationAction) {
     setError("");
@@ -46,13 +62,19 @@ export function VerificationTable({ creators }: VerificationTableProps) {
       action: VerificationAction;
       note: string;
       verifiedSubscribers?: number;
+      verifiedAverageViews?: number;
+      verifiedEngagementRate?: number;
     } = {
       username: creator.username,
       action,
       note: notes[creator.username] ?? "",
     };
 
-    if (action === "approve") body.verifiedSubscribers = Number(verifiedCounts[creator.username] || creator.claimedSubscribers || 0);
+    if (action === "approve") {
+      body.verifiedSubscribers = Number(verifiedCounts[creator.username] || creator.claimedSubscribers || 0);
+      body.verifiedAverageViews = Number(verifiedAverageViews[creator.username] || creator.claimedAverageViews || 0);
+      body.verifiedEngagementRate = Number(verifiedEngagementRates[creator.username] || creator.claimedEngagementRate || 0);
+    }
 
     try {
       const response = await fetch("/api/admin/verifications", {
@@ -94,7 +116,7 @@ export function VerificationTable({ creators }: VerificationTableProps) {
         </div>
       ) : null}
       <div className="hidden overflow-x-auto md:block">
-        <table className="w-full min-w-[980px] text-left text-sm">
+        <table className="w-full min-w-[1120px] text-left text-sm">
           <thead className="border-b border-[var(--border)] text-xs uppercase text-[var(--text-secondary)]">
             <tr>
               <th className="px-4 py-3">Creator</th>
@@ -133,12 +155,21 @@ export function VerificationTable({ creators }: VerificationTableProps) {
                     {formatNumber(creator.claimedSubscribers)}
                   </p>
                   <p className="mt-1 text-xs text-[var(--text-secondary)]">claimed subscribers</p>
+                  <p className="mt-3 font-mono text-base font-bold text-[var(--text-primary)]">
+                    {formatNumber(creator.claimedAverageViews)}
+                  </p>
+                  <p className="mt-1 text-xs text-[var(--text-secondary)]">claimed avg views</p>
+                  <p className="mt-3 font-mono text-base font-bold text-[var(--text-primary)]">
+                    {creator.claimedEngagementRate ? `${creator.claimedEngagementRate.toFixed(1)}%` : "0%"}
+                  </p>
+                  <p className="mt-1 text-xs text-[var(--text-secondary)]">claimed engagement</p>
                 </td>
                 <td className="px-4 py-4">
                   <div className="space-y-3">
                     <Badge tone={normalizeCreatorVerificationStatus(creator.verificationStatus) === "pending" ? "yellow" : "neutral"}>
                       {statusLabel(creator.verificationStatus)}
                     </Badge>
+                    {creator.statsVerificationStatus === "needs_review" ? <Badge tone="yellow">Stats Need Review</Badge> : null}
                     <div>
                       <p className="text-xs font-semibold uppercase text-[var(--text-secondary)]">Code</p>
                       <p className="mt-1 font-mono text-sm font-bold text-[var(--text-primary)]">
@@ -153,6 +184,32 @@ export function VerificationTable({ creators }: VerificationTableProps) {
                         value={verifiedCounts[creator.username] ?? ""}
                         onChange={(event) =>
                           setVerifiedCounts((current) => ({ ...current, [creator.username]: event.target.value }))
+                        }
+                        className="bridge-input mt-2 w-40"
+                      />
+                    </label>
+                    <label className="block">
+                      <span className="bridge-label">Verified avg views</span>
+                      <input
+                        type="number"
+                        min={0}
+                        value={verifiedAverageViews[creator.username] ?? ""}
+                        onChange={(event) =>
+                          setVerifiedAverageViews((current) => ({ ...current, [creator.username]: event.target.value }))
+                        }
+                        className="bridge-input mt-2 w-40"
+                      />
+                    </label>
+                    <label className="block">
+                      <span className="bridge-label">Verified engagement %</span>
+                      <input
+                        type="number"
+                        min={0}
+                        max={100}
+                        step="0.1"
+                        value={verifiedEngagementRates[creator.username] ?? ""}
+                        onChange={(event) =>
+                          setVerifiedEngagementRates((current) => ({ ...current, [creator.username]: event.target.value }))
                         }
                         className="bridge-input mt-2 w-40"
                       />
@@ -179,7 +236,12 @@ export function VerificationTable({ creators }: VerificationTableProps) {
                         {savingKey === `${creator.username}:approve` ? <Loader2 size={14} className="animate-spin" /> : <BadgeCheck size={14} />}
                         Approve Verification
                       </button>
-                    ) : null}
+                    ) : (
+                      <button type="button" disabled className="bridge-action-button justify-center border-emerald-800 text-emerald-200">
+                        <BadgeCheck size={14} />
+                        Verified
+                      </button>
+                    )}
                     {creator.verificationStatus !== "rejected" ? (
                       <button
                         type="button"
@@ -210,6 +272,7 @@ export function VerificationTable({ creators }: VerificationTableProps) {
               <Badge tone={normalizeCreatorVerificationStatus(creator.verificationStatus) === "pending" ? "yellow" : "neutral"}>
                 {statusLabel(creator.verificationStatus)}
               </Badge>
+              {creator.statsVerificationStatus === "needs_review" ? <Badge tone="yellow">Stats Need Review</Badge> : null}
             </div>
             {creator.verificationProfileUrl || creator.youtubeUrl ? (
               <Link
@@ -231,6 +294,14 @@ export function VerificationTable({ creators }: VerificationTableProps) {
                 <p className="mt-1 font-mono text-base font-bold text-[var(--text-primary)]">
                   {formatNumber(creator.claimedSubscribers)}
                 </p>
+                <p className="mt-3 text-xs font-semibold uppercase text-[var(--text-secondary)]">Claimed avg views</p>
+                <p className="mt-1 font-mono text-base font-bold text-[var(--text-primary)]">
+                  {formatNumber(creator.claimedAverageViews)}
+                </p>
+                <p className="mt-3 text-xs font-semibold uppercase text-[var(--text-secondary)]">Claimed engagement</p>
+                <p className="mt-1 font-mono text-base font-bold text-[var(--text-primary)]">
+                  {creator.claimedEngagementRate ? `${creator.claimedEngagementRate.toFixed(1)}%` : "0%"}
+                </p>
               </div>
               <label className="block">
                 <span className="bridge-label">Verified subscribers</span>
@@ -240,6 +311,32 @@ export function VerificationTable({ creators }: VerificationTableProps) {
                   value={verifiedCounts[creator.username] ?? ""}
                   onChange={(event) =>
                     setVerifiedCounts((current) => ({ ...current, [creator.username]: event.target.value }))
+                  }
+                  className="bridge-input mt-2 w-full"
+                />
+              </label>
+              <label className="block">
+                <span className="bridge-label">Verified avg views</span>
+                <input
+                  type="number"
+                  min={0}
+                  value={verifiedAverageViews[creator.username] ?? ""}
+                  onChange={(event) =>
+                    setVerifiedAverageViews((current) => ({ ...current, [creator.username]: event.target.value }))
+                  }
+                  className="bridge-input mt-2 w-full"
+                />
+              </label>
+              <label className="block">
+                <span className="bridge-label">Verified engagement %</span>
+                <input
+                  type="number"
+                  min={0}
+                  max={100}
+                  step="0.1"
+                  value={verifiedEngagementRates[creator.username] ?? ""}
+                  onChange={(event) =>
+                    setVerifiedEngagementRates((current) => ({ ...current, [creator.username]: event.target.value }))
                   }
                   className="bridge-input mt-2 w-full"
                 />
@@ -261,7 +358,12 @@ export function VerificationTable({ creators }: VerificationTableProps) {
                     {savingKey === `${creator.username}:approve` ? <Loader2 size={14} className="animate-spin" /> : <BadgeCheck size={14} />}
                     Approve Verification
                   </button>
-                ) : null}
+                ) : (
+                  <button type="button" disabled className="bridge-action-button border-emerald-800 text-emerald-200">
+                    <BadgeCheck size={14} />
+                    Verified
+                  </button>
+                )}
                 {creator.verificationStatus !== "rejected" ? (
                   <button
                     type="button"

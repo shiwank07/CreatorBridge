@@ -17,7 +17,7 @@ export function AdminSidebar() {
     <aside className="border-b border-[var(--border)] bg-[#0d0d14] lg:min-h-screen lg:border-b-0 lg:border-r">
       <div className="flex items-center justify-between px-4 py-4 lg:block lg:px-5">
         <Link href="/" className="font-display text-lg font-bold">
-          CreatorBridge
+          Branzzo
         </Link>
         <p className="hidden text-xs text-[var(--text-secondary)] lg:mt-1 lg:block">Admin</p>
       </div>
