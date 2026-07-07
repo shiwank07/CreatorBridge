@@ -84,6 +84,8 @@ type CollaborationDocument = {
 export type CollaborationDetailsData = BrandInquiryData & {
   brandVerificationStatus: BrandVerificationStatus;
   brandVerificationNote?: string;
+  brandPhoneAdded?: boolean;
+  brandPhoneVerified?: boolean;
   creatorVerificationStatus: VerificationStatus;
 };
 
@@ -217,21 +219,35 @@ function idsMatch(value: unknown, id: unknown) {
 async function getBrandVerificationStatus(collaboration: CollaborationDocument): Promise<{
   brandVerificationStatus: BrandVerificationStatus;
   brandVerificationNote?: string;
+  brandPhoneAdded?: boolean;
+  brandPhoneVerified?: boolean;
 }> {
   const profile = collaboration.brandProfileId
-    ? await BrandProfile.findById(collaboration.brandProfileId).select("verificationStatus verificationNote").exec()
-    : await BrandProfile.findOne({ contactEmail: collaboration.email }).select("verificationStatus verificationNote").exec();
+    ? await BrandProfile.findById(collaboration.brandProfileId).select("verificationStatus verificationNote phoneNumber phoneVerified").exec()
+    : await BrandProfile.findOne({ contactEmail: collaboration.email }).select("verificationStatus verificationNote phoneNumber phoneVerified").exec();
 
   if (profile) {
+    const brandUser = collaboration.brandUserId
+      ? await User.findById(collaboration.brandUserId).select("phoneNumber phoneVerified").exec()
+      : null;
+
     return {
       brandVerificationStatus: profile.verificationStatus ?? "unverified",
       brandVerificationNote: profile.verificationNote,
+      brandPhoneAdded: Boolean(brandUser?.phoneNumber || profile.phoneNumber),
+      brandPhoneVerified: Boolean(brandUser?.phoneVerified || profile.phoneVerified),
     };
   }
 
   if (collaboration.brandUserId) {
-    const brandUser = await User.findById(collaboration.brandUserId).select("isVerified").exec();
-    if (brandUser?.isVerified) return { brandVerificationStatus: "verified" };
+    const brandUser = await User.findById(collaboration.brandUserId).select("isVerified phoneNumber phoneVerified").exec();
+    if (brandUser) {
+      return {
+        brandVerificationStatus: brandUser.isVerified ? "verified" : "unverified",
+        brandPhoneAdded: Boolean(brandUser.phoneNumber),
+        brandPhoneVerified: Boolean(brandUser.phoneVerified),
+      };
+    }
   }
 
   return { brandVerificationStatus: "unverified" };

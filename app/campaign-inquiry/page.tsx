@@ -49,7 +49,7 @@ export default async function CampaignInquiryPage({ searchParams }: { searchPara
           <p className="bridge-eyebrow">Collaboration Request</p>
           <h1 className="mt-3 font-display text-3xl font-black leading-tight sm:text-4xl">Start a creator collaboration</h1>
           <p className="mt-3 max-w-2xl text-sm leading-6 text-[var(--text-secondary)]">
-            Share the campaign goal, deliverables, budget range, and timeline so the right creator fit is easier to review.
+            Share the campaign goal, deliverables, exact offer amount, and timeline so the right creator fit is easier to review.
           </p>
           {creatorUsername ? (
             <p className="mt-4 inline-flex max-w-full rounded-[8px] border border-violet-800 bg-violet-950/40 px-4 py-2 text-sm text-violet-100">

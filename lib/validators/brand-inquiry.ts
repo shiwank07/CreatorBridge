@@ -16,9 +16,9 @@ export const brandInquirySchema = z.object({
   deliverables: z.array(z.string().trim().min(1)).min(1, "Choose at least one deliverable.").max(8),
   targetNiches: z.array(z.string().trim().min(1)).min(1, "Choose at least one niche.").max(6),
   targetPlatforms: z.array(z.string().trim().min(1)).min(1, "Choose at least one platform.").max(4),
-  budgetRange: z.string().trim().min(1, "Choose a budget range."),
+  budgetRange: z.string().trim().optional().default(""),
   initialOfferAmount: z.coerce.number().int("Enter a whole INR amount.").positive("Enter the exact initial offer amount."),
-  isNegotiable: z.boolean().default(true),
+  isNegotiable: z.boolean().default(false),
   timeline: z.string().trim().min(2, "Timeline is required.").max(120),
   message: z.string().trim().max(1500).optional().default(""),
   creatorUsername: z.string().trim().toLowerCase().max(40).optional().default(""),
@@ -31,29 +31,8 @@ export const inquiryStatusSchema = z.object({
 
 export const creatorResponseSchema = z
   .object({
-    action: z.enum(["accept_offer", "decline_offer", "request_revision", "interested", "decline"]),
+    action: z.enum(["accept_offer", "decline_offer", "interested", "decline"]),
     note: z.string().trim().max(1000).optional().default(""),
-    counterOfferAmount: z.coerce.number().int("Enter a whole INR amount.").positive("Enter the counter offer amount.").optional(),
-    counterOfferNote: z.string().trim().max(1000).optional().default(""),
-  })
-  .refine((value) => value.action !== "request_revision" || Boolean(value.counterOfferAmount), {
-    message: "Enter the counter offer amount.",
-    path: ["counterOfferAmount"],
-  })
-  .refine((value) => value.action !== "request_revision" || value.counterOfferNote.length >= 2, {
-    message: "Add a note explaining the requested revision.",
-    path: ["counterOfferNote"],
-  });
-
-export const brandResponseSchema = z
-  .object({
-    action: z.enum(["accept_counter", "send_revised_offer", "decline_negotiation"]),
-    revisedOfferAmount: z.coerce.number().int("Enter a whole INR amount.").positive("Enter the revised offer amount.").optional(),
-    note: z.string().trim().max(1000).optional().default(""),
-  })
-  .refine((value) => value.action !== "send_revised_offer" || Boolean(value.revisedOfferAmount), {
-    message: "Enter the revised offer amount.",
-    path: ["revisedOfferAmount"],
   });
 
 export const deliveryProofSchema = z.object({

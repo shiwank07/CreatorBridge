@@ -64,7 +64,7 @@ export function InquiryTable({ inquiries }: InquiryTableProps) {
               <th className="px-4 py-3">Brand</th>
               <th className="px-4 py-3">Goal</th>
               <th className="px-4 py-3">Deliverables</th>
-              <th className="px-4 py-3">Budget</th>
+              <th className="px-4 py-3">Offer</th>
               <th className="px-4 py-3">Creator</th>
               <th className="px-4 py-3">Collaboration Status</th>
             </tr>
@@ -93,8 +93,6 @@ export function InquiryTable({ inquiries }: InquiryTableProps) {
                   <p className="font-semibold text-[var(--text-primary)]">
                     {inquiry.currentOfferAmount ? formatINR(inquiry.currentOfferAmount) : "Exact offer not recorded"}
                   </p>
-                  <p className="mt-1 text-xs">{inquiry.budgetRange}</p>
-                  <p className="mt-1 text-xs">Negotiable: {inquiry.isNegotiable ? "Yes" : "No"}</p>
                 </td>
                 <td className="px-4 py-4 text-[var(--text-secondary)]">
                   {inquiry.creatorUsername ? `@${inquiry.creatorUsername}` : "Open brief"}

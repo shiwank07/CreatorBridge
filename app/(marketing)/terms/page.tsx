@@ -82,7 +82,7 @@ const termsSections = [
   {
     title: "Payments disclaimer",
     items: [
-      "Budgets, rates, initial offers, and payment details shown in Branzzo workflows are collaboration information, not a payment guarantee.",
+      "Rates, exact offers, and payment details shown in Branzzo workflows are collaboration information, not a payment guarantee.",
       "Unless a specific Branzzo product expressly says otherwise, Branzzo is not an escrow agent, payment processor, payroll provider, tax advisor, talent agency, or party to the brand-creator agreement.",
       "Brands and creators are responsible for agreeing to payment terms, invoices, taxes, refunds, cancellation terms, usage fees, and compliance with applicable financial obligations.",
       "Branzzo may introduce paid products later. Any paid product may have additional terms shown at purchase or signup.",

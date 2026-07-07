@@ -9,7 +9,7 @@ import { collaborationHistoryBucket, collaborationStatusLabel } from "@/lib/coll
 import { getBrandCollaborationDashboard, getCreatorCollaborationDashboard } from "@/lib/queries/collaborations";
 import { getCurrentAppUser, getCurrentClerkUserId } from "@/lib/current-user";
 import { formatINR } from "@/lib/format";
-import { type BrandInquiryData, type OfferHistoryEntryData } from "@/lib/types";
+import { type BrandInquiryData } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
@@ -38,19 +38,6 @@ function currentOffer(collaboration: BrandInquiryData) {
 function partnerName(collaboration: BrandInquiryData, accountType: AccountType) {
   if (accountType === "brand") return collaboration.creatorUsername ? `@${collaboration.creatorUsername}` : "Creator not linked";
   return collaboration.companyName;
-}
-
-function offerHistoryLabel(entry: OfferHistoryEntryData) {
-  const actor = entry.actor === "brand" ? "Brand" : "Creator";
-  const labels: Record<OfferHistoryEntryData["action"], string> = {
-    offer_sent: "sent offer",
-    counter_requested: "requested revised offer",
-    counter_sent: "sent revised offer",
-    offer_accepted: "accepted offer",
-    offer_declined: "declined offer",
-  };
-
-  return `${actor} ${labels[entry.action]}`;
 }
 
 function bucketCollaborations(collaborations: BrandInquiryData[]) {
@@ -95,8 +82,6 @@ function StatCard({
 }
 
 function CollaborationCard({ collaboration, accountType }: { collaboration: BrandInquiryData; accountType: AccountType }) {
-  const offerHistory = collaboration.offerHistory ?? [];
-
   return (
     <article className="rounded-[8px] border border-white/10 bg-white/[0.04] p-4">
       <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-start">
@@ -110,47 +95,22 @@ function CollaborationCard({ collaboration, accountType }: { collaboration: Bran
           <p className="mt-2 line-clamp-2 text-sm leading-6 text-[var(--text-secondary)]">{collaboration.campaignGoal}</p>
           <div className="mt-4 grid gap-2 text-sm sm:grid-cols-3">
             <div className="rounded-[8px] border border-white/10 bg-black/20 p-3">
-              <p className="text-xs font-semibold uppercase text-[var(--text-muted)]">Budget range</p>
-              <p className="mt-1 text-[var(--text-primary)]">{collaboration.budgetRange}</p>
-            </div>
-            <div className="rounded-[8px] border border-white/10 bg-black/20 p-3">
-              <p className="text-xs font-semibold uppercase text-[var(--text-muted)]">Current offer</p>
+              <p className="text-xs font-semibold uppercase text-[var(--text-muted)]">Offer amount</p>
               <p className="mt-1 text-[var(--text-primary)]">{currentOffer(collaboration)}</p>
             </div>
             <div className="rounded-[8px] border border-white/10 bg-black/20 p-3">
-              <p className="text-xs font-semibold uppercase text-[var(--text-muted)]">Negotiable</p>
-              <p className="mt-1 text-[var(--text-primary)]">{collaboration.isNegotiable ? "Yes" : "No"}</p>
+              <p className="text-xs font-semibold uppercase text-[var(--text-muted)]">Timeline</p>
+              <p className="mt-1 text-[var(--text-primary)]">{collaboration.timeline}</p>
+            </div>
+            <div className="rounded-[8px] border border-white/10 bg-black/20 p-3">
+              <p className="text-xs font-semibold uppercase text-[var(--text-muted)]">Created</p>
+              <p className="mt-1 text-[var(--text-primary)]">{formatDate(collaboration.createdAt)}</p>
             </div>
           </div>
         </div>
         <Link href={collaborationDetailsHref(collaboration.id)} className="bridge-button-secondary shrink-0 px-4 py-2 text-sm">
           View details
         </Link>
-      </div>
-
-      <div className="mt-4 rounded-[8px] border border-white/10 bg-black/20 p-3">
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-          <p className="text-xs font-semibold uppercase text-[var(--text-muted)]">Offer history</p>
-          <p className="text-xs text-[var(--text-secondary)]">Created {formatDate(collaboration.createdAt)}</p>
-        </div>
-        {offerHistory.length ? (
-          <div className="mt-3 grid gap-2">
-            {offerHistory.slice(-5).map((entry, index) => (
-              <div key={`${entry.id ?? entry.createdAt ?? entry.action}-${index}`} className="flex min-w-0 flex-col gap-1 rounded-[8px] border border-white/10 bg-white/[0.035] px-3 py-2 sm:flex-row sm:items-center sm:justify-between">
-                <span className="min-w-0 text-sm text-[var(--text-primary)]">
-                  {offerHistoryLabel(entry)}
-                  {entry.amount ? <span className="font-semibold"> at {formatINR(entry.amount)}</span> : null}
-                  {entry.note ? <span className="text-[var(--text-secondary)]"> - {entry.note}</span> : null}
-                </span>
-                <span className="shrink-0 text-xs text-[var(--text-secondary)]">{formatDate(entry.createdAt)}</span>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <p className="mt-3 rounded-[8px] border border-dashed border-white/10 px-3 py-4 text-sm leading-6 text-[var(--text-secondary)]">
-            No offer history recorded yet.
-          </p>
-        )}
       </div>
     </article>
   );
@@ -249,7 +209,7 @@ export default async function CollaborationHistoryPage() {
         <div className="grid gap-8">
           <HistorySection
             title="Active collaborations"
-            description="Offers, negotiations, accepted work, proof review, and other in-progress collaborations."
+            description="Offers, accepted work, proof review, and other in-progress collaborations."
             collaborations={groups.active}
             accountType={accountType}
           />

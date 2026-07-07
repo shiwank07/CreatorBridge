@@ -117,36 +117,6 @@ export async function POST(req: Request, { params }: RouteContext) {
       });
     }
 
-    if (action === "request_revision") {
-      if (!collaboration.isNegotiable) {
-        return NextResponse.json({ error: "This offer was marked as non-negotiable by the brand." }, { status: 400 });
-      }
-
-      const note = parsed.data.counterOfferNote;
-      const amount = parsed.data.counterOfferAmount ?? 0;
-      collaboration.set({
-        status: "REVISION_REQUESTED",
-        currentOfferAmount: amount,
-        creatorResponseAt: now,
-        creatorResponseNote: note,
-      });
-      appendCollaborationTimeline(collaboration, {
-        event: "REVISION_REQUESTED",
-        status: "REVISION_REQUESTED",
-        actor: "creator",
-        note,
-        createdAt: now,
-      });
-      collaboration.offerHistory.push({
-        actor: "creator",
-        action: "counter_requested",
-        amount,
-        currency: "INR",
-        note,
-        createdAt: now,
-      });
-    }
-
     await collaboration.save();
 
     if (action === "accept_offer") {
@@ -155,15 +125,6 @@ export async function POST(req: Request, { params }: RouteContext) {
 
     if (action === "decline_offer") {
       await notificationService.notifyCreatorDeclined({ collaboration, creatorUser: creatorUserForNotification, note: parsed.data.note });
-    }
-
-    if (action === "request_revision") {
-      await notificationService.notifyCreatorCounterRequested({
-        collaboration,
-        creatorUser: creatorUserForNotification,
-        amount: parsed.data.counterOfferAmount,
-        note: parsed.data.counterOfferNote,
-      });
     }
 
     return NextResponse.json({ ok: true, status: collaboration.status });

@@ -41,7 +41,7 @@ export function CollaborationTable({ collaborations }: CollaborationTableProps) 
               <th className="px-4 py-3">Brand</th>
               <th className="px-4 py-3">Creator</th>
               <th className="px-4 py-3">Status</th>
-              <th className="px-4 py-3">Budget</th>
+              <th className="px-4 py-3">Offer</th>
               <th className="px-4 py-3">Created</th>
               <th className="px-4 py-3">Last Updated</th>
               <th className="px-4 py-3">Actions</th>
@@ -83,7 +83,7 @@ export function CollaborationTable({ collaborations }: CollaborationTableProps) 
             </div>
             <div className="mt-4 grid grid-cols-2 gap-3 text-xs text-[var(--text-secondary)]">
               <div>
-                <p className="font-semibold uppercase">Budget</p>
+                <p className="font-semibold uppercase">Offer</p>
                 <p className="mt-1 text-sm text-[var(--text-primary)]">{collaboration.budget}</p>
               </div>
               <div>

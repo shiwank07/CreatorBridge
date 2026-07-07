@@ -4,7 +4,7 @@ import { type FormEvent, useMemo, useState } from "react";
 import Link from "next/link";
 import { Building2, Check, ChevronLeft, ChevronRight, ClipboardList, Loader2, MessageSquare, Send, X } from "lucide-react";
 
-import { BUDGET_RANGES, NICHES, PLATFORMS } from "@/lib/constants";
+import { NICHES, PLATFORMS } from "@/lib/constants";
 import { formatINR } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
@@ -21,9 +21,7 @@ type InquiryState = {
   deliverables: string[];
   targetNiches: string[];
   targetPlatforms: string[];
-  budgetRange: string;
   initialOfferAmount: string;
-  isNegotiable: boolean;
   timeline: string;
   message: string;
 };
@@ -65,9 +63,7 @@ export function BrandInquiryForm({ creatorUsername = "" }: BrandInquiryFormProps
     deliverables: ["Dedicated video"],
     targetNiches: creatorUsername ? [] : ["Tech"],
     targetPlatforms: ["youtube"],
-    budgetRange: BUDGET_RANGES[1],
     initialOfferAmount: "",
-    isNegotiable: true,
     timeline: "",
     message: "",
   });
@@ -158,7 +154,12 @@ export function BrandInquiryForm({ creatorUsername = "" }: BrandInquiryFormProps
       const response = await fetch("/api/brand-inquiries", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...form, creatorUsername }),
+        body: JSON.stringify({
+          ...form,
+          budgetRange: form.initialOfferAmount ? formatINR(Number(form.initialOfferAmount)) : "Exact offer not recorded",
+          isNegotiable: false,
+          creatorUsername,
+        }),
       });
 
       const result = (await response.json().catch(() => ({}))) as { error?: string };
@@ -311,18 +312,7 @@ export function BrandInquiryForm({ creatorUsername = "" }: BrandInquiryFormProps
                     <input value={form.website} onChange={(event) => setField("website", event.target.value)} className="bridge-input mt-2" placeholder="https://..." />
                   </label>
                   <label>
-                    <span className="bridge-label">Budget range context</span>
-                    <select value={form.budgetRange} onChange={(event) => setField("budgetRange", event.target.value)} className="bridge-input mt-2">
-                      {BUDGET_RANGES.map((range) => (
-                        <option key={range} value={range}>
-                          {range}
-                        </option>
-                      ))}
-                    </select>
-                    <span className="mt-2 block text-xs leading-5 text-[var(--text-secondary)]">Use this as context; the exact offer is required below.</span>
-                  </label>
-                  <label>
-                    <span className="bridge-label">Initial offer amount (INR)</span>
+                    <span className="bridge-label">Offer amount (INR)</span>
                     <input
                       value={form.initialOfferAmount}
                       onChange={(event) => setField("initialOfferAmount", event.target.value.replace(/[^\d]/g, ""))}
@@ -332,19 +322,12 @@ export function BrandInquiryForm({ creatorUsername = "" }: BrandInquiryFormProps
                       required
                     />
                     <span className="mt-2 block text-xs leading-5 text-[var(--text-secondary)]">
-                      This exact offer is sent to the creator in INR.
+                      Enter the exact offer the creator can accept or decline.
                     </span>
                   </label>
                   <label>
                     <span className="bridge-label">Timeline</span>
                     <input value={form.timeline} onChange={(event) => setField("timeline", event.target.value)} className="bridge-input mt-2" placeholder="Launch in 3 weeks" required />
-                  </label>
-                  <label className="flex items-center gap-3 rounded-[8px] border border-[var(--border)] bg-[#0d0d14] px-4 py-3 text-sm text-[var(--text-secondary)]">
-                    <input type="checkbox" checked={form.isNegotiable} onChange={(event) => setField("isNegotiable", event.target.checked)} className="h-4 w-4 accent-cyan-500" />
-                    <span>
-                      <span className="block font-semibold text-[var(--text-primary)]">Offer is negotiable</span>
-                      <span className="mt-1 block text-xs leading-5">Creators can request a revised offer before accepting.</span>
-                    </span>
                   </label>
                   <label className="lg:col-span-2">
                     <span className="bridge-label">Campaign goal</span>
@@ -449,9 +432,7 @@ export function BrandInquiryForm({ creatorUsername = "" }: BrandInquiryFormProps
                     ["Deliverables", joinList(form.deliverables)],
                     ["Audience", joinList(form.targetNiches)],
                     ["Platforms", joinList(selectedPlatforms)],
-                    ["Budget range", form.budgetRange],
-                    ["Initial offer", form.initialOfferAmount ? formatINR(Number(form.initialOfferAmount)) : "Offer amount not added"],
-                    ["Negotiable", form.isNegotiable ? "Yes" : "No"],
+                    ["Offer amount", form.initialOfferAmount ? formatINR(Number(form.initialOfferAmount)) : "Offer amount not added"],
                     ["Timeline", form.timeline || "Timeline not added"],
                     ["Message", form.message || "No extra message added"],
                   ].map(([label, value]) => (

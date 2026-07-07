@@ -55,14 +55,14 @@ const notificationVisuals: Record<string, NotificationVisual> = {
     accentClassName: "bg-cyan-300",
   },
   counter_requested: {
-    label: "Counter requested",
+    label: "Collaboration update",
     Icon: Mail,
     shellClassName: "border-amber-300/25 bg-amber-300/10 text-amber-100",
     iconClassName: "text-amber-100",
     accentClassName: "bg-amber-300",
   },
   counter_sent: {
-    label: "Revised offer",
+    label: "Collaboration update",
     Icon: Mail,
     shellClassName: "border-cyan-300/25 bg-cyan-300/10 text-cyan-100",
     iconClassName: "text-cyan-100",

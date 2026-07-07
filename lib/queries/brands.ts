@@ -10,6 +10,7 @@ type BrandDocumentWithUser = {
   contactName: string;
   contactRole?: string;
   contactEmail?: string;
+  phoneNumber?: string;
   phoneVerified?: boolean;
   website?: string;
   industry: string;
@@ -41,6 +42,7 @@ function mapBrand(doc: BrandDocumentWithUser): BrandProfileData {
     verificationStatus: doc.verificationStatus ?? (user.isVerified ? "verified" : "unverified"),
     verificationNote: doc.verificationNote,
     companyRegistrationText: doc.companyRegistrationText,
+    phoneAdded: Boolean(user.phoneNumber || doc.phoneNumber),
     phoneVerified: Boolean(user.phoneVerified || doc.phoneVerified),
     createdAt: doc.createdAt?.toISOString(),
   };

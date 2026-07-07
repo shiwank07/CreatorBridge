@@ -182,6 +182,7 @@ export default async function BrandProfilePage({ params }: { params: BrandProfil
             <TrustPassportCard
               accountType="brand"
               emailVerified={Boolean(brand.contactEmail)}
+              phoneAdded={Boolean(brand.phoneAdded)}
               phoneVerified={Boolean(brand.phoneVerified)}
               verificationStatus={brand.verificationStatus}
               successfulCollaborations={0}

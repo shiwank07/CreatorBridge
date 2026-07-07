@@ -21,18 +21,12 @@ type ProofState = {
   referenceLink: string;
 };
 
-type OfferAction = BrandInquiryData["offerHistory"][number]["action"];
-
 function canCreatorSubmitProof(status: BrandInquiryData["status"]) {
   return ["ACCEPTED", "IN_PROGRESS", "PROOF_SUBMITTED", "REVISION_REQUESTED"].includes(status);
 }
 
 function canCreatorRespond(status: BrandInquiryData["status"]) {
   return ["NEW", "PENDING_CREATOR_RESPONSE"].includes(status);
-}
-
-function canBrandRespondToCounter(collaboration: BrandInquiryData) {
-  return collaboration.status === "REVISION_REQUESTED" && collaboration.offerHistory.at(-1)?.action === "counter_requested";
 }
 
 function canBrandReviewProof(status: BrandInquiryData["status"]) {
@@ -45,77 +39,22 @@ function proofLabel(status: BrandInquiryData["status"]) {
   return "Submit Proof";
 }
 
-function offerActionLabel(action: OfferAction) {
-  const labels: Record<OfferAction, string> = {
-    offer_sent: "Initial offer",
-    counter_requested: "Creator counter offer",
-    counter_sent: "Brand revised offer",
-    offer_accepted: "Offer accepted",
-    offer_declined: "Offer declined",
-  };
-
-  return labels[action];
-}
-
-function offerDate(value?: string) {
-  if (!value) return "Recently";
-
-  return new Intl.DateTimeFormat("en", {
-    month: "short",
-    day: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-  }).format(new Date(value));
-}
-
 function currentOfferLabel(collaboration: BrandInquiryData) {
   return collaboration.currentOfferAmount ? formatINR(collaboration.currentOfferAmount) : "Exact offer not recorded";
 }
 
 function OfferSummary({ collaboration }: { collaboration: BrandInquiryData }) {
   return (
-    <div className="rounded-[8px] border border-cyan-300/20 bg-cyan-300/10 p-3">
+    <div className="min-w-0 rounded-[8px] border border-cyan-300/20 bg-cyan-300/10 p-3 [overflow-wrap:anywhere]">
       <p className="text-xs font-bold uppercase text-cyan-100">Offer Details</p>
       <div className="mt-3 grid gap-2 text-xs leading-5 text-[var(--text-secondary)]">
         <p>
-          <span className="font-semibold text-[var(--text-primary)]">Budget range:</span> {collaboration.budgetRange}
-        </p>
-        <p>
-          <span className="font-semibold text-[var(--text-primary)]">Current offer:</span> {currentOfferLabel(collaboration)}
+          <span className="font-semibold text-[var(--text-primary)]">Offer amount:</span> {currentOfferLabel(collaboration)}
         </p>
         <p>
           <span className="font-semibold text-[var(--text-primary)]">Currency:</span> {collaboration.currency}
         </p>
-        <p>
-          <span className="font-semibold text-[var(--text-primary)]">Negotiable:</span> {collaboration.isNegotiable ? "Yes" : "No"}
-        </p>
       </div>
-    </div>
-  );
-}
-
-function OfferTimeline({ collaboration }: { collaboration: BrandInquiryData }) {
-  if (!collaboration.offerHistory.length) return null;
-
-  return (
-    <div className="rounded-[8px] border border-white/10 bg-white/[0.035] p-3">
-      <p className="text-xs font-bold uppercase text-[var(--text-muted)]">Offer Timeline</p>
-      <ol className="mt-3 grid gap-2">
-        {collaboration.offerHistory.map((entry, index) => (
-          <li key={entry.id ?? `${entry.action}-${index}`} className="rounded-[8px] border border-white/10 bg-black/20 px-3 py-2 text-xs leading-5 text-[var(--text-secondary)]">
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <span className="font-semibold text-[var(--text-primary)]">
-                {entry.actor === "brand" ? "Brand" : "Creator"} - {offerActionLabel(entry.action)}
-              </span>
-              <span className="text-[var(--text-muted)]">{offerDate(entry.createdAt)}</span>
-            </div>
-            <p className="mt-1">
-              <span className="font-semibold text-[var(--text-primary)]">Amount:</span> {entry.amount ? formatINR(entry.amount) : "No amount recorded"}
-            </p>
-            {entry.note ? <p className="mt-1">{entry.note}</p> : null}
-          </li>
-        ))}
-      </ol>
     </div>
   );
 }
@@ -126,9 +65,6 @@ export function CollaborationActions({ collaboration, mode }: CollaborationActio
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [isSaving, setIsSaving] = useState(false);
-  const [responseNote, setResponseNote] = useState("");
-  const [revisedOfferAmount, setRevisedOfferAmount] = useState("");
-  const [brandNegotiationNote, setBrandNegotiationNote] = useState("");
   const [reviewNote, setReviewNote] = useState("");
   const [issueNote, setIssueNote] = useState("");
   const [proofForm, setProofForm] = useState<ProofState>({
@@ -188,26 +124,9 @@ export function CollaborationActions({ collaboration, mode }: CollaborationActio
   async function creatorResponse(action: "accept_offer" | "decline_offer") {
     await request(
       `/api/collaborations/${collaboration.id}/creator-response`,
-      { action, note: responseNote },
+      { action },
       action === "accept_offer" ? "Offer accepted. Contact details are now unlocked." : "Offer declined.",
     );
-  }
-
-  async function brandResponse(action: "accept_counter" | "decline_negotiation") {
-    await request(
-      `/api/collaborations/${collaboration.id}/brand-response`,
-      { action, note: brandNegotiationNote },
-      action === "accept_counter" ? "Creator counter offer accepted." : "Negotiation declined.",
-    );
-  }
-
-  async function sendRevisedOffer(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    await request(`/api/collaborations/${collaboration.id}/brand-response`, {
-      action: "send_revised_offer",
-      revisedOfferAmount,
-      note: brandNegotiationNote,
-    }, "Revised offer was sent.");
   }
 
   if (mode === "creator") {
@@ -215,8 +134,7 @@ export function CollaborationActions({ collaboration, mode }: CollaborationActio
       return (
         <div className="mt-4 grid gap-3">
           <OfferSummary collaboration={collaboration} />
-          <OfferTimeline collaboration={collaboration} />
-          <div className="rounded-[8px] border border-white/10 bg-white/[0.035] p-3">
+          <div className="min-w-0 rounded-[8px] border border-white/10 bg-white/[0.035] p-3 [overflow-wrap:anywhere]">
           <p className="text-xs font-bold uppercase text-cyan-100">Request Details</p>
           {error ? (
             <div role="alert" className="mt-3 rounded-[8px] border border-red-900 bg-red-950/40 px-3 py-2 text-xs text-red-200">
@@ -231,22 +149,11 @@ export function CollaborationActions({ collaboration, mode }: CollaborationActio
 
           <div className="mt-3 grid gap-2 text-xs leading-5 text-[var(--text-secondary)]">
             <p>
-              <span className="font-semibold text-[var(--text-primary)]">Brand:</span> {collaboration.companyName}
-            </p>
-            <p>
-              <span className="font-semibold text-[var(--text-primary)]">Timeline:</span> {collaboration.timeline}
-            </p>
-            <p>
               <span className="font-semibold text-[var(--text-primary)]">Deliverables:</span>{" "}
               {collaboration.deliverables.length > 0 ? collaboration.deliverables.join(", ") : "Not listed"}
             </p>
             <p>
-              <span className="font-semibold text-[var(--text-primary)]">Audience:</span>{" "}
-              {collaboration.targetNiches.length > 0 ? collaboration.targetNiches.join(", ") : "Not listed"}
-            </p>
-            <p>
-              <span className="font-semibold text-[var(--text-primary)]">Platforms:</span>{" "}
-              {collaboration.targetPlatforms.length > 0 ? collaboration.targetPlatforms.join(", ") : "Not listed"}
+              <span className="font-semibold text-[var(--text-primary)]">Timeline:</span> {collaboration.timeline}
             </p>
             {collaboration.message ? (
               <p className="rounded-[8px] border border-white/10 bg-black/20 px-3 py-2">
@@ -255,20 +162,10 @@ export function CollaborationActions({ collaboration, mode }: CollaborationActio
             ) : null}
           </div>
 
-          <label className="mt-3 block">
-            <span className="text-xs font-semibold text-[var(--text-primary)]">Response note</span>
-            <textarea
-              value={responseNote}
-              onChange={(event) => setResponseNote(event.target.value)}
-              className="bridge-input mt-1 min-h-16 px-3 py-2 text-xs"
-              placeholder="Optional note for the brand"
-            />
-          </label>
-
           <div className="mt-3 grid gap-2 sm:grid-cols-2">
             <button type="button" onClick={() => creatorResponse("accept_offer")} disabled={isSaving} className="bridge-button-primary w-full px-3 py-2 text-xs">
               {isSaving ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
-              Accept Offer
+              Accept
             </button>
             <button type="button" onClick={() => creatorResponse("decline_offer")} disabled={isSaving} className="bridge-button-secondary w-full px-3 py-2 text-xs">
               {isSaving ? <Loader2 size={14} className="animate-spin" /> : <XCircle size={14} />}
@@ -288,8 +185,7 @@ export function CollaborationActions({ collaboration, mode }: CollaborationActio
       return (
         <div className="mt-4 grid gap-3">
           <OfferSummary collaboration={collaboration} />
-          <OfferTimeline collaboration={collaboration} />
-          <div className="rounded-[8px] border border-white/10 bg-white/[0.035] p-3 text-xs leading-5 text-[var(--text-secondary)]">
+          <div className="min-w-0 rounded-[8px] border border-white/10 bg-white/[0.035] p-3 text-xs leading-5 text-[var(--text-secondary)] [overflow-wrap:anywhere]">
             {collaboration.creatorResponseNote ? (
               <span>
                 <span className="font-semibold text-[var(--text-primary)]">Response:</span> {collaboration.creatorResponseNote}
@@ -305,8 +201,7 @@ export function CollaborationActions({ collaboration, mode }: CollaborationActio
     return (
       <div className="mt-4 grid gap-3">
         <OfferSummary collaboration={collaboration} />
-        <OfferTimeline collaboration={collaboration} />
-        <div className="rounded-[8px] border border-white/10 bg-white/[0.035] p-3">
+        <div className="min-w-0 rounded-[8px] border border-white/10 bg-white/[0.035] p-3 [overflow-wrap:anywhere]">
         {error ? (
           <div role="alert" className="mb-3 rounded-[8px] border border-red-900 bg-red-950/40 px-3 py-2 text-xs text-red-200">
             {error}
@@ -404,79 +299,10 @@ export function CollaborationActions({ collaboration, mode }: CollaborationActio
     );
   }
 
-  if (canBrandRespondToCounter(collaboration)) {
-    return (
-      <div className="mt-4 grid gap-3">
-        <OfferSummary collaboration={collaboration} />
-        <OfferTimeline collaboration={collaboration} />
-        <div className="rounded-[8px] border border-cyan-300/20 bg-cyan-300/10 p-3">
-          <p className="text-xs font-bold uppercase text-cyan-100">Negotiation Response</p>
-          {error ? (
-            <div role="alert" className="mt-3 rounded-[8px] border border-red-900 bg-red-950/40 px-3 py-2 text-xs text-red-200">
-              {error}
-            </div>
-          ) : null}
-          {success ? (
-            <div role="status" className="mt-3 rounded-[8px] border border-emerald-800 bg-emerald-950/40 px-3 py-2 text-xs text-emerald-100">
-              {success}
-            </div>
-          ) : null}
-
-          {collaboration.creatorResponseNote ? (
-            <p className="mt-3 rounded-[8px] border border-white/10 bg-black/20 px-3 py-2 text-xs leading-5 text-[var(--text-secondary)]">
-              <span className="font-semibold text-[var(--text-primary)]">Creator note:</span> {collaboration.creatorResponseNote}
-            </p>
-          ) : null}
-
-          <label className="mt-3 block">
-            <span className="text-xs font-semibold text-[var(--text-primary)]">Brand note</span>
-            <textarea
-              value={brandNegotiationNote}
-              onChange={(event) => setBrandNegotiationNote(event.target.value)}
-              className="bridge-input mt-1 min-h-16 px-3 py-2 text-xs"
-              placeholder="Optional note for the creator"
-            />
-          </label>
-
-          <div className="mt-3 grid gap-2 sm:grid-cols-2">
-            <button type="button" onClick={() => brandResponse("accept_counter")} disabled={isSaving} className="bridge-button-primary w-full px-3 py-2 text-xs">
-              {isSaving ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
-              Accept Creator Counter
-            </button>
-            <button type="button" onClick={() => brandResponse("decline_negotiation")} disabled={isSaving} className="bridge-button-secondary w-full px-3 py-2 text-xs">
-              {isSaving ? <Loader2 size={14} className="animate-spin" /> : <XCircle size={14} />}
-              Decline Negotiation
-            </button>
-          </div>
-
-          <form onSubmit={sendRevisedOffer} aria-busy={isSaving} className="mt-3 grid gap-2 rounded-[8px] border border-white/10 bg-black/20 p-3">
-            <p className="text-xs font-bold uppercase text-[var(--text-muted)]">Send revised offer</p>
-            <label>
-              <span className="text-xs font-semibold text-[var(--text-primary)]">Revised offer amount (INR)</span>
-              <input
-                value={revisedOfferAmount}
-                onChange={(event) => setRevisedOfferAmount(event.target.value.replace(/[^\d]/g, ""))}
-                className="bridge-input mt-1 px-3 py-2 text-xs"
-                inputMode="numeric"
-                placeholder="55000"
-                required
-              />
-            </label>
-            <button type="submit" disabled={isSaving} className="bridge-button-secondary w-full px-3 py-2 text-xs">
-              {isSaving ? <Loader2 size={14} className="animate-spin" /> : <RotateCcw size={14} />}
-              Send Revised Offer
-            </button>
-          </form>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="mt-4 grid gap-3">
       <OfferSummary collaboration={collaboration} />
-      <OfferTimeline collaboration={collaboration} />
-      <div className="rounded-[8px] border border-white/10 bg-white/[0.035] p-3">
+      <div className="min-w-0 rounded-[8px] border border-white/10 bg-white/[0.035] p-3 [overflow-wrap:anywhere]">
       <p className="text-xs font-bold uppercase text-[var(--text-muted)]">Delivery Proof</p>
       {error ? (
         <div role="alert" className="mt-3 rounded-[8px] border border-red-900 bg-red-950/40 px-3 py-2 text-xs text-red-200">

@@ -170,10 +170,6 @@ function userObjectId(user?: NotificationUser | null) {
   return user?._id ?? user?.id ?? null;
 }
 
-function amountLabel(amount?: number | null) {
-  return amount && amount > 0 ? ` at INR ${amount.toLocaleString("en-IN")}` : "";
-}
-
 function toObjectId(value: unknown) {
   if (!value) return null;
 
@@ -469,79 +465,6 @@ export const notificationService = {
           note: trimText(note),
           collaborationUrl: appUrl(href),
         }),
-      });
-    });
-  },
-
-  async notifyCreatorCounterRequested({
-    collaboration,
-    creatorUser,
-    amount,
-    note,
-  }: {
-    collaboration: CollaborationLike;
-    creatorUser?: NotificationUser | null;
-    amount?: number;
-    note?: string;
-  }) {
-    const event: NotificationEvent = "counter_requested";
-    await safeNotify(event, async () => {
-      const creator = await resolveCreatorUser(collaboration, creatorUser);
-      const brand = await resolveBrandUser(collaboration);
-      const companyName = trimText(collaboration.companyName, "your company");
-      const creatorName = userDisplayName(creator, trimText(collaboration.creatorUsername, "The creator"));
-      const href = collaborationHref(collaboration);
-      const noteText = trimText(note);
-
-      await createInAppNotification({
-        recipientUserId: userObjectId(brand),
-        actorUserId: userObjectId(creator),
-        event,
-        title: "Counter offer requested",
-        message: `${creatorName} requested a revised offer${amountLabel(amount)} for ${companyName}.${noteText ? ` ${noteText}` : ""}`,
-        href,
-      });
-    });
-  },
-
-  async notifyBrandNegotiationResponse({
-    collaboration,
-    action,
-    amount,
-    note,
-  }: {
-    collaboration: CollaborationLike;
-    action: "accept_counter" | "send_revised_offer" | "decline_negotiation";
-    amount?: number;
-    note?: string;
-  }) {
-    const event: NotificationEvent = action === "send_revised_offer" ? "counter_sent" : "brand_response";
-    await safeNotify(event, async () => {
-      const creator = await resolveCreatorUser(collaboration);
-      const brand = await resolveBrandUser(collaboration);
-      const companyName = trimText(collaboration.companyName, "The brand");
-      const href = collaborationHref(collaboration);
-      const noteText = trimText(note);
-      const title =
-        action === "accept_counter"
-          ? "Counter offer accepted"
-          : action === "send_revised_offer"
-            ? "Revised offer sent"
-            : "Negotiation declined";
-      const actionCopy =
-        action === "accept_counter"
-          ? `accepted your counter offer${amountLabel(amount)}`
-          : action === "send_revised_offer"
-            ? `sent a revised offer${amountLabel(amount)}`
-            : "declined the negotiation";
-
-      await createInAppNotification({
-        recipientUserId: userObjectId(creator),
-        actorUserId: userObjectId(brand),
-        event,
-        title,
-        message: `${companyName} ${actionCopy}.${noteText ? ` ${noteText}` : ""}`,
-        href,
       });
     });
   },

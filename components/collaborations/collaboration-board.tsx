@@ -81,14 +81,6 @@ export function CollaborationBoard({ columns, mode }: CollaborationBoardProps) {
                           <span className="truncate">{offerLabel(collaboration)}</span>
                         </span>
                         <span className="flex min-w-0 items-center gap-2">
-                          <CircleDollarSign size={14} className="shrink-0 text-emerald-200" />
-                          <span className="truncate">{collaboration.budgetRange}</span>
-                        </span>
-                        <span className="flex min-w-0 items-center gap-2">
-                          <CircleDollarSign size={14} className="shrink-0 text-amber-200" />
-                          <span className="truncate">Negotiable: {collaboration.isNegotiable ? "Yes" : "No"}</span>
-                        </span>
-                        <span className="flex min-w-0 items-center gap-2">
                           <CalendarDays size={14} className="shrink-0 text-violet-200" />
                           <span className="truncate">{collaboration.timeline}</span>
                         </span>

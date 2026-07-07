@@ -30,7 +30,7 @@ export default function NewCollaborationEmail({
         items={[
           { label: "Brand", value: companyName },
           { label: "Goal", value: campaignGoal },
-          { label: "Budget", value: budgetRange },
+          { label: "Offer amount", value: budgetRange },
           { label: "Timeline", value: timeline },
         ]}
       />

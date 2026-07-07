@@ -337,6 +337,7 @@ export default async function CreatorDashboardPage() {
             <TrustPassportCard
               accountType="creator"
               emailVerified={Boolean(user?.email)}
+              phoneAdded={Boolean(user?.phoneNumber || creatorProfile?.phoneAdded)}
               phoneVerified={Boolean(user?.phoneVerified || creatorProfile?.phoneVerified)}
               verificationStatus={creatorProfile?.verificationStatus}
               completedCollaborations={completed.length}

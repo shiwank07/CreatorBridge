@@ -4,6 +4,7 @@ import { NextResponse } from "next/server";
 import { handleRouteError, parseJsonBody } from "@/lib/api-errors";
 import { hasClerkKeys } from "@/lib/clerk-config";
 import { connectDB, hasMongoUri } from "@/lib/db";
+import { formatINR } from "@/lib/format";
 import { BrandProfile } from "@/lib/models/BrandProfile";
 import { BrandInquiry } from "@/lib/models/BrandInquiry";
 import { CreatorProfile } from "@/lib/models/CreatorProfile";
@@ -64,8 +65,11 @@ export async function POST(req: Request) {
     }
 
     const now = new Date();
+    const budgetRange = parsed.data.budgetRange || formatINR(parsed.data.initialOfferAmount);
     const inquiryPayload: Record<string, unknown> = {
       ...parsed.data,
+      budgetRange,
+      isNegotiable: false,
       currency: "INR",
       currentOfferAmount: parsed.data.initialOfferAmount,
       status: "PENDING_CREATOR_RESPONSE",

@@ -247,7 +247,7 @@ export default async function CreatorProfilePage({ params }: { params: CreatorPr
               {isOwner
                 ? "Keep your profile current so brands see accurate audience, pricing, and availability signals."
                 : viewerRole === "brand"
-                  ? "Start a collaboration request with your goals, budget range, and preferred timeline."
+                  ? "Start a collaboration request with your goals, exact offer amount, and preferred timeline."
                   : viewerRole === "creator"
                     ? "Browse this public profile without brand-only collaboration actions."
                     : "Sign in with a brand account to start a structured collaboration request."}
@@ -284,6 +284,7 @@ export default async function CreatorProfilePage({ params }: { params: CreatorPr
           <TrustPassportCard
             accountType="creator"
             emailVerified
+            phoneAdded={Boolean(creator.phoneAdded)}
             phoneVerified={Boolean(creator.phoneVerified)}
             verificationStatus={creator.verificationStatus}
             completedCollaborations={historySummary.completed}

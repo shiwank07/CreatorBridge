@@ -22,7 +22,7 @@ const guidelineSections = [
     title: "Collaborate with respect",
     items: [
       "Use professional language and give people enough context to make informed decisions.",
-      "Respect declines, negotiation boundaries, response time, creator availability, and brand review processes.",
+      "Respect declines, response boundaries, creator availability, and brand review processes.",
       "Do not harass, pressure, threaten, shame, dox, discriminate against, or exploit another user.",
       "Do not send repeated unsolicited pitches, spam, or irrelevant requests.",
     ],

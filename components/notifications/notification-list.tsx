@@ -32,6 +32,16 @@ function notificationHref(notification: InAppNotificationData) {
   return notificationTargetHref(notification.event, notification.href);
 }
 
+function notificationDisplay(notification: InAppNotificationData) {
+  if (notification.event !== "counter_requested" && notification.event !== "counter_sent") return notification;
+
+  return {
+    ...notification,
+    title: "Collaboration update",
+    message: "A collaboration request was updated.",
+  };
+}
+
 function navigateToNotification(router: ReturnType<typeof useRouter>, notification: InAppNotificationData) {
   const target = notificationHref(notification);
 
@@ -110,6 +120,7 @@ export function NotificationList({ notifications, compact = false }: Notificatio
     <div className="grid gap-3">
       <AnimatePresence initial={false}>
         {items.map((notification) => {
+          const display = notificationDisplay(notification);
           const visual = getNotificationVisual(notification.event);
           const Icon = visual.Icon;
           const isUnread = !notification.isRead;
@@ -155,7 +166,7 @@ export function NotificationList({ notifications, compact = false }: Notificatio
                 <span className="flex items-start justify-between gap-3">
                   <span className="min-w-0 flex-1">
                     <span className="flex min-w-0 items-center gap-2">
-                      <span className="truncate font-semibold text-[var(--text-primary)]">{notification.title}</span>
+                      <span className="truncate font-semibold text-[var(--text-primary)]">{display.title}</span>
                       <AnimatePresence>
                         {isUnread ? (
                           <motion.span
@@ -168,7 +179,7 @@ export function NotificationList({ notifications, compact = false }: Notificatio
                       </AnimatePresence>
                     </span>
                     <span className={`${compact ? "line-clamp-2" : ""} mt-1 block text-sm leading-6 text-[var(--text-secondary)]`}>
-                      {notification.message}
+                      {display.message}
                     </span>
                     <span className="mt-2 block text-xs text-[var(--text-muted)]">
                       {formatNotificationTime(notification.createdAt)}

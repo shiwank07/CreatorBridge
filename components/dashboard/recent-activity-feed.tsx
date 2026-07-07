@@ -32,8 +32,8 @@ function actorLabel(actor: OfferHistoryEntryData["actor"]) {
 function offerActivityTitle(entry: OfferHistoryEntryData) {
   const labels: Record<OfferHistoryEntryData["action"], string> = {
     offer_sent: "New collaboration",
-    counter_requested: "Counter offer requested",
-    counter_sent: "Counter offer sent",
+    counter_requested: "Collaboration update",
+    counter_sent: "Collaboration update",
     offer_accepted: "Offer accepted",
     offer_declined: "Offer declined",
   };
@@ -44,7 +44,6 @@ function offerActivityTitle(entry: OfferHistoryEntryData) {
 function offerTone(entry: OfferHistoryEntryData): ActivityItem["tone"] {
   if (entry.action === "offer_accepted") return "green";
   if (entry.action === "offer_declined") return "neutral";
-  if (entry.action === "counter_requested" || entry.action === "counter_sent") return "yellow";
   return "violet";
 }
 
@@ -66,7 +65,7 @@ function notificationTone(notification: InAppNotificationData): ActivityItem["to
     return "green";
   }
   if (notification.event === "verification_rejected" || notification.event === "creator_declined") return "neutral";
-  if (notification.event === "proof_submitted" || notification.event === "counter_requested" || notification.event === "counter_sent") return "yellow";
+  if (notification.event === "proof_submitted") return "yellow";
   return "violet";
 }
 
@@ -110,6 +109,14 @@ function collaborationDeliveryActivities(collaboration: BrandInquiryData): Activ
   return items;
 }
 
+function isVisibleOfferActivity(entry: OfferHistoryEntryData) {
+  return entry.action !== "counter_requested" && entry.action !== "counter_sent";
+}
+
+function isVisibleNotification(notification: InAppNotificationData) {
+  return notification.event !== "counter_requested" && notification.event !== "counter_sent";
+}
+
 function sortActivity(items: ActivityItem[]) {
   return items.sort((a, b) => {
     const aTime = a.createdAt ? new Date(a.createdAt).getTime() : 0;
@@ -119,18 +126,20 @@ function sortActivity(items: ActivityItem[]) {
 }
 
 export function RecentActivityFeed({ accountType, collaborations, notifications = [], className }: RecentActivityFeedProps) {
-  const notificationItems: ActivityItem[] = notifications.map((notification) => ({
-    id: `notification-${notification.id}`,
-    title: notification.title,
-    detail: notification.message,
-    href: notification.href,
-    createdAt: notification.createdAt,
-    tone: notificationTone(notification),
-  }));
+  const notificationItems: ActivityItem[] = notifications
+    .filter(isVisibleNotification)
+    .map((notification) => ({
+      id: `notification-${notification.id}`,
+      title: notification.title,
+      detail: notification.message,
+      href: notification.href,
+      createdAt: notification.createdAt,
+      tone: notificationTone(notification),
+    }));
 
   const collaborationItems = collaborations.flatMap((collaboration) => {
     const href = collaborationDetailsHref(collaboration.id);
-    const offerItems = collaboration.offerHistory.map((entry, index) => ({
+    const offerItems = collaboration.offerHistory.filter(isVisibleOfferActivity).map((entry, index) => ({
       id: `${collaboration.id}-offer-${entry.id ?? index}`,
       title: offerActivityTitle(entry),
       detail: offerActivityDetail(entry, collaboration, accountType),

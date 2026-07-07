@@ -21,6 +21,7 @@ type CreatorDocumentWithUser = {
   _id: { toString(): string };
   userId: IUser & { _id: { toString(): string } };
   bio?: string;
+  phoneNumber?: string;
   phoneVerified?: boolean;
   niche?: string[];
   country?: string;
@@ -296,6 +297,7 @@ function mapCreator(doc: CreatorDocumentWithUser): CreatorCardData {
     isOpenToDeals: Boolean(doc.isOpenToDeals),
     isFeatured: Boolean(user.isFeatured),
     isVerified: isCreatorVerifiedStatus(verificationStatus),
+    phoneAdded: Boolean(user.phoneNumber || doc.phoneNumber),
     phoneVerified: Boolean(user.phoneVerified || doc.phoneVerified),
     verifiedAt: doc.verifiedAt?.toISOString(),
     lastVerifiedAt: doc.lastVerifiedAt?.toISOString(),

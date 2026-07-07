@@ -49,11 +49,10 @@ export default async function AdminCollaborationDetailsPage({ params }: { params
               <p className="mt-1 break-all text-sm text-[var(--text-secondary)]">{collaboration.email}</p>
             </div>
             <div className="bridge-panel p-3">
-              <p className="text-xs text-[var(--text-secondary)]">Budget</p>
+              <p className="text-xs text-[var(--text-secondary)]">Offer</p>
               <p className="mt-1 font-semibold">
                 {collaboration.currentOfferAmount ? formatINR(collaboration.currentOfferAmount) : collaboration.budgetRange}
               </p>
-              <p className="mt-1 text-sm text-[var(--text-secondary)]">Negotiable: {collaboration.isNegotiable ? "Yes" : "No"}</p>
             </div>
           </div>
           <div className="mt-5">

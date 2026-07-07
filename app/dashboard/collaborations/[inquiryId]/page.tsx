@@ -87,12 +87,12 @@ function DetailBlock({
   Icon: ComponentType<{ size?: number; className?: string }>;
 }) {
   return (
-    <div className="rounded-[8px] border border-white/10 bg-black/20 p-4">
-      <div className="flex items-center gap-2 text-xs font-semibold uppercase text-[var(--text-muted)]">
-        <Icon size={15} className="text-cyan-200" />
-        {label}
+    <div className="min-w-0 max-w-full rounded-[8px] border border-white/10 bg-black/20 p-4 [overflow-wrap:anywhere]">
+      <div className="flex min-w-0 items-center gap-2 text-xs font-semibold uppercase text-[var(--text-muted)]">
+        <Icon size={15} className="shrink-0 text-cyan-200" />
+        <span className="min-w-0 break-words">{label}</span>
       </div>
-      <div className="mt-3 text-sm leading-6 text-[var(--text-primary)]">{value}</div>
+      <div className="mt-3 min-w-0 max-w-full text-sm leading-6 text-[var(--text-primary)] [overflow-wrap:anywhere]">{value}</div>
     </div>
   );
 }
@@ -127,12 +127,12 @@ export default async function CollaborationDetailsPage({ params }: Collaboration
           Back to command center
         </Link>
 
-        <section className="relative overflow-hidden rounded-[8px] border border-cyan-300/15 bg-white/[0.045] p-5 shadow-[0_24px_80px_rgba(0,0,0,0.22)] sm:p-6">
+        <section className="relative max-w-full overflow-hidden rounded-[8px] border border-cyan-300/15 bg-white/[0.045] p-5 shadow-[0_24px_80px_rgba(0,0,0,0.22)] sm:p-6">
           <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-cyan-300/70 to-transparent" />
-          <div className="flex flex-col justify-between gap-5 lg:flex-row lg:items-start">
-            <div className="min-w-0 max-w-3xl">
+          <div className="flex min-w-0 flex-col justify-between gap-5 lg:flex-row lg:items-start">
+            <div className="min-w-0 max-w-3xl flex-1">
               <p className="bridge-eyebrow">Collaboration Details</p>
-              <h1 className="mt-3 font-display text-3xl font-black leading-tight sm:text-4xl">
+              <h1 className="mt-3 break-words font-display text-3xl font-black leading-tight [overflow-wrap:anywhere] sm:text-4xl">
                 {campaignTitle(collaboration.campaignGoal, collaboration.companyName)}
               </h1>
               <div className="mt-4 flex flex-wrap gap-2">
@@ -142,8 +142,8 @@ export default async function CollaborationDetailsPage({ params }: Collaboration
                 {collaboration.creatorUsername ? <Badge tone="neutral">@{collaboration.creatorUsername}</Badge> : null}
               </div>
             </div>
-            <div className="grid gap-3 lg:w-80">
-              <div className="rounded-[8px] border border-white/10 bg-black/20 p-4">
+            <div className="grid w-full max-w-full min-w-0 gap-3 lg:w-80">
+              <div className="min-w-0 rounded-[8px] border border-white/10 bg-black/20 p-4 [overflow-wrap:anywhere]">
                 <div className="flex items-start gap-3">
                   <InitialsAvatar
                     name={collaboration.companyName}
@@ -152,12 +152,12 @@ export default async function CollaborationDetailsPage({ params }: Collaboration
                   />
                   <div className="min-w-0">
                     <p className="text-xs font-semibold uppercase text-[var(--text-muted)]">Brand details</p>
-                    <p className="mt-1 truncate font-semibold text-[var(--text-primary)]">{collaboration.companyName}</p>
-                    <p className="mt-1 text-xs text-[var(--text-secondary)]">{verificationLabel(collaboration.brandVerificationStatus)}</p>
+                    <p className="mt-1 break-words font-semibold text-[var(--text-primary)] [overflow-wrap:anywhere]">{collaboration.companyName}</p>
+                    <p className="mt-1 break-words text-xs text-[var(--text-secondary)]">{verificationLabel(collaboration.brandVerificationStatus)}</p>
                   </div>
                 </div>
               </div>
-              <div className="rounded-[8px] border border-white/10 bg-black/20 p-4">
+              <div className="min-w-0 rounded-[8px] border border-white/10 bg-black/20 p-4 [overflow-wrap:anywhere]">
                 <div className="flex items-start gap-3">
                   <InitialsAvatar
                     name={collaboration.creatorUsername}
@@ -167,10 +167,10 @@ export default async function CollaborationDetailsPage({ params }: Collaboration
                   />
                   <div className="min-w-0">
                     <p className="text-xs font-semibold uppercase text-[var(--text-muted)]">Creator details</p>
-                    <p className="mt-1 truncate font-semibold text-[var(--text-primary)]">
+                    <p className="mt-1 break-words font-semibold text-[var(--text-primary)] [overflow-wrap:anywhere]">
                       {collaboration.creatorUsername ? `@${collaboration.creatorUsername}` : "Creator not linked"}
                     </p>
-                    <p className="mt-1 text-xs text-[var(--text-secondary)]">{verificationBadgeLabel(collaboration.creatorVerificationStatus)}</p>
+                    <p className="mt-1 break-words text-xs text-[var(--text-secondary)]">{verificationBadgeLabel(collaboration.creatorVerificationStatus)}</p>
                   </div>
                 </div>
               </div>
@@ -178,11 +178,11 @@ export default async function CollaborationDetailsPage({ params }: Collaboration
           </div>
         </section>
 
-        <section className="mt-6 grid gap-4 lg:grid-cols-[1fr_340px]">
-          <div className="grid gap-4">
-            <section className="rounded-[8px] border border-white/10 bg-white/[0.04] p-5">
+        <section className="mt-6 grid min-w-0 max-w-full gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(260px,320px)] xl:grid-cols-[minmax(0,1fr)_340px]">
+          <div className="grid min-w-0 gap-4">
+            <section className="min-w-0 rounded-[8px] border border-white/10 bg-white/[0.04] p-5">
               <div className="flex items-center justify-between gap-3">
-                <div>
+                <div className="min-w-0">
                   <p className="bridge-eyebrow">Campaign Brief</p>
                   <h2 className="mt-2 font-display text-2xl font-bold">Request snapshot</h2>
                 </div>
@@ -198,7 +198,7 @@ export default async function CollaborationDetailsPage({ params }: Collaboration
                       <span>{collaboration.companyName}</span>
                       <span className="text-[var(--text-secondary)]">{collaboration.contactName}</span>
                       {collaboration.contactEmailRevealed ? (
-                        <span className="inline-flex min-w-0 items-center gap-2 text-[var(--text-secondary)]">
+                        <span className="inline-flex min-w-0 max-w-full items-center gap-2 text-[var(--text-secondary)]">
                           <Mail size={14} className="shrink-0" />
                           <span className="truncate">{collaboration.brandContactEmail ?? collaboration.email}</span>
                         </span>
@@ -206,7 +206,7 @@ export default async function CollaborationDetailsPage({ params }: Collaboration
                         <span className="text-[var(--text-secondary)]">Contact email appears after the creator accepts.</span>
                       )}
                       {collaboration.website ? (
-                        <Link href={collaboration.website} target="_blank" rel="noreferrer" className="inline-flex min-w-0 items-center gap-2 text-cyan-200 hover:text-cyan-100">
+                        <Link href={collaboration.website} target="_blank" rel="noreferrer" className="inline-flex min-w-0 max-w-full items-center gap-2 text-cyan-200 hover:text-cyan-100">
                           <Globe2 size={14} className="shrink-0" />
                           <span className="truncate">Brand website</span>
                         </Link>
@@ -222,7 +222,7 @@ export default async function CollaborationDetailsPage({ params }: Collaboration
                       <span>{collaboration.creatorUsername ? `@${collaboration.creatorUsername}` : "Creator not linked"}</span>
                       <span className="text-[var(--text-secondary)]">{verificationBadgeLabel(collaboration.creatorVerificationStatus)}</span>
                       {collaboration.contactEmailRevealed ? (
-                        <span className="inline-flex min-w-0 items-center gap-2 text-[var(--text-secondary)]">
+                        <span className="inline-flex min-w-0 max-w-full items-center gap-2 text-[var(--text-secondary)]">
                           <Mail size={14} className="shrink-0" />
                           <span className="truncate">{collaboration.creatorContactEmail || "Creator email unavailable"}</span>
                         </span>
@@ -234,9 +234,7 @@ export default async function CollaborationDetailsPage({ params }: Collaboration
                   Icon={UserRound}
                 />
                 <DetailBlock label="Current status" value={collaborationStatusLabel(collaboration.status)} Icon={ShieldCheck} />
-                <DetailBlock label="Current offer" value={offerAmountLabel(collaboration.currentOfferAmount)} Icon={CircleDollarSign} />
-                <DetailBlock label="Budget range context" value={collaboration.budgetRange} Icon={CircleDollarSign} />
-                <DetailBlock label="Negotiable" value={collaboration.isNegotiable ? "Yes" : "No"} Icon={CircleDollarSign} />
+                <DetailBlock label="Offer amount" value={offerAmountLabel(collaboration.currentOfferAmount)} Icon={CircleDollarSign} />
                 <DetailBlock label="Timeline" value={collaboration.timeline} Icon={CalendarDays} />
                 <DetailBlock label="Date received" value={formatDate(collaboration.createdAt)} Icon={CalendarDays} />
                 <DetailBlock
@@ -245,7 +243,7 @@ export default async function CollaborationDetailsPage({ params }: Collaboration
                     collaboration.deliverables.length ? (
                       <div className="flex flex-wrap gap-2">
                         {collaboration.deliverables.map((deliverable) => (
-                          <span key={deliverable} className="rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-1 text-xs text-[var(--text-secondary)]">
+                          <span key={deliverable} className="max-w-full break-words rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-1 text-xs text-[var(--text-secondary)] [overflow-wrap:anywhere]">
                             {deliverable}
                           </span>
                         ))}
@@ -272,7 +270,7 @@ export default async function CollaborationDetailsPage({ params }: Collaboration
                             href={attachment.href}
                             target="_blank"
                             rel="noreferrer"
-                            className="inline-flex min-w-0 items-center gap-2 text-cyan-200 hover:text-cyan-100"
+                            className="inline-flex min-w-0 max-w-full items-center gap-2 text-cyan-200 hover:text-cyan-100"
                           >
                             <ExternalLink size={14} className="shrink-0" />
                             <span className="truncate">{attachment.label}</span>
@@ -288,23 +286,23 @@ export default async function CollaborationDetailsPage({ params }: Collaboration
               </div>
             </section>
 
-            <section className="rounded-[8px] border border-white/10 bg-white/[0.04] p-5">
+            <section className="min-w-0 rounded-[8px] border border-white/10 bg-white/[0.04] p-5">
               <p className="bridge-eyebrow">Progress</p>
               <h2 className="mt-2 font-display text-2xl font-bold">Collaboration timeline</h2>
               <CollaborationTimeline status={collaboration.status} history={collaboration.statusHistory} className="mt-5" />
             </section>
           </div>
 
-          <div className="grid h-fit gap-4">
+          <div className="grid h-fit min-w-0 gap-4">
             <CollaborationDetailActions collaboration={collaboration} viewerRole={user.role} />
-            <section className="rounded-[8px] border border-white/10 bg-white/[0.04] p-5">
+            <section className="min-w-0 rounded-[8px] border border-white/10 bg-white/[0.04] p-5 [overflow-wrap:anywhere]">
               <p className="bridge-eyebrow">Brand Verification Status</p>
               <h2 className="mt-2 font-display text-xl font-bold">{verificationLabel(collaboration.brandVerificationStatus)}</h2>
               <p className="mt-3 text-sm leading-6 text-[var(--text-secondary)]">
                 {collaboration.brandVerificationNote || "Verification context is based on the existing brand profile linked to this inquiry."}
               </p>
             </section>
-            <section className="rounded-[8px] border border-white/10 bg-white/[0.04] p-5">
+            <section className="min-w-0 rounded-[8px] border border-white/10 bg-white/[0.04] p-5 [overflow-wrap:anywhere]">
               <p className="bridge-eyebrow">Creator Verification Status</p>
               <h2 className="mt-2 font-display text-xl font-bold">{verificationBadgeLabel(collaboration.creatorVerificationStatus)}</h2>
               <p className="mt-3 text-sm leading-6 text-[var(--text-secondary)]">
@@ -314,6 +312,8 @@ export default async function CollaborationDetailsPage({ params }: Collaboration
             <TrustPassportCard
               accountType="brand"
               emailVerified
+              phoneAdded={Boolean(collaboration.brandPhoneAdded)}
+              phoneVerified={Boolean(collaboration.brandPhoneVerified)}
               verificationStatus={collaboration.brandVerificationStatus}
               completedCollaborations={0}
               className="rounded-[8px] border border-white/10 bg-white/[0.04] p-5"

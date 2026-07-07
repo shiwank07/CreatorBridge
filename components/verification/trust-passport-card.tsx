@@ -2,12 +2,14 @@ import { type ReactNode } from "react";
 
 import { Badge } from "@/components/shared/badge";
 import { type BrandVerificationStatus, type VerificationStatus } from "@/lib/types";
-import { normalizeCreatorVerificationStatus, verificationBadgeLabel } from "@/lib/verification";
+import { normalizeCreatorVerificationStatus } from "@/lib/verification";
 
 type TrustPassportCardProps =
   | {
       accountType: "creator";
       emailVerified?: boolean;
+      phoneAdded?: boolean;
+      phoneNumber?: string;
       phoneVerified?: boolean;
       verificationStatus?: VerificationStatus;
       creatorVerificationStatus?: VerificationStatus;
@@ -22,6 +24,8 @@ type TrustPassportCardProps =
   | {
       accountType: "brand";
       emailVerified?: boolean;
+      phoneAdded?: boolean;
+      phoneNumber?: string;
       phoneVerified?: boolean;
       verificationStatus?: BrandVerificationStatus;
       creatorVerificationStatus?: VerificationStatus;
@@ -57,6 +61,41 @@ function statusTone(status?: VerificationStatus | BrandVerificationStatus, accou
   return passportTone(normalized === "verified", normalized === "pending");
 }
 
+function phoneStatus(phoneAdded: boolean, phoneVerified: boolean) {
+  if (phoneVerified) {
+    return {
+      label: "Verified",
+      tone: "green" as const,
+    };
+  }
+
+  if (phoneAdded) {
+    return {
+      label: "Pending verification",
+      tone: "yellow" as const,
+    };
+  }
+
+  return {
+    label: "Not added",
+    tone: "neutral" as const,
+  };
+}
+
+function creatorPassportLabel(status?: VerificationStatus) {
+  const normalized = normalizeCreatorVerificationStatus(status);
+  if (normalized === "verified") return "Verified";
+  if (normalized === "pending") return "Pending Review";
+  return "Unverified";
+}
+
+function brandPassportLabel(status?: BrandVerificationStatus) {
+  if (!status) return "Not applicable";
+  if (status === "verified") return "Verified";
+  if (status === "pending") return "Pending Review";
+  return "Unverified";
+}
+
 function TrustRow({
   label,
   value,
@@ -67,9 +106,9 @@ function TrustRow({
   tone?: "violet" | "green" | "yellow" | "neutral";
 }) {
   return (
-    <div className="flex min-w-0 items-center justify-between gap-3 rounded-[8px] border border-white/10 bg-black/20 px-3 py-2 text-sm">
+    <div className="flex min-w-0 flex-col items-start justify-between gap-2 rounded-[8px] border border-white/10 bg-black/20 px-3 py-2 text-sm sm:flex-row sm:items-center">
       <span className="min-w-0 text-[var(--text-secondary)]">{label}</span>
-      <Badge tone={tone} className="shrink-0">
+      <Badge tone={tone} className="max-w-full shrink">
         {value}
       </Badge>
     </div>
@@ -92,6 +131,8 @@ export function TrustPassportCard(props: TrustPassportCardProps) {
   const completedCollaborations = props.completedCollaborations ?? props.successfulCollaborations ?? 0;
   const disputes = props.disputes ?? 0;
   const hasResponseTime = Boolean(props.responseTimeLabel && props.responseTimeLabel !== "No data");
+  const hasPhone = Boolean(props.phoneVerified || props.phoneAdded || props.phoneNumber?.trim());
+  const phone = phoneStatus(hasPhone, Boolean(props.phoneVerified));
 
   return (
     <section className={props.className ?? "bridge-card p-5"}>
@@ -99,15 +140,15 @@ export function TrustPassportCard(props: TrustPassportCardProps) {
       <h2 className="mt-2 font-display text-xl font-bold">Verification and history signals</h2>
       <div className="mt-4 grid gap-2">
         <TrustRow label="Email Verified" value={props.emailVerified ? "Verified" : "Not verified"} tone={passportTone(Boolean(props.emailVerified))} />
-        <TrustRow label="Phone Verified" value={props.phoneVerified ? "Verified" : "Not verified"} tone={passportTone(Boolean(props.phoneVerified))} />
+        <TrustRow label="Phone" value={phone.label} tone={phone.tone} />
         <TrustRow
           label="Creator Verification"
-          value={creatorVerificationStatus ? verificationBadgeLabel(creatorVerificationStatus, "creator") : "Not applicable"}
+          value={creatorVerificationStatus ? creatorPassportLabel(creatorVerificationStatus) : "Not applicable"}
           tone={creatorVerificationStatus ? statusTone(creatorVerificationStatus, "creator") : "neutral"}
         />
         <TrustRow
           label="Brand Verification"
-          value={brandVerificationStatus ? verificationBadgeLabel(brandVerificationStatus, "brand") : "Not applicable"}
+          value={brandPassportLabel(brandVerificationStatus)}
           tone={brandVerificationStatus ? statusTone(brandVerificationStatus, "brand") : "neutral"}
         />
         <TrustRow

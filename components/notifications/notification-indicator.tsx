@@ -30,6 +30,16 @@ function notificationHref(notification: InAppNotificationData) {
   return notificationTargetHref(notification.event, notification.href);
 }
 
+function notificationDisplay(notification: InAppNotificationData) {
+  if (notification.event !== "counter_requested" && notification.event !== "counter_sent") return notification;
+
+  return {
+    ...notification,
+    title: "Collaboration update",
+    message: "A collaboration request was updated.",
+  };
+}
+
 function navigateToNotification(router: ReturnType<typeof useRouter>, notification: InAppNotificationData) {
   const target = notificationHref(notification);
 
@@ -75,6 +85,7 @@ type DropdownNotificationProps = {
 };
 
 function DropdownNotification({ notification, onOpen }: DropdownNotificationProps) {
+  const display = notificationDisplay(notification);
   const visual = getNotificationVisual(notification.event);
   const Icon = visual.Icon;
   const isUnread = !notification.isRead;
@@ -121,8 +132,8 @@ function DropdownNotification({ notification, onOpen }: DropdownNotificationProp
       <span className="min-w-0 flex-1">
         <span className="flex items-start justify-between gap-3">
           <span className="min-w-0 flex-1">
-            <span className="block truncate text-sm font-semibold text-[var(--text-primary)]">{notification.title}</span>
-            <span className="mt-1 block line-clamp-2 text-xs leading-5 text-[var(--text-secondary)]">{notification.message}</span>
+            <span className="block truncate text-sm font-semibold text-[var(--text-primary)]">{display.title}</span>
+            <span className="mt-1 block line-clamp-2 text-xs leading-5 text-[var(--text-secondary)]">{display.message}</span>
           </span>
           <span className="flex shrink-0 flex-col items-end gap-2">
             <span className="whitespace-nowrap text-[11px] font-medium text-[var(--text-muted)]">

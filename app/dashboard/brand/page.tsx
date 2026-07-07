@@ -465,6 +465,7 @@ export default async function BrandDashboardPage() {
             <TrustPassportCard
               accountType="brand"
               emailVerified={Boolean(user?.email || brandProfile?.contactEmail)}
+              phoneAdded={Boolean(user?.phoneNumber || brandProfile?.phoneAdded)}
               phoneVerified={Boolean(user?.phoneVerified || brandProfile?.phoneVerified)}
               verificationStatus={brandProfile?.verificationStatus}
               completedCollaborations={completed.length}
