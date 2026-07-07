@@ -311,7 +311,7 @@ export default async function CollaborationDetailsPage({ params }: Collaboration
             </section>
             <TrustPassportCard
               accountType="brand"
-              emailVerified
+              emailVerified={Boolean(collaboration.brandEmailVerified)}
               phoneAdded={Boolean(collaboration.brandPhoneAdded)}
               phoneVerified={Boolean(collaboration.brandPhoneVerified)}
               verificationStatus={collaboration.brandVerificationStatus}

@@ -4,6 +4,7 @@ import { ArrowLeft } from "lucide-react";
 
 import { CreatorOnboardingForm } from "@/components/forms/creator-onboarding-form";
 import { Navbar } from "@/components/shared/navbar";
+import { PhoneVerificationCard } from "@/components/verification/phone-verification-card";
 import { getCurrentAppUser, getCurrentClerkUserId } from "@/lib/current-user";
 import { getCreatorByUsername } from "@/lib/queries/creators";
 
@@ -49,6 +50,12 @@ export default async function CreatorProfileEditPage() {
             Update the public profile details brands use to evaluate audience fit, pricing, availability, and channels.
           </p>
         </div>
+
+        <PhoneVerificationCard
+          initialPhoneNumber={user.phoneNumber}
+          initialPhoneVerified={user.phoneVerified}
+          className="mb-6"
+        />
 
         <CreatorOnboardingForm
           initialName={user.name}

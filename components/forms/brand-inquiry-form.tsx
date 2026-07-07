@@ -1,6 +1,6 @@
 "use client";
 
-import { type FormEvent, useMemo, useState } from "react";
+import { type FormEvent, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { Building2, Check, ChevronLeft, ChevronRight, ClipboardList, Loader2, MessageSquare, Send, X } from "lucide-react";
 
@@ -54,6 +54,8 @@ export function BrandInquiryForm({ creatorUsername = "" }: BrandInquiryFormProps
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
+  const submitInFlightRef = useRef(false);
+  const finalSubmitRequestedRef = useRef(false);
   const [form, setForm] = useState<InquiryState>({
     companyName: "",
     contactName: "",
@@ -120,6 +122,8 @@ export function BrandInquiryForm({ creatorUsername = "" }: BrandInquiryFormProps
   }
 
   function goNext() {
+    if (isSaving || stepIndex >= steps.length - 1) return;
+
     const validationError = validateStep(stepIndex);
     if (validationError) {
       setError(validationError);
@@ -137,6 +141,15 @@ export function BrandInquiryForm({ creatorUsername = "" }: BrandInquiryFormProps
 
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+
+    if (!finalSubmitRequestedRef.current || !isFinalStep || success) {
+      finalSubmitRequestedRef.current = false;
+      return;
+    }
+
+    finalSubmitRequestedRef.current = false;
+    if (submitInFlightRef.current || isSaving) return;
+
     setError("");
     setSuccess(false);
 
@@ -148,6 +161,7 @@ export function BrandInquiryForm({ creatorUsername = "" }: BrandInquiryFormProps
       return;
     }
 
+    submitInFlightRef.current = true;
     setIsSaving(true);
 
     try {
@@ -173,6 +187,7 @@ export function BrandInquiryForm({ creatorUsername = "" }: BrandInquiryFormProps
     } catch {
       setError("Could not reach the server. Please try again.");
     } finally {
+      submitInFlightRef.current = false;
       setIsSaving(false);
     }
   }
@@ -453,9 +468,16 @@ export function BrandInquiryForm({ creatorUsername = "" }: BrandInquiryFormProps
                 Back
               </button>
               {isFinalStep ? (
-                <button type="submit" disabled={isSaving} className="bridge-button-primary w-full sm:w-auto">
+                <button
+                  type="submit"
+                  onClick={() => {
+                    finalSubmitRequestedRef.current = true;
+                  }}
+                  disabled={isSaving}
+                  className="bridge-button-primary w-full sm:w-auto"
+                >
                   {isSaving ? <Loader2 size={17} className="animate-spin" /> : <Send size={17} />}
-                  {isSaving ? "Starting Collaboration" : "Start Collaboration"}
+                  {isSaving ? "Sending Collaboration" : "Send Collaboration"}
                 </button>
               ) : (
                 <button type="button" onClick={goNext} disabled={isSaving} className="bridge-button-primary w-full sm:w-auto">

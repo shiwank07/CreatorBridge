@@ -42,6 +42,7 @@ function mapBrand(doc: BrandDocumentWithUser): BrandProfileData {
     verificationStatus: doc.verificationStatus ?? (user.isVerified ? "verified" : "unverified"),
     verificationNote: doc.verificationNote,
     companyRegistrationText: doc.companyRegistrationText,
+    emailVerified: Boolean(user.emailVerified),
     phoneAdded: Boolean(user.phoneNumber || doc.phoneNumber),
     phoneVerified: Boolean(user.phoneVerified || doc.phoneVerified),
     createdAt: doc.createdAt?.toISOString(),

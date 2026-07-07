@@ -11,6 +11,7 @@ export interface IBrandProfile extends Document {
   contactEmail: string;
   phoneNumber?: string;
   phoneVerified: boolean;
+  phoneVerifiedAt?: Date | null;
   website?: string;
   industry: string;
   companySize?: string;
@@ -41,6 +42,7 @@ const BrandProfileSchema = new Schema<IBrandProfile>(
     contactEmail: { type: String, required: true, lowercase: true, trim: true, maxlength: 160 },
     phoneNumber: { type: String, trim: true, default: "" },
     phoneVerified: { type: Boolean, default: false, index: true },
+    phoneVerifiedAt: { type: Date, default: null },
     website: { type: String, trim: true, default: "" },
     industry: { type: String, required: true, trim: true, maxlength: 80, index: true },
     companySize: { type: String, trim: true, maxlength: 80, default: "" },

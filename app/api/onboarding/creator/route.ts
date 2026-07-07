@@ -2,6 +2,7 @@ import { auth, currentUser } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 
 import { handleRouteError, parseJsonBody } from "@/lib/api-errors";
+import { getClerkEmailVerificationState } from "@/lib/clerk-verification";
 import { connectDB, hasMongoUri } from "@/lib/db";
 import { hasClerkKeys } from "@/lib/clerk-config";
 import { CreatorProfile } from "@/lib/models/CreatorProfile";
@@ -48,20 +49,24 @@ export async function POST(req: Request) {
 
     const existingUser = await User.findOne({ clerkId: userId });
     const phoneVerified = Boolean(existingUser?.phoneVerified && (existingUser.phoneNumber ?? "") === parsed.data.phoneNumber);
+    const phoneVerifiedAt = phoneVerified ? existingUser?.phoneVerifiedAt ?? null : null;
     const clerkUser = await currentUser();
     const email =
       clerkUser?.emailAddresses.find((item) => item.id === clerkUser.primaryEmailAddressId)?.emailAddress ??
       `${userId}@branzzo.local`;
+    const emailVerified = Boolean(getClerkEmailVerificationState(clerkUser, email)?.verified);
 
     const user = await User.findOneAndUpdate(
       { clerkId: userId },
       {
         $set: {
           email,
+          emailVerified,
           username: parsed.data.username,
           name: parsed.data.name,
           phoneNumber: parsed.data.phoneNumber,
           phoneVerified,
+          phoneVerifiedAt,
           // TODO: Add Cloudflare R2 or UploadThing upload support. Keep MongoDB storage to the image URL only.
           avatar: parsed.data.avatar || existingUser?.avatar || clerkUser?.imageUrl || "",
           role: "creator",
@@ -121,6 +126,7 @@ export async function POST(req: Request) {
           bio: parsed.data.bio,
           phoneNumber: parsed.data.phoneNumber,
           phoneVerified,
+          phoneVerifiedAt,
           niche: parsed.data.niche,
           country: parsed.data.country,
           languages: parsed.data.languages,

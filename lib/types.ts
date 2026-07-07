@@ -69,6 +69,7 @@ export type CreatorCardData = {
   isOpenToDeals: boolean;
   isFeatured: boolean;
   isVerified: boolean;
+  emailVerified?: boolean;
   phoneAdded?: boolean;
   phoneVerified?: boolean;
   verifiedAt?: string;
@@ -122,6 +123,7 @@ export type BrandProfileData = {
   verificationStatus: BrandVerificationStatus;
   verificationNote?: string;
   companyRegistrationText?: string;
+  emailVerified?: boolean;
   phoneAdded?: boolean;
   phoneVerified?: boolean;
   createdAt?: string;

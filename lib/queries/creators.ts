@@ -297,6 +297,7 @@ function mapCreator(doc: CreatorDocumentWithUser): CreatorCardData {
     isOpenToDeals: Boolean(doc.isOpenToDeals),
     isFeatured: Boolean(user.isFeatured),
     isVerified: isCreatorVerifiedStatus(verificationStatus),
+    emailVerified: Boolean(user.emailVerified),
     phoneAdded: Boolean(user.phoneNumber || doc.phoneNumber),
     phoneVerified: Boolean(user.phoneVerified || doc.phoneVerified),
     verifiedAt: doc.verifiedAt?.toISOString(),

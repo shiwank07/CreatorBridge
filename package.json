@@ -8,6 +8,7 @@
     "start": "next start",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
+    "check:wizard": "tsx scripts/check-brand-inquiry-wizard.ts",
     "db:check": "tsx scripts/check-db.ts",
     "seed": "tsx scripts/seed.ts"
   },

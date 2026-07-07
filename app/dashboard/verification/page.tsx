@@ -117,7 +117,7 @@ function ProgressPanel({
   );
 }
 
-function creatorSteps(userEmail: string, phoneVerified: boolean, creator: CreatorCardData | null): VerificationStep[] {
+function creatorSteps(emailVerified: boolean, phoneVerified: boolean, creator: CreatorCardData | null): VerificationStep[] {
   const status = normalizeCreatorVerificationStatus(creator?.verificationStatus);
   const profileCompleted = Boolean(creator?.bio && creator.niche.length > 0 && creator.languages.length > 0);
   const platformSubmitted = Boolean(creator?.verificationProfileUrl);
@@ -125,14 +125,14 @@ function creatorSteps(userEmail: string, phoneVerified: boolean, creator: Creato
   return [
     {
       label: "Email verified",
-      detail: userEmail ? "Your Clerk email is available on your Branzzo account." : "Add and verify an email before review.",
-      done: Boolean(userEmail),
+      detail: emailVerified ? "Your Clerk email is verified on your Branzzo account." : "Verify your account email before review.",
+      done: emailVerified,
     },
     {
       label: "Phone verified",
       detail: phoneVerified
-        ? "An admin has confirmed your private support phone."
-        : "Add a phone in onboarding. It is used for trust, support, and urgent contact only.",
+        ? "Your private support phone is verified."
+        : "Verify a phone from profile edit. It is used for trust, support, and urgent contact only.",
       done: phoneVerified,
     },
     {
@@ -159,21 +159,21 @@ function creatorSteps(userEmail: string, phoneVerified: boolean, creator: Creato
   ];
 }
 
-function brandSteps(userEmail: string, phoneVerified: boolean, brand: BrandProfileData | null): VerificationStep[] {
+function brandSteps(emailVerified: boolean, phoneVerified: boolean, brand: BrandProfileData | null): VerificationStep[] {
   const status = brand?.verificationStatus ?? "unverified";
   const profileCompleted = Boolean(brand?.companyName && brand.contactName && brand.industry);
 
   return [
     {
       label: "Email verified",
-      detail: userEmail ? "Your Clerk email is available on your Branzzo account." : "Add and verify an email before review.",
-      done: Boolean(userEmail),
+      detail: emailVerified ? "Your Clerk email is verified on your Branzzo account." : "Verify your account email before review.",
+      done: emailVerified,
     },
     {
       label: "Phone verified",
       detail: phoneVerified
-        ? "An admin has confirmed your private support phone."
-        : "Add a phone in onboarding. It is used for trust, support, and urgent contact only.",
+        ? "Your private support phone is verified."
+        : "Verify a phone from profile edit. It is used for trust, support, and urgent contact only.",
       done: phoneVerified,
     },
     {
@@ -251,7 +251,7 @@ export default async function VerificationCenterPage() {
               description="Place your BZ code in your YouTube About section, Instagram bio, Twitch profile, or other platform bio, then submit the public link for admin review."
               status={normalizedStatus}
               statusLabel={verificationBadgeLabel(normalizedStatus)}
-              steps={creatorSteps(user.email, user.phoneVerified, creator)}
+              steps={creatorSteps(user.emailVerified, user.phoneVerified, creator)}
               code={code}
               codeLabel={creator?.verificationCode ? "Your verification code" : "Code format"}
               codeHelp={
@@ -305,7 +305,7 @@ export default async function VerificationCenterPage() {
             description="Add your official website, work email or domain, and optional GST/CIN/VAT or company registration text so an admin can review trust signals."
             status={status}
             statusLabel={verificationBadgeLabel(status, "brand")}
-            steps={brandSteps(user.email, user.phoneVerified, brand)}
+            steps={brandSteps(user.emailVerified, user.phoneVerified, brand)}
           >
             <div className="grid gap-3 sm:grid-cols-2">
               <div className="rounded-[8px] border border-white/10 bg-black/20 p-4 text-sm leading-6">

@@ -253,7 +253,7 @@ export default async function CreatorDashboardPage() {
   const declined = groupCollaborationsByStatus(collaborations, ["DECLINED", "CANCELLED"]);
   const profileCompletion = calculateCreatorProfileCompletion({
     creator: creatorProfile,
-    emailVerified: Boolean(user?.email),
+    emailVerified: Boolean(user?.emailVerified),
     phoneVerified: Boolean(user?.phoneVerified || creatorProfile?.phoneVerified),
   });
   const responseTime = averageResponseTimeLabel(collaborations, "creator");
@@ -336,7 +336,7 @@ export default async function CreatorDashboardPage() {
             <CreatorPassport creator={creatorProfile} />
             <TrustPassportCard
               accountType="creator"
-              emailVerified={Boolean(user?.email)}
+              emailVerified={Boolean(user?.emailVerified)}
               phoneAdded={Boolean(user?.phoneNumber || creatorProfile?.phoneAdded)}
               phoneVerified={Boolean(user?.phoneVerified || creatorProfile?.phoneVerified)}
               verificationStatus={creatorProfile?.verificationStatus}

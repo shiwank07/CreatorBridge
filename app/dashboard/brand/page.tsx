@@ -359,7 +359,7 @@ export default async function BrandDashboardPage() {
   const declined = groupCollaborationsByStatus(collaborations, ["DECLINED", "CANCELLED"]);
   const profileCompletion = calculateBrandProfileCompletion({
     brand: brandProfile,
-    emailVerified: Boolean(user?.email || brandProfile?.contactEmail),
+    emailVerified: Boolean(user?.emailVerified),
     phoneVerified: Boolean(user?.phoneVerified || brandProfile?.phoneVerified),
     collaborations,
   });
@@ -464,7 +464,7 @@ export default async function BrandDashboardPage() {
             <BrandVerificationCard brand={brandProfile} />
             <TrustPassportCard
               accountType="brand"
-              emailVerified={Boolean(user?.email || brandProfile?.contactEmail)}
+              emailVerified={Boolean(user?.emailVerified)}
               phoneAdded={Boolean(user?.phoneNumber || brandProfile?.phoneAdded)}
               phoneVerified={Boolean(user?.phoneVerified || brandProfile?.phoneVerified)}
               verificationStatus={brandProfile?.verificationStatus}

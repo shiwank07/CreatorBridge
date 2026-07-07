@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 
 import { handleRouteError, parseJsonBody } from "@/lib/api-errors";
 import { hasClerkKeys } from "@/lib/clerk-config";
+import { getClerkEmailVerificationState } from "@/lib/clerk-verification";
 import { connectDB, hasMongoUri } from "@/lib/db";
 import { BrandProfile } from "@/lib/models/BrandProfile";
 import { User } from "@/lib/models/User";
@@ -44,19 +45,23 @@ export async function POST(req: Request) {
     const clerkUser = await currentUser();
     const clerkEmail = getClerkEmail(clerkUser);
     const userEmail = clerkEmail || parsed.data.contactEmail || `${userId}@branzzo.local`;
+    const emailVerified = Boolean(getClerkEmailVerificationState(clerkUser, userEmail)?.verified);
     const existingUser = await User.findOne({ clerkId: userId });
     const username = existingUser?.username ?? (await ensureUniqueUsername(parsed.data.companyName, userId));
     const phoneVerified = Boolean(existingUser?.phoneVerified && (existingUser.phoneNumber ?? "") === parsed.data.phoneNumber);
+    const phoneVerifiedAt = phoneVerified ? existingUser?.phoneVerifiedAt ?? null : null;
 
     const user = await User.findOneAndUpdate(
       { clerkId: userId },
       {
         $set: {
           email: userEmail,
+          emailVerified,
           username,
           name: parsed.data.contactName,
           phoneNumber: parsed.data.phoneNumber,
           phoneVerified,
+          phoneVerifiedAt,
           avatar: parsed.data.logo || existingUser?.avatar || clerkUser?.imageUrl || "",
           role: "brand",
           onboardingComplete: true,
@@ -91,6 +96,7 @@ export async function POST(req: Request) {
           contactEmail: parsed.data.contactEmail,
           phoneNumber: parsed.data.phoneNumber,
           phoneVerified,
+          phoneVerifiedAt,
           website: parsed.data.website,
           industry: parsed.data.industry,
           companySize: parsed.data.companySize,

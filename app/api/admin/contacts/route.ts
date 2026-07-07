@@ -36,12 +36,15 @@ export async function PATCH(req: Request) {
     const user = await User.findById(parsed.data.userId);
     if (!user) return NextResponse.json({ error: "User not found." }, { status: 404 });
 
-    await User.updateOne({ _id: user._id }, { $set: { phoneVerified: parsed.data.phoneVerified } });
+    const phoneVerifiedAt = parsed.data.phoneVerified ? new Date() : null;
+
+    await User.updateOne({ _id: user._id }, { $set: { phoneVerified: parsed.data.phoneVerified, phoneVerifiedAt } });
 
     const profileUpdate = {
       $set: {
         phoneNumber: user.phoneNumber ?? "",
         phoneVerified: parsed.data.phoneVerified,
+        phoneVerifiedAt,
       },
     };
 

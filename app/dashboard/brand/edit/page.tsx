@@ -4,6 +4,7 @@ import { ArrowLeft } from "lucide-react";
 
 import { BrandOnboardingForm } from "@/components/forms/brand-onboarding-form";
 import { Navbar } from "@/components/shared/navbar";
+import { PhoneVerificationCard } from "@/components/verification/phone-verification-card";
 import { getCurrentAppUser, getCurrentClerkUserId } from "@/lib/current-user";
 import { getBrandByUsername } from "@/lib/queries/brands";
 
@@ -41,6 +42,12 @@ export default async function BrandProfileEditPage() {
             Update the brand details creators use to understand your company, category, location, website, and collaboration context.
           </p>
         </div>
+
+        <PhoneVerificationCard
+          initialPhoneNumber={user.phoneNumber}
+          initialPhoneVerified={user.phoneVerified}
+          className="mb-6"
+        />
 
         <BrandOnboardingForm
           initialContactName={brand?.contactName ?? user.name}

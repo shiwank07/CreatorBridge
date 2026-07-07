@@ -99,7 +99,7 @@ export default async function CreatorProfilePage({ params }: { params: CreatorPr
   const normalizedVerification = normalizeCreatorVerificationStatus(creator.verificationStatus);
   const ownerProfileCompletion = calculateCreatorProfileCompletion({
     creator,
-    emailVerified: Boolean(viewer?.email),
+    emailVerified: Boolean(viewer?.emailVerified),
     phoneVerified: Boolean(viewer?.phoneVerified || creator.phoneVerified),
   });
   const platformLinks = [
@@ -283,7 +283,7 @@ export default async function CreatorProfilePage({ params }: { params: CreatorPr
 
           <TrustPassportCard
             accountType="creator"
-            emailVerified
+            emailVerified={Boolean(creator.emailVerified)}
             phoneAdded={Boolean(creator.phoneAdded)}
             phoneVerified={Boolean(creator.phoneVerified)}
             verificationStatus={creator.verificationStatus}

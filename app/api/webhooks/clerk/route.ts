@@ -4,6 +4,7 @@ import { Webhook } from "svix";
 import type { WebhookEvent } from "@clerk/nextjs/server";
 
 import { handleRouteError } from "@/lib/api-errors";
+import { getClerkEmailVerificationState } from "@/lib/clerk-verification";
 import { connectDB, hasMongoUri } from "@/lib/db";
 import { BrandProfile } from "@/lib/models/BrandProfile";
 import { CreatorProfile } from "@/lib/models/CreatorProfile";
@@ -60,6 +61,7 @@ export async function POST(req: Request) {
 
     if (event.type === "user.created" || event.type === "user.updated") {
       const email = getPrimaryEmail(event.data);
+      const emailVerified = Boolean(getClerkEmailVerificationState(event.data, email)?.verified);
       const name = getDisplayName(event.data, email);
       const usernameSeed = "username" in event.data && event.data.username ? event.data.username : name;
       const username = await ensureUniqueUsername(usernameSeed, event.data.id);
@@ -69,6 +71,7 @@ export async function POST(req: Request) {
         {
           $set: {
             email,
+            emailVerified,
             name,
             avatar: "image_url" in event.data ? event.data.image_url ?? "" : "",
           },

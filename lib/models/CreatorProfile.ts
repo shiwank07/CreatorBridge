@@ -17,6 +17,7 @@ export interface ICreatorProfile extends Document {
   bio?: string;
   phoneNumber?: string;
   phoneVerified: boolean;
+  phoneVerifiedAt?: Date | null;
   niche: string[];
   country?: string;
   languages: string[];
@@ -70,6 +71,7 @@ const CreatorProfileSchema = new Schema<ICreatorProfile>(
     bio: { type: String, maxlength: 500, default: "" },
     phoneNumber: { type: String, trim: true, default: "" },
     phoneVerified: { type: Boolean, default: false, index: true },
+    phoneVerifiedAt: { type: Date, default: null },
     niche: [{ type: String, index: true }],
     country: { type: String, default: "" },
     languages: [{ type: String }],

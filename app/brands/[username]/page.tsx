@@ -53,7 +53,7 @@ export default async function BrandProfilePage({ params }: { params: BrandProfil
   const isOwner = viewer?.role === "brand" && viewer.username === brand.username;
   const ownerProfileCompletion = calculateBrandProfileCompletion({
     brand,
-    emailVerified: Boolean(viewer?.email || brand.contactEmail),
+    emailVerified: Boolean(viewer?.emailVerified),
     phoneVerified: Boolean(viewer?.phoneVerified || brand.phoneVerified),
   });
 
@@ -181,7 +181,7 @@ export default async function BrandProfilePage({ params }: { params: BrandProfil
             </div>
             <TrustPassportCard
               accountType="brand"
-              emailVerified={Boolean(brand.contactEmail)}
+              emailVerified={Boolean(brand.emailVerified)}
               phoneAdded={Boolean(brand.phoneAdded)}
               phoneVerified={Boolean(brand.phoneVerified)}
               verificationStatus={brand.verificationStatus}

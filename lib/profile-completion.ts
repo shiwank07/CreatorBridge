@@ -148,7 +148,7 @@ export function calculateBrandProfileCompletion({
     {
       key: "email",
       label: "Email verified",
-      done: Boolean(emailVerified || brand?.contactEmail),
+      done: emailVerified,
       helper: "Use a reachable work email for brand contact and support.",
       weight: 10,
     },
