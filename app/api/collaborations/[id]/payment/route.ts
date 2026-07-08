@@ -11,11 +11,24 @@ import { CreatorProfile } from "@/lib/models/CreatorProfile";
 import { User } from "@/lib/models/User";
 import { collaborationPaymentSchema } from "@/lib/validators/brand-inquiry";
 
+type PaymentCollaborationDocument = {
+  createdByClerkId?: string;
+  brandUserId?: unknown;
+  brandProfileId?: unknown;
+  email: string;
+  creatorUserId?: unknown;
+  creatorProfileId?: unknown;
+  creatorUsername?: string;
+  status?: string;
+  set: (values: Record<string, unknown>) => void;
+  save: () => Promise<unknown>;
+};
+
 function idsMatch(value: unknown, id: unknown) {
   return Boolean(value && id && value.toString() === id.toString());
 }
 
-async function ownsAsBrand(collaboration: Awaited<ReturnType<typeof BrandInquiry.findById>>, user: Awaited<ReturnType<typeof User.findOne>>) {
+async function ownsAsBrand(collaboration: PaymentCollaborationDocument | null, user: Awaited<ReturnType<typeof User.findOne>>) {
   if (!collaboration || !user) return false;
   const brandProfile = await BrandProfile.findOne({ userId: user._id }).select("_id contactEmail").exec();
   return (
@@ -26,7 +39,7 @@ async function ownsAsBrand(collaboration: Awaited<ReturnType<typeof BrandInquiry
   );
 }
 
-async function ownsAsCreator(collaboration: Awaited<ReturnType<typeof BrandInquiry.findById>>, user: Awaited<ReturnType<typeof User.findOne>>) {
+async function ownsAsCreator(collaboration: PaymentCollaborationDocument | null, user: Awaited<ReturnType<typeof User.findOne>>) {
   if (!collaboration || !user) return false;
   const creatorProfile = await CreatorProfile.findOne({ userId: user._id }).select("_id").exec();
   return (
@@ -54,7 +67,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     await connectDB();
     const [user, collaboration] = await Promise.all([
       User.findOne({ clerkId: userId }).exec(),
-      BrandInquiry.findById(id).exec(),
+      BrandInquiry.findById(id).exec() as Promise<PaymentCollaborationDocument | null>,
     ]);
 
     if (!user || (user.role !== "brand" && user.role !== "creator")) {
