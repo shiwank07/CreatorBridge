@@ -86,7 +86,7 @@ function DashboardMetricCard({ label, value, detail, Icon, tone, delay = "", hre
   const className = `animate-stat-up rounded-[8px] border border-white/10 bg-white/[0.045] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] ${delay}`;
 
   return href ? (
-    <Link href={href} className={`${className} focus-ring block transition hover:border-cyan-300/35 hover:bg-white/[0.065]`}>
+    <Link href={href} className={`${className} focus-ring block cursor-pointer transition hover:border-cyan-300/35 hover:bg-white/[0.065]`}>
       {content}
     </Link>
   ) : (
@@ -105,12 +105,14 @@ function verificationTone(status?: BrandProfileData["verificationStatus"]) {
 }
 
 function StageCard({
+  id,
   title,
   copy,
   items,
   Icon,
   empty,
 }: {
+  id?: string;
   title: string;
   copy: string;
   items: BrandInquiryData[];
@@ -118,7 +120,7 @@ function StageCard({
   empty: string;
 }) {
   return (
-    <section className="animate-stat-up rounded-[8px] border border-white/10 bg-white/[0.04] p-4">
+    <section id={id} className="animate-stat-up scroll-mt-24 rounded-[8px] border border-white/10 bg-white/[0.04] p-4">
       <div className="flex items-start justify-between gap-3">
         <div>
           <p className="text-xs font-semibold uppercase text-cyan-200">{title}</p>
@@ -434,6 +436,7 @@ export default async function BrandDashboardPage() {
             empty="No collaboration requests have been sent yet."
           />
           <StageCard
+            id="waiting-for-creator"
             title="Waiting for Creator"
             copy="Track briefs that are still awaiting a creator decision."
             items={waitingForCreator}
@@ -441,6 +444,7 @@ export default async function BrandDashboardPage() {
             empty="No outbound briefs waiting right now."
           />
           <StageCard
+            id="active-campaigns"
             title="Active Campaigns"
             copy="Keep accepted creator work moving through delivery."
             items={inProgress}
@@ -448,6 +452,7 @@ export default async function BrandDashboardPage() {
             empty="No active campaigns yet."
           />
           <StageCard
+            id="proof-review"
             title="Proof Review"
             copy="Review submitted proof, approve delivery, or request changes."
             items={proofReview}
@@ -489,7 +494,7 @@ export default async function BrandDashboardPage() {
           </div>
         </section>
 
-        <section id="notifications" className="mt-8 rounded-[8px] border border-white/10 bg-white/[0.035] p-5">
+        <section id="notifications" className="mt-8 scroll-mt-24 rounded-[8px] border border-white/10 bg-white/[0.035] p-5">
           <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
             <div>
               <p className="bridge-eyebrow">Notification Widget</p>
@@ -505,7 +510,7 @@ export default async function BrandDashboardPage() {
           </div>
         </section>
 
-        <section id="campaigns" className="mt-8">
+        <section id="campaigns" className="mt-8 scroll-mt-24">
           <div className="mb-4 flex flex-col justify-between gap-3 sm:flex-row sm:items-end">
             <div>
               <p className="bridge-eyebrow">Campaign Operations</p>

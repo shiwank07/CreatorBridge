@@ -23,6 +23,7 @@ const creatorVerificationSubmitSchema = z.object({
   platform: z.enum(["youtube", "instagram", "twitch", "other"]),
   profileUrl: z.string().trim().url("Enter a valid public profile URL.").max(500),
   note: z.string().trim().max(500).optional().default(""),
+  verificationCode: z.string().trim().regex(/^BZ-\d{6}$/, "Use a valid BZ verification code.").optional(),
 });
 
 export async function POST(req: Request) {
@@ -53,13 +54,22 @@ export async function POST(req: Request) {
 
     const profile = await CreatorProfile.findOne({ userId: user._id });
     if (!profile) return NextResponse.json({ error: "Creator profile not found." }, { status: 404 });
-    if (profile.verificationStatus === "verified" || profile.verificationStatus === "stats_verified") {
+    if (profile.verificationStatus === "verified" || profile.verificationStatus === "ownership_verified") {
       return NextResponse.json({ ok: true, status: profile.verificationStatus });
     }
 
     const now = new Date();
     const isExpired = profile.verificationCodeExpiresAt ? profile.verificationCodeExpiresAt < now : false;
-    const verificationCode = profile.verificationCode && !isExpired ? profile.verificationCode : await generateUniqueCreatorCode();
+    const requestedVerificationCode = parsed.data.verificationCode;
+    const requestedCodeExists = requestedVerificationCode
+      ? await CreatorProfile.exists({ verificationCode: requestedVerificationCode, _id: { $ne: profile._id } })
+      : null;
+    const verificationCode =
+      profile.verificationCode && !isExpired
+        ? profile.verificationCode
+        : requestedVerificationCode && !requestedCodeExists
+          ? requestedVerificationCode
+          : await generateUniqueCreatorCode();
 
     await CreatorProfile.updateOne(
       { _id: profile._id },
