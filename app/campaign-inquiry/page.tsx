@@ -4,9 +4,11 @@ import { redirect } from "next/navigation";
 
 import { BrandInquiryForm } from "@/components/forms/brand-inquiry-form";
 import { Navbar } from "@/components/shared/navbar";
+import { canStartCreatorCollaboration, creatorAvailabilityNotice } from "@/lib/availability";
 import { authHref } from "@/lib/auth-redirect";
 import { hasClerkKeys } from "@/lib/clerk-config";
 import { getCurrentAppUser, getCurrentClerkUserId } from "@/lib/current-user";
+import { getCreatorByUsername } from "@/lib/queries/creators";
 
 export const metadata: Metadata = {
   title: "Start Collaboration",
@@ -24,6 +26,9 @@ export default async function CampaignInquiryPage({ searchParams }: { searchPara
   const creatorUsername = readParam(params.creator) ?? "";
   const clerkUserId = await getCurrentClerkUserId();
   const user = await getCurrentAppUser();
+  const creator = creatorUsername ? await getCreatorByUsername(creatorUsername) : null;
+  const availabilityNotice = creator ? creatorAvailabilityNotice(creator.availabilityStatus, creator.isOpenToDeals) : "";
+  const canStart = creator ? canStartCreatorCollaboration(creator.availabilityStatus, creator.isOpenToDeals) : false;
 
   if (hasClerkKeys() && !clerkUserId) {
     redirect(authHref("/sign-in", creatorUsername ? `/campaign-inquiry?creator=${creatorUsername}` : "/creators"));
@@ -57,11 +62,30 @@ export default async function CampaignInquiryPage({ searchParams }: { searchPara
             </p>
           ) : null}
         </div>
-        {creatorUsername ? (
-          <BrandInquiryForm creatorUsername={creatorUsername} />
+        {creatorUsername && creator ? (
+          canStart ? (
+            <>
+              {availabilityNotice ? (
+                <div className="mb-5 rounded-[8px] border border-yellow-700 bg-yellow-950/40 px-4 py-3 text-sm text-yellow-100">
+                  {availabilityNotice}
+                </div>
+              ) : null}
+              <BrandInquiryForm creatorUsername={creatorUsername} />
+            </>
+          ) : (
+            <div className="bridge-card p-6">
+              <h2 className="font-display text-2xl font-bold">Collaboration unavailable</h2>
+              <p className="mt-3 max-w-2xl text-sm leading-6 text-[var(--text-secondary)]">
+                {availabilityNotice || "This creator is not accepting collaborations right now."}
+              </p>
+              <Link href="/creators" className="bridge-button-primary mt-6 w-full sm:w-auto">
+                Browse Creator Directory
+              </Link>
+            </div>
+          )
         ) : (
           <div className="bridge-card p-6">
-            <h2 className="font-display text-2xl font-bold">Choose a creator first</h2>
+            <h2 className="font-display text-2xl font-bold">{creatorUsername ? "Creator not found" : "Choose a creator first"}</h2>
             <p className="mt-3 max-w-2xl text-sm leading-6 text-[var(--text-secondary)]">
               Collaboration requests must be linked to a creator profile so they appear in the creator dashboard and notification inbox.
             </p>

@@ -51,6 +51,7 @@ export async function Navbar() {
           verificationHref: "/dashboard/verification",
           historyHref: "/dashboard/history",
           notificationsHref: "/notifications",
+          accountHref: "/dashboard/settings/account",
         }
       : user?.role === "brand" && user.onboardingComplete
         ? {
@@ -58,6 +59,7 @@ export async function Navbar() {
             verificationHref: "/dashboard/verification",
             historyHref: "/dashboard/history",
             notificationsHref: "/notifications",
+            accountHref: "/dashboard/settings/account",
           }
         : null;
 

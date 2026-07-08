@@ -1,6 +1,7 @@
 import { auth } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 
+import { canStartCreatorCollaboration, creatorAvailabilityNotice } from "@/lib/availability";
 import { handleRouteError, parseJsonBody } from "@/lib/api-errors";
 import { hasClerkKeys } from "@/lib/clerk-config";
 import { connectDB, hasMongoUri } from "@/lib/db";
@@ -62,6 +63,13 @@ export async function POST(req: Request) {
     const creatorProfile = creatorUser ? await CreatorProfile.findOne({ userId: creatorUser._id }) : null;
     if (!creatorProfile) {
       return NextResponse.json({ error: "Creator profile not found." }, { status: 404 });
+    }
+
+    if (!canStartCreatorCollaboration(creatorProfile.availabilityStatus, Boolean(creatorProfile.isOpenToDeals))) {
+      return NextResponse.json(
+        { error: creatorAvailabilityNotice(creatorProfile.availabilityStatus, Boolean(creatorProfile.isOpenToDeals)) },
+        { status: 403 },
+      );
     }
 
     const now = new Date();

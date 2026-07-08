@@ -6,7 +6,7 @@ import { CreatorOnboardingForm } from "@/components/forms/creator-onboarding-for
 import { Navbar } from "@/components/shared/navbar";
 import { PhoneVerificationCard } from "@/components/verification/phone-verification-card";
 import { getCurrentAppUser, getCurrentClerkUserId } from "@/lib/current-user";
-import { getCreatorByUsername } from "@/lib/queries/creators";
+import { getCreatorPrivateProfileByUsername } from "@/lib/queries/creators";
 
 export const dynamic = "force-dynamic";
 
@@ -32,7 +32,7 @@ export default async function CreatorProfileEditPage() {
   if (user.role === "brand") redirect("/dashboard/brand/edit");
   if (user.role !== "creator") redirect("/dashboard");
 
-  const creator = await getCreatorByUsername(user.username);
+  const creator = await getCreatorPrivateProfileByUsername(user.username);
 
   return (
     <>
@@ -80,7 +80,14 @@ export default async function CreatorProfileEditPage() {
             rateType: creator?.rateType ?? "per_video",
             pastBrandsText: creator?.pastBrands.join(", ") ?? "",
             sampleWorkText: creator?.sampleWorkUrls.join("\n") ?? "",
+            availabilityStatus: creator?.availabilityStatus ?? (creator?.isOpenToDeals === false ? "unavailable" : "open_to_deals"),
             isOpenToDeals: creator?.isOpenToDeals ?? true,
+            upiId: creator?.upiId ?? "",
+            paypalEmail: creator?.paypalEmail ?? "",
+            bankAccountName: creator?.bankAccountName ?? "",
+            bankAccountNumber: creator?.bankAccountNumber ?? "",
+            ifsc: creator?.ifsc ?? "",
+            preferredPaymentNote: creator?.preferredPaymentNote ?? "",
           }}
           redirectHref={null}
           submitLabel="Save Creator Profile"

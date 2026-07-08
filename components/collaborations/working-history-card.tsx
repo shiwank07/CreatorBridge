@@ -18,6 +18,7 @@ type WorkingHistoryCardProps = {
   collaborations?: BrandInquiryData[];
   summary?: Partial<CollaborationHistorySummary>;
   showDetails?: boolean;
+  showPrivateDeclined?: boolean;
   className?: string;
 };
 
@@ -44,6 +45,26 @@ function bucketItems(collaborations: BrandInquiryData[], bucket: keyof Collabora
 function displayName(collaboration: BrandInquiryData, accountType: "creator" | "brand") {
   if (accountType === "brand") return collaboration.creatorUsername ? `@${collaboration.creatorUsername}` : "Creator not linked";
   return collaboration.companyName;
+}
+
+function repeatPartnerCount(collaborations: BrandInquiryData[], accountType: "creator" | "brand") {
+  const completedPartners = collaborations
+    .filter((collaboration) => collaborationHistoryBucket(collaboration.status) === "completed")
+    .map((collaboration) => displayName(collaboration, accountType))
+    .filter((name) => name && name !== "Creator not linked");
+  const counts = completedPartners.reduce<Record<string, number>>((result, partner) => {
+    result[partner] = (result[partner] ?? 0) + 1;
+    return result;
+  }, {});
+
+  return Object.values(counts).filter((count) => count > 1).length;
+}
+
+function completionRate(counts: CollaborationHistorySummary) {
+  const totalClosed = counts.completed + counts.declined;
+  if (totalClosed <= 0) return "Stats pending";
+
+  return `${Math.round((counts.completed / totalClosed) * 100)}%`;
 }
 
 function HistoryList({
@@ -88,12 +109,32 @@ function HistoryList({
   );
 }
 
-export function WorkingHistoryCard({ accountType, collaborations = [], summary, showDetails = true, className }: WorkingHistoryCardProps) {
+export function WorkingHistoryCard({
+  accountType,
+  collaborations = [],
+  summary,
+  showDetails = true,
+  showPrivateDeclined = true,
+  className,
+}: WorkingHistoryCardProps) {
   const counts = summarize(collaborations, summary);
   const activeItems = bucketItems(collaborations, "active");
   const completedItems = bucketItems(collaborations, "completed");
   const declinedItems = bucketItems(collaborations, "declined");
   const partnerLabel = accountType === "creator" ? "Repeat brands" : "Repeat creators";
+  const repeatCount = repeatPartnerCount(collaborations, accountType);
+  const publicMode = !showPrivateDeclined;
+  const stats = publicMode
+    ? [
+        { label: "Completed collaborations", value: counts.completed, Icon: CheckCircle2, tone: "green" as const },
+        { label: partnerLabel, value: repeatCount || "Stats pending", Icon: RotateCcw, tone: "neutral" as const },
+        { label: "Completion rate", value: completionRate({ ...counts, declined: 0 }), Icon: BriefcaseBusiness, tone: "violet" as const },
+      ]
+    : [
+        { label: "Active collaborations", value: counts.active, Icon: BriefcaseBusiness, tone: "violet" as const },
+        { label: "Completed collaborations", value: counts.completed, Icon: CheckCircle2, tone: "green" as const },
+        { label: "Declined collaborations", value: counts.declined, Icon: XCircle, tone: "neutral" as const },
+      ];
 
   return (
     <section className={cn("rounded-[8px] border border-white/10 bg-white/[0.04] p-5", className)}>
@@ -102,7 +143,9 @@ export function WorkingHistoryCard({ accountType, collaborations = [], summary, 
           <p className="bridge-eyebrow">Working History</p>
           <h2 className="mt-2 font-display text-2xl font-bold">Collaboration record</h2>
           <p className="mt-2 text-sm leading-6 text-[var(--text-secondary)]">
-            Completed work, active collaboration loops, and declined opportunities stay visible here.
+            {publicMode
+              ? "Completed collaborations and repeat partner signals appear here when available."
+              : "Completed work, active collaboration loops, and declined opportunities stay visible here."}
           </p>
         </div>
         <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[8px] border border-cyan-300/20 bg-cyan-300/10 text-cyan-100">
@@ -111,14 +154,12 @@ export function WorkingHistoryCard({ accountType, collaborations = [], summary, 
       </div>
 
       <div className="mt-5 grid gap-3 sm:grid-cols-3">
-        {[
-          { label: "Active collaborations", value: counts.active, Icon: BriefcaseBusiness, tone: "violet" as const },
-          { label: "Completed collaborations", value: counts.completed, Icon: CheckCircle2, tone: "green" as const },
-          { label: "Declined collaborations", value: counts.declined, Icon: XCircle, tone: "neutral" as const },
-        ].map(({ label, value, Icon, tone }) => (
+        {stats.map(({ label, value, Icon, tone }) => (
           <div key={label} className="rounded-[8px] border border-white/10 bg-black/20 p-3">
             <div className="flex items-center justify-between gap-2">
-              <p className="font-mono text-2xl font-bold text-[var(--text-primary)]">{value}</p>
+              <p className={`${typeof value === "number" ? "font-mono text-2xl font-bold text-[var(--text-primary)]" : "text-sm font-semibold leading-5 text-cyan-100"}`}>
+                {value}
+              </p>
               <Icon size={17} className={tone === "green" ? "text-emerald-200" : tone === "violet" ? "text-violet-200" : "text-[var(--text-muted)]"} />
             </div>
             <p className="mt-2 text-xs leading-5 text-[var(--text-secondary)]">{label}</p>
@@ -135,12 +176,12 @@ export function WorkingHistoryCard({ accountType, collaborations = [], summary, 
           <span className="text-[var(--text-secondary)]">{partnerLabel}</span>
           <Badge tone="neutral">
             <RotateCcw size={12} />
-            Placeholder
+            {repeatCount || "Stats pending"}
           </Badge>
         </div>
         <div className="flex items-center justify-between gap-3 rounded-[8px] border border-white/10 bg-black/20 px-3 py-2 text-sm">
           <span className="text-[var(--text-secondary)]">Completion rate</span>
-          <Badge tone="neutral">Placeholder</Badge>
+          <Badge tone={counts.completed > 0 ? "green" : "neutral"}>{completionRate(counts)}</Badge>
         </div>
       </div>
 

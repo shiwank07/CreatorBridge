@@ -1,6 +1,6 @@
 "use client";
 
-import { type FormEvent, useMemo, useRef, useState } from "react";
+import { type FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { Building2, Check, ChevronLeft, ChevronRight, ClipboardList, Loader2, MessageSquare, Send, X } from "lucide-react";
 
@@ -26,6 +26,8 @@ type InquiryState = {
   message: string;
 };
 
+type InquiryErrors = Partial<Record<keyof InquiryState | "form", string>>;
+
 const deliverableOptions = [
   "Dedicated video",
   "Short-form reel",
@@ -48,14 +50,48 @@ function joinList(items: string[]) {
   return items.length > 0 ? items.join(", ") : "Not selected";
 }
 
+function FieldError({ message }: { message?: string }) {
+  return message ? <span className="mt-2 block text-xs leading-5 text-red-200">{message}</span> : null;
+}
+
+function hasErrors(errors: InquiryErrors) {
+  return Object.values(errors).some(Boolean);
+}
+
+function firstError(errors: InquiryErrors) {
+  return Object.values(errors).find(Boolean) ?? "";
+}
+
+function isValidEmail(value: string) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim());
+}
+
+function isValidFullUrl(value: string) {
+  if (!value.trim()) return true;
+
+  try {
+    const url = new URL(value.trim());
+    return url.protocol === "http:" || url.protocol === "https:";
+  } catch {
+    return false;
+  }
+}
+
+function isClearTimeline(value: string) {
+  return /\b\d+\s*(day|days|week|weeks|month|months)\b/i.test(value.trim());
+}
+
 export function BrandInquiryForm({ creatorUsername = "" }: BrandInquiryFormProps) {
   const [isOpen, setIsOpen] = useState(true);
   const [stepIndex, setStepIndex] = useState(0);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState("");
+  const [fieldErrors, setFieldErrors] = useState<InquiryErrors>({});
   const [success, setSuccess] = useState(false);
   const submitInFlightRef = useRef(false);
   const finalSubmitRequestedRef = useRef(false);
+  const draftLoadedRef = useRef(false);
+  const draftKey = useMemo(() => `branzzo:collaboration-draft:${creatorUsername || "general"}`, [creatorUsername]);
   const [form, setForm] = useState<InquiryState>({
     companyName: "",
     contactName: "",
@@ -78,8 +114,28 @@ export function BrandInquiryForm({ creatorUsername = "" }: BrandInquiryFormProps
   const isFinalStep = stepIndex === steps.length - 1;
   const progressPercent = ((stepIndex + 1) / steps.length) * 100;
 
+  useEffect(() => {
+    try {
+      const savedDraft = window.localStorage.getItem(draftKey);
+      if (savedDraft) {
+        const parsed = JSON.parse(savedDraft) as Partial<InquiryState>;
+        setForm((current) => ({ ...current, ...parsed }));
+      }
+    } catch {
+      window.localStorage.removeItem(draftKey);
+    } finally {
+      draftLoadedRef.current = true;
+    }
+  }, [draftKey]);
+
+  useEffect(() => {
+    if (!draftLoadedRef.current || success) return;
+    window.localStorage.setItem(draftKey, JSON.stringify(form));
+  }, [draftKey, form, success]);
+
   function setField<K extends keyof InquiryState>(key: K, value: InquiryState[K]) {
     setForm((current) => ({ ...current, [key]: value }));
+    setFieldErrors((current) => ({ ...current, [key]: undefined, form: undefined }));
   }
 
   function toggleArray(key: "targetNiches" | "targetPlatforms" | "deliverables", value: string) {
@@ -87,55 +143,55 @@ export function BrandInquiryForm({ creatorUsername = "" }: BrandInquiryFormProps
       ...current,
       [key]: current[key].includes(value) ? current[key].filter((item) => item !== value) : [...current[key], value],
     }));
+    setFieldErrors((current) => ({ ...current, [key]: undefined, form: undefined }));
   }
 
-  function validateStep(index: number) {
+  function validateStep(index: number): InquiryErrors {
+    const errors: InquiryErrors = {};
+
     if (index === 0) {
-      if (!form.companyName.trim() || !form.contactName.trim() || !form.email.trim()) {
-        return "Add the company, contact, and work email before continuing.";
-      }
+      if (!form.companyName.trim()) errors.companyName = "Company name is required.";
+      if (!form.contactName.trim()) errors.contactName = "Contact name is required.";
+      if (!form.email.trim()) errors.email = "Work email is required.";
+      else if (!isValidEmail(form.email)) errors.email = "Enter a valid work email before continuing.";
 
-      if (form.website.trim() && !/^https?:\/\/.+/i.test(form.website.trim())) {
-        return "Use a full website URL beginning with http or https.";
-      }
+      if (!isValidFullUrl(form.website)) errors.website = "Use a full website URL beginning with http or https.";
 
-      if (form.campaignGoal.trim().length < 20) {
-        return "Add a little more detail about the campaign goal.";
-      }
+      if (form.campaignGoal.trim().length < 20) errors.campaignGoal = "Add at least 20 characters about the campaign goal.";
 
-      if (!Number.isFinite(Number(form.initialOfferAmount)) || Number(form.initialOfferAmount) <= 0) {
-        return "Enter the exact initial offer amount in INR.";
-      }
+      if (!/^[1-9]\d*$/.test(form.initialOfferAmount.trim())) errors.initialOfferAmount = "Enter an exact positive INR amount.";
 
-      if (!form.timeline.trim()) {
-        return "Add the preferred campaign timeline.";
-      }
+      if (!form.timeline.trim()) errors.timeline = "Timeline is required.";
+      else if (!isClearTimeline(form.timeline)) errors.timeline = "Use a clear timeline like 2 weeks or 14 days.";
     }
 
     if (index === 1) {
-      if (form.deliverables.length === 0) return "Choose at least one deliverable.";
-      if (form.targetNiches.length === 0) return "Choose at least one target niche.";
-      if (form.targetPlatforms.length === 0) return "Choose at least one platform.";
+      if (form.deliverables.length === 0) errors.deliverables = "Choose at least one deliverable.";
+      if (form.targetNiches.length === 0) errors.targetNiches = "Choose at least one target niche.";
+      if (form.targetPlatforms.length === 0) errors.targetPlatforms = "Choose at least one platform.";
     }
 
-    return "";
+    return errors;
   }
 
   function goNext() {
     if (isSaving || stepIndex >= steps.length - 1) return;
 
-    const validationError = validateStep(stepIndex);
-    if (validationError) {
-      setError(validationError);
+    const validationErrors = validateStep(stepIndex);
+    if (hasErrors(validationErrors)) {
+      setFieldErrors(validationErrors);
+      setError(firstError(validationErrors));
       return;
     }
 
     setError("");
+    setFieldErrors({});
     setStepIndex((current) => Math.min(current + 1, steps.length - 1));
   }
 
   function goBack() {
     setError("");
+    setFieldErrors({});
     setStepIndex((current) => Math.max(current - 1, 0));
   }
 
@@ -153,11 +209,13 @@ export function BrandInquiryForm({ creatorUsername = "" }: BrandInquiryFormProps
     setError("");
     setSuccess(false);
 
-    const basicsError = validateStep(0);
-    const deliverablesError = validateStep(1);
-    if (basicsError || deliverablesError) {
-      setError(basicsError || deliverablesError);
-      setStepIndex(basicsError ? 0 : 1);
+    const basicsErrors = validateStep(0);
+    const deliverablesErrors = validateStep(1);
+    if (hasErrors(basicsErrors) || hasErrors(deliverablesErrors)) {
+      const errors = hasErrors(basicsErrors) ? basicsErrors : deliverablesErrors;
+      setFieldErrors(errors);
+      setError(firstError(errors));
+      setStepIndex(hasErrors(basicsErrors) ? 0 : 1);
       return;
     }
 
@@ -184,6 +242,7 @@ export function BrandInquiryForm({ creatorUsername = "" }: BrandInquiryFormProps
       }
 
       setSuccess(true);
+      window.localStorage.removeItem(draftKey);
     } catch {
       setError("Could not reach the server. Please try again.");
     } finally {
@@ -313,18 +372,22 @@ export function BrandInquiryForm({ creatorUsername = "" }: BrandInquiryFormProps
                   <label>
                     <span className="bridge-label">Company name</span>
                     <input value={form.companyName} onChange={(event) => setField("companyName", event.target.value)} className="bridge-input mt-2" autoComplete="organization" required />
+                    <FieldError message={fieldErrors.companyName} />
                   </label>
                   <label>
                     <span className="bridge-label">Contact name</span>
                     <input value={form.contactName} onChange={(event) => setField("contactName", event.target.value)} className="bridge-input mt-2" autoComplete="name" required />
+                    <FieldError message={fieldErrors.contactName} />
                   </label>
                   <label>
                     <span className="bridge-label">Work email</span>
                     <input type="email" value={form.email} onChange={(event) => setField("email", event.target.value)} className="bridge-input mt-2" autoComplete="email" required />
+                    <FieldError message={fieldErrors.email} />
                   </label>
                   <label>
                     <span className="bridge-label">Website</span>
                     <input value={form.website} onChange={(event) => setField("website", event.target.value)} className="bridge-input mt-2" placeholder="https://..." />
+                    <FieldError message={fieldErrors.website} />
                   </label>
                   <label>
                     <span className="bridge-label">Offer amount (INR)</span>
@@ -339,10 +402,12 @@ export function BrandInquiryForm({ creatorUsername = "" }: BrandInquiryFormProps
                     <span className="mt-2 block text-xs leading-5 text-[var(--text-secondary)]">
                       Enter the exact offer the creator can accept or decline.
                     </span>
+                    <FieldError message={fieldErrors.initialOfferAmount} />
                   </label>
                   <label>
                     <span className="bridge-label">Timeline</span>
-                    <input value={form.timeline} onChange={(event) => setField("timeline", event.target.value)} className="bridge-input mt-2" placeholder="Launch in 3 weeks" required />
+                    <input value={form.timeline} onChange={(event) => setField("timeline", event.target.value)} className="bridge-input mt-2" placeholder="2 weeks" required />
+                    <FieldError message={fieldErrors.timeline} />
                   </label>
                   <label className="lg:col-span-2">
                     <span className="bridge-label">Campaign goal</span>
@@ -353,6 +418,7 @@ export function BrandInquiryForm({ creatorUsername = "" }: BrandInquiryFormProps
                       placeholder="Describe the product, audience, creator fit, and what success looks like."
                       required
                     />
+                    <FieldError message={fieldErrors.campaignGoal} />
                   </label>
                 </div>
               ) : null}
@@ -379,6 +445,7 @@ export function BrandInquiryForm({ creatorUsername = "" }: BrandInquiryFormProps
                         );
                       })}
                     </div>
+                    <FieldError message={fieldErrors.deliverables} />
                   </div>
 
                   <div>
@@ -401,6 +468,7 @@ export function BrandInquiryForm({ creatorUsername = "" }: BrandInquiryFormProps
                         );
                       })}
                     </div>
+                    <FieldError message={fieldErrors.targetNiches} />
                   </div>
 
                   <div>
@@ -423,13 +491,14 @@ export function BrandInquiryForm({ creatorUsername = "" }: BrandInquiryFormProps
                         );
                       })}
                     </div>
+                    <FieldError message={fieldErrors.targetPlatforms} />
                   </div>
                 </div>
               ) : null}
 
               {!success && stepIndex === 2 ? (
                 <label>
-                  <span className="bridge-label">Message to Branzzo</span>
+                  <span className="bridge-label">Message to creator</span>
                   <textarea
                     value={form.message}
                     onChange={(event) => setField("message", event.target.value)}
@@ -449,7 +518,7 @@ export function BrandInquiryForm({ creatorUsername = "" }: BrandInquiryFormProps
                     ["Platforms", joinList(selectedPlatforms)],
                     ["Offer amount", form.initialOfferAmount ? formatINR(Number(form.initialOfferAmount)) : "Offer amount not added"],
                     ["Timeline", form.timeline || "Timeline not added"],
-                    ["Message", form.message || "No extra message added"],
+                    ["Message to creator", form.message || "No extra message added"],
                   ].map(([label, value]) => (
                     <div key={label} className="rounded-[8px] border border-white/10 bg-white/[0.035] p-4">
                       <p className="text-xs font-bold uppercase text-[var(--text-muted)]">{label}</p>

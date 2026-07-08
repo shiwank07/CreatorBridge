@@ -1,9 +1,10 @@
 import { DEMO_AVATARS } from "@/lib/constants";
+import { normalizeCreatorAvailability, type CreatorAvailabilityStatus } from "@/lib/availability";
 import { connectDB, hasMongoUri } from "@/lib/db";
 import { CreatorProfile } from "@/lib/models/CreatorProfile";
 import { type IUser, User } from "@/lib/models/User";
 import { formatNumber } from "@/lib/format";
-import { type CreatorCardData, type StatsVerificationStatus, type VerificationStatus } from "@/lib/types";
+import { type CreatorCardData, type CreatorPaymentDetailsData, type StatsVerificationStatus, type VerificationStatus } from "@/lib/types";
 import { getPublicAverageViews, getPublicSubscriberCount, isCreatorVerifiedStatus } from "@/lib/verification";
 import { generateUsername } from "@/lib/slug";
 
@@ -49,10 +50,19 @@ type CreatorDocumentWithUser = {
   pastBrands?: string[];
   sampleWorkUrls?: string[];
   isOpenToDeals?: boolean;
+  availabilityStatus?: CreatorAvailabilityStatus;
+  upiId?: string;
+  paypalEmail?: string;
+  bankAccountName?: string;
+  bankAccountNumber?: string;
+  ifsc?: string;
+  preferredPaymentNote?: string;
   verifiedAt?: Date | null;
   lastVerifiedAt?: Date | null;
   createdAt?: Date;
 };
+
+export type CreatorPrivateProfileData = CreatorCardData & CreatorPaymentDetailsData;
 
 function escapeRegex(value: string) {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -86,6 +96,7 @@ export const demoCreators: CreatorCardData[] = [
     pastBrands: ["OnePlus", "Boat", "CRED"],
     sampleWorkUrls: ["https://youtube.com/watch?v=demo1"],
     isOpenToDeals: true,
+    availabilityStatus: "open_to_deals",
     isFeatured: true,
     isVerified: true,
   },
@@ -114,6 +125,7 @@ export const demoCreators: CreatorCardData[] = [
     pastBrands: ["Red Bull", "Logitech"],
     sampleWorkUrls: ["https://youtube.com/watch?v=demo2"],
     isOpenToDeals: true,
+    availabilityStatus: "open_to_deals",
     isFeatured: true,
     isVerified: true,
   },
@@ -142,6 +154,7 @@ export const demoCreators: CreatorCardData[] = [
     pastBrands: ["Groww", "Fi", "Jupiter"],
     sampleWorkUrls: ["https://youtube.com/watch?v=demo3"],
     isOpenToDeals: true,
+    availabilityStatus: "limited_availability",
     isFeatured: true,
     isVerified: false,
   },
@@ -172,6 +185,7 @@ export const demoCreators: CreatorCardData[] = [
     pastBrands: ["Cult.fit", "HealthKart"],
     sampleWorkUrls: ["https://youtube.com/watch?v=demo4"],
     isOpenToDeals: true,
+    availabilityStatus: "open_to_deals",
     isFeatured: false,
     isVerified: true,
   },
@@ -199,6 +213,7 @@ export const demoCreators: CreatorCardData[] = [
     pastBrands: ["Swiggy", "Chaayos"],
     sampleWorkUrls: ["https://instagram.com/p/demo5"],
     isOpenToDeals: false,
+    availabilityStatus: "unavailable",
     isFeatured: false,
     isVerified: false,
   },
@@ -229,12 +244,13 @@ export const demoCreators: CreatorCardData[] = [
     pastBrands: ["Nykaa", "Myntra"],
     sampleWorkUrls: ["https://youtube.com/watch?v=demo6"],
     isOpenToDeals: true,
+    availabilityStatus: "open_to_deals",
     isFeatured: false,
     isVerified: true,
   },
 ];
 
-function mapCreator(doc: CreatorDocumentWithUser): CreatorCardData {
+function mapCreator(doc: CreatorDocumentWithUser, options?: { includePrivatePayment?: boolean }): CreatorCardData | CreatorPrivateProfileData {
   const user = doc.userId;
   const verificationStatus = doc.verificationStatus ?? (user.isVerified ? "verified" : "unverified");
   const claimedSubscribers = doc.claimedSubscribers ?? doc.subscribers ?? 0;
@@ -249,7 +265,8 @@ function mapCreator(doc: CreatorDocumentWithUser): CreatorCardData {
       ? doc.statsVerificationStatus
       : isCreatorVerifiedStatus(verificationStatus) && hasVerifiedStatSnapshot
         ? "verified"
-        : doc.statsVerificationStatus ?? "unverified";
+      : doc.statsVerificationStatus ?? "unverified";
+  const availabilityStatus = normalizeCreatorAvailability(doc.availabilityStatus, Boolean(doc.isOpenToDeals));
   const subscriberSnapshot = {
     verificationStatus,
     statsVerificationStatus,
@@ -263,7 +280,7 @@ function mapCreator(doc: CreatorDocumentWithUser): CreatorCardData {
     avgViews: doc.avgViews,
   } as CreatorCardData;
 
-  return {
+  const creator: CreatorCardData = {
     id: doc._id.toString(),
     username: user.username,
     name: user.name,
@@ -294,7 +311,8 @@ function mapCreator(doc: CreatorDocumentWithUser): CreatorCardData {
     rateType: doc.rateType,
     pastBrands: doc.pastBrands ?? [],
     sampleWorkUrls: doc.sampleWorkUrls ?? [],
-    isOpenToDeals: Boolean(doc.isOpenToDeals),
+    isOpenToDeals: availabilityStatus === "open_to_deals" || availabilityStatus === "limited_availability",
+    availabilityStatus,
     isFeatured: Boolean(user.isFeatured),
     isVerified: isCreatorVerifiedStatus(verificationStatus),
     emailVerified: Boolean(user.emailVerified),
@@ -303,6 +321,18 @@ function mapCreator(doc: CreatorDocumentWithUser): CreatorCardData {
     verifiedAt: doc.verifiedAt?.toISOString(),
     lastVerifiedAt: doc.lastVerifiedAt?.toISOString(),
     createdAt: doc.createdAt?.toISOString(),
+  };
+
+  if (!options?.includePrivatePayment) return creator;
+
+  return {
+    ...creator,
+    upiId: doc.upiId ?? "",
+    paypalEmail: doc.paypalEmail ?? "",
+    bankAccountName: doc.bankAccountName ?? "",
+    bankAccountNumber: doc.bankAccountNumber ?? "",
+    ifsc: doc.ifsc ?? "",
+    preferredPaymentNote: doc.preferredPaymentNote ?? "",
   };
 }
 
@@ -340,8 +370,8 @@ function filterDemoCreators(filters: CreatorFilters) {
     result = result.filter((creator) => creator.country?.toLowerCase() === filters.country?.toLowerCase());
   }
 
-  if (filters.openToDeals) {
-    result = result.filter((creator) => creator.isOpenToDeals);
+    if (filters.openToDeals) {
+      result = result.filter((creator) => creator.availabilityStatus === "open_to_deals" || creator.availabilityStatus === "limited_availability");
   }
 
   return sortCreators(result, filters.sort).slice(0, filters.limit ?? 24);
@@ -389,7 +419,14 @@ export async function getCreators(filters: CreatorFilters = {}): Promise<Creator
 
     if (filters.niche) andClauses.push({ niche: filters.niche });
     if (filters.country) andClauses.push({ country: new RegExp(`^${filters.country}$`, "i") });
-    if (filters.openToDeals) andClauses.push({ isOpenToDeals: true });
+    if (filters.openToDeals) {
+      andClauses.push({
+        $or: [
+          { availabilityStatus: { $in: ["open_to_deals", "limited_availability"] } },
+          { availabilityStatus: { $exists: false }, isOpenToDeals: true },
+        ],
+      });
+    }
 
     if (filters.platform === "youtube") andClauses.push({ youtubeUrl: { $ne: "" } });
     if (filters.platform === "instagram") andClauses.push({ instagramUrl: { $ne: "" } });
@@ -421,7 +458,7 @@ export async function getCreators(filters: CreatorFilters = {}): Promise<Creator
 
     const creators = docs
       .filter((doc) => Boolean(doc.userId))
-      .map((doc) => mapCreator(doc as unknown as CreatorDocumentWithUser));
+      .map((doc) => mapCreator(doc as unknown as CreatorDocumentWithUser) as CreatorCardData);
 
     return sortCreators(creators, filters.sort).slice(0, filters.limit ?? 24);
   } catch {
@@ -457,9 +494,40 @@ export async function getCreatorByUsername(username: string): Promise<CreatorCar
       .exec();
     if (!profile) return null;
 
-    return mapCreator(profile as unknown as CreatorDocumentWithUser);
+    return mapCreator(profile as unknown as CreatorDocumentWithUser) as CreatorCardData;
   } catch {
     return demoCreators.find((creator) => creator.username === username) ?? null;
+  }
+}
+
+export async function getCreatorPrivateProfileByUsername(username: string): Promise<CreatorPrivateProfileData | null> {
+  if (!hasMongoUri()) {
+    const creator = demoCreators.find((item) => item.username === username);
+    return creator ? { ...creator } : null;
+  }
+
+  try {
+    await connectDB();
+    const user = await User.findOne({
+      username: username.toLowerCase(),
+      role: "creator",
+      onboardingComplete: true,
+      accountStatus: { $nin: ["hidden", "suspended"] },
+    });
+    if (!user) return null;
+
+    const profile = await CreatorProfile.findOne({ userId: user._id })
+      .populate({
+        path: "userId",
+        match: { role: "creator", onboardingComplete: true, accountStatus: { $nin: ["hidden", "suspended"] } },
+      })
+      .exec();
+    if (!profile) return null;
+
+    return mapCreator(profile as unknown as CreatorDocumentWithUser, { includePrivatePayment: true }) as CreatorPrivateProfileData;
+  } catch {
+    const creator = demoCreators.find((item) => item.username === username);
+    return creator ? { ...creator } : null;
   }
 }
 

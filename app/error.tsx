@@ -4,6 +4,11 @@ import Link from "next/link";
 import { AlertTriangle, Home, RotateCcw } from "lucide-react";
 
 export default function ErrorPage({ reset }: { reset: () => void }) {
+  function tryAgain() {
+    reset();
+    window.location.reload();
+  }
+
   return (
     <main className="grid min-h-screen place-items-center px-4 py-10">
       <section className="bridge-card w-full max-w-xl p-6 text-center sm:p-8">
@@ -16,7 +21,7 @@ export default function ErrorPage({ reset }: { reset: () => void }) {
           Try again first. If the problem repeats, head home and come back to this workflow from the dashboard.
         </p>
         <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:justify-center">
-          <button type="button" onClick={reset} className="bridge-button-primary w-full sm:w-auto">
+          <button type="button" onClick={tryAgain} className="bridge-button-primary w-full sm:w-auto">
             <RotateCcw size={16} />
             Try Again
           </button>

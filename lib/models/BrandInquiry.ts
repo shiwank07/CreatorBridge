@@ -1,6 +1,7 @@
 import mongoose, { type Document, type Model, Schema } from "mongoose";
 
 import { BRAND_INQUIRY_STATUS_VALUES, type BrandInquiryStatus, type CollaborationTimelineEvent } from "@/lib/collaborations";
+import { type PaymentStatus } from "@/lib/types";
 
 type OfferHistoryAction = "offer_sent" | "counter_requested" | "counter_sent" | "offer_accepted" | "offer_declined";
 
@@ -68,6 +69,11 @@ export interface IBrandInquiry extends Document {
   creatorResponseAt?: Date | null;
   creatorResponseNote?: string;
   closedAt?: Date | null;
+  paymentStatus: PaymentStatus;
+  paymentNote?: string;
+  paymentScreenshotUrl?: string;
+  paymentUpdatedAt?: Date | null;
+  paymentUpdatedBy?: "brand" | "creator" | "admin" | "system";
   ipHash?: string;
   userAgentHash?: string;
   createdAt: Date;
@@ -161,6 +167,16 @@ const BrandInquirySchema = new Schema<IBrandInquiry>(
     creatorResponseAt: { type: Date, default: null },
     creatorResponseNote: { type: String, maxlength: 1000, default: "" },
     closedAt: { type: Date, default: null },
+    paymentStatus: {
+      type: String,
+      enum: ["payment_pending", "payment_sent", "payment_received", "payment_disputed"],
+      default: "payment_pending",
+      index: true,
+    },
+    paymentNote: { type: String, trim: true, maxlength: 1000, default: "" },
+    paymentScreenshotUrl: { type: String, trim: true, maxlength: 500, default: "" },
+    paymentUpdatedAt: { type: Date, default: null },
+    paymentUpdatedBy: { type: String, enum: ["brand", "creator", "admin", "system"], default: "system" },
     ipHash: { type: String, default: "" },
     userAgentHash: { type: String, default: "" },
   },

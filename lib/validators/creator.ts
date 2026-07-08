@@ -1,5 +1,6 @@
 import { z } from "zod";
 
+import { CREATOR_AVAILABILITY_STATUSES } from "@/lib/availability";
 import { isValidPhoneNumber, normalizePhoneNumber } from "@/lib/phone";
 
 const urlish = z
@@ -41,7 +42,19 @@ export const creatorOnboardingSchema = z.object({
   rateType: z.enum(["per_video", "per_post", "per_campaign"]).default("per_video"),
   pastBrands: z.array(z.string().trim().min(1)).max(12).default([]),
   sampleWorkUrls: z.array(z.string().trim().url()).max(8).default([]),
+  availabilityStatus: z.enum(CREATOR_AVAILABILITY_STATUSES).default("open_to_deals"),
   isOpenToDeals: z.boolean().default(true),
+  upiId: z.string().trim().max(120).optional().default(""),
+  paypalEmail: z
+    .string()
+    .trim()
+    .optional()
+    .transform((value) => value ?? "")
+    .refine((value) => !value || z.string().email().safeParse(value).success, "Enter a valid PayPal email."),
+  bankAccountName: z.string().trim().max(120).optional().default(""),
+  bankAccountNumber: z.string().trim().max(40).optional().default(""),
+  ifsc: z.string().trim().toUpperCase().max(20).optional().default(""),
+  preferredPaymentNote: z.string().trim().max(500).optional().default(""),
 });
 
 export type CreatorOnboardingInput = z.infer<typeof creatorOnboardingSchema>;

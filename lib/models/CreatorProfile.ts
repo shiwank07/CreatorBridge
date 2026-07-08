@@ -1,5 +1,7 @@
 import mongoose, { type Document, type Model, Schema } from "mongoose";
 
+import { CREATOR_AVAILABILITY_STATUSES, type CreatorAvailabilityStatus } from "@/lib/availability";
+
 export type VerificationStatus =
   | "unverified"
   | "pending"
@@ -58,6 +60,13 @@ export interface ICreatorProfile extends Document {
   pastBrands: string[];
   sampleWorkUrls: string[];
   isOpenToDeals: boolean;
+  availabilityStatus: CreatorAvailabilityStatus;
+  upiId?: string;
+  paypalEmail?: string;
+  bankAccountName?: string;
+  bankAccountNumber?: string;
+  ifsc?: string;
+  preferredPaymentNote?: string;
   profileViews: number;
   completedCampaigns: number;
   totalDeals: number;
@@ -122,6 +131,18 @@ const CreatorProfileSchema = new Schema<ICreatorProfile>(
     pastBrands: [{ type: String }],
     sampleWorkUrls: [{ type: String }],
     isOpenToDeals: { type: Boolean, default: true },
+    availabilityStatus: {
+      type: String,
+      enum: CREATOR_AVAILABILITY_STATUSES,
+      default: "open_to_deals",
+      index: true,
+    },
+    upiId: { type: String, trim: true, maxlength: 120, default: "" },
+    paypalEmail: { type: String, trim: true, lowercase: true, maxlength: 160, default: "" },
+    bankAccountName: { type: String, trim: true, maxlength: 120, default: "" },
+    bankAccountNumber: { type: String, trim: true, maxlength: 40, default: "" },
+    ifsc: { type: String, trim: true, uppercase: true, maxlength: 20, default: "" },
+    preferredPaymentNote: { type: String, trim: true, maxlength: 500, default: "" },
     profileViews: { type: Number, default: 0, min: 0 },
     completedCampaigns: { type: Number, default: 0, min: 0 },
     totalDeals: { type: Number, default: 0, min: 0 },

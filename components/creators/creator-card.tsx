@@ -3,6 +3,7 @@ import { BadgeCheck, Camera, Crown, Eye, Globe2, Languages, Radio, Send, Sparkle
 
 import { Badge } from "@/components/shared/badge";
 import { InitialsAvatar } from "@/components/shared/initials-avatar";
+import { canStartCreatorCollaboration, creatorAvailabilityLabel, creatorAvailabilityNotice, creatorAvailabilityTone } from "@/lib/availability";
 import { authHref } from "@/lib/auth-redirect";
 import { formatINR, formatNumber } from "@/lib/format";
 import { type CreatorCardData } from "@/lib/types";
@@ -35,6 +36,8 @@ export function CreatorCard({ creator, viewerRole }: CreatorCardProps) {
   const subscriberCount = getPublicSubscriberCount(creator);
   const averageViews = getPublicAverageViews(creator);
   const engagement = getPublicEngagementRate(creator);
+  const canStart = canStartCreatorCollaboration(creator.availabilityStatus, creator.isOpenToDeals);
+  const availabilityNotice = creatorAvailabilityNotice(creator.availabilityStatus, creator.isOpenToDeals);
   const platforms = [
     creator.youtubeUrl ? { label: "YouTube", icon: TvMinimalPlay } : null,
     creator.instagramUrl ? { label: "Instagram", icon: Camera } : null,
@@ -96,7 +99,9 @@ export function CreatorCard({ creator, viewerRole }: CreatorCardProps) {
               {niche}
             </Badge>
           ))}
-          {creator.isOpenToDeals ? <Badge tone="green">Open to deals</Badge> : <Badge tone="neutral">Limited availability</Badge>}
+          <Badge tone={creatorAvailabilityTone(creator.availabilityStatus, creator.isOpenToDeals)}>
+            {creatorAvailabilityLabel(creator.availabilityStatus, creator.isOpenToDeals)}
+          </Badge>
         </div>
 
         <p className="mt-4 line-clamp-3 min-h-[4.5rem] text-sm leading-6 text-[var(--text-secondary)]">
@@ -138,7 +143,7 @@ export function CreatorCard({ creator, viewerRole }: CreatorCardProps) {
             <Eye size={16} />
             View Profile
           </Link>
-          {viewerRole === "creator" ? null : (
+          {viewerRole === "creator" ? null : canStart ? (
             <Link
               href={viewerRole === "brand" ? `/campaign-inquiry?creator=${creator.username}` : authHref("/sign-in", `/campaign-inquiry?creator=${creator.username}`)}
               className="bridge-button-secondary px-4"
@@ -147,6 +152,15 @@ export function CreatorCard({ creator, viewerRole }: CreatorCardProps) {
               <Send size={16} />
               {viewerRole === "brand" ? "Start Collaboration" : "Sign In"}
             </Link>
+          ) : (
+            <span
+              aria-disabled="true"
+              title={availabilityNotice}
+              className="inline-flex max-w-full items-center justify-center gap-2 whitespace-normal rounded-[8px] border border-[var(--border)] bg-[rgba(17,19,26,0.46)] px-4 py-3 text-center text-sm font-semibold text-[var(--text-muted)]"
+            >
+              <Send size={16} />
+              Unavailable
+            </span>
           )}
         </div>
       </div>

@@ -16,7 +16,13 @@ import { BrandProfile } from "@/lib/models/BrandProfile";
 import { CreatorProfile } from "@/lib/models/CreatorProfile";
 import { User } from "@/lib/models/User";
 import { hasClerkKeys } from "@/lib/clerk-config";
-import { type BrandInquiryData, type BrandVerificationStatus, type VerificationStatus } from "@/lib/types";
+import {
+  type BrandInquiryData,
+  type BrandVerificationStatus,
+  type CreatorPaymentDetailsData,
+  type PaymentStatus,
+  type VerificationStatus,
+} from "@/lib/types";
 
 type OfferHistoryDocument = {
   _id?: { toString(): string };
@@ -63,6 +69,11 @@ type CollaborationDocument = {
   createdByClerkId?: string;
   creatorResponseAt?: Date | null;
   creatorResponseNote?: string;
+  paymentStatus?: PaymentStatus;
+  paymentNote?: string;
+  paymentScreenshotUrl?: string;
+  paymentUpdatedAt?: Date | null;
+  paymentUpdatedBy?: "brand" | "creator" | "admin" | "system";
   status: BrandInquiryStatus;
   statusHistory?: StatusHistoryDocument[];
   deliveryProof?: {
@@ -209,6 +220,10 @@ function mapCollaboration(doc: CollaborationDocument): BrandInquiryData {
           issueReportedAt: doc.deliveryProof.issueReportedAt?.toISOString(),
         }
       : undefined,
+    paymentStatus: doc.paymentStatus ?? "payment_pending",
+    paymentNote: doc.paymentNote,
+    paymentScreenshotUrl: doc.paymentScreenshotUrl,
+    paymentUpdatedAt: doc.paymentUpdatedAt?.toISOString(),
     createdAt: doc.createdAt?.toISOString(),
   };
 }
@@ -290,6 +305,42 @@ async function getSharedContactEmails(collaboration: CollaborationDocument): Pro
   return {
     brandContactEmail: collaboration.email,
     creatorContactEmail: creator?.email,
+  };
+}
+
+async function getCreatorPaymentDetails(
+  collaboration: CollaborationDocument,
+  viewerRole: string,
+): Promise<{ creatorPaymentDetails?: CreatorPaymentDetailsData }> {
+  if (viewerRole !== "brand" || !canRevealCollaborationContactEmail(collaboration.status)) return {};
+
+  const profile = collaboration.creatorProfileId
+    ? await CreatorProfile.findById(collaboration.creatorProfileId)
+        .select("upiId paypalEmail bankAccountName bankAccountNumber ifsc preferredPaymentNote")
+        .exec()
+    : collaboration.creatorUsername
+      ? await User.findOne({ username: collaboration.creatorUsername, role: "creator" })
+          .select("_id")
+          .exec()
+          .then(async (creatorUser) => {
+            if (!creatorUser) return null;
+            return CreatorProfile.findOne({ userId: creatorUser._id })
+              .select("upiId paypalEmail bankAccountName bankAccountNumber ifsc preferredPaymentNote")
+              .exec();
+          })
+      : null;
+
+  if (!profile) return {};
+
+  return {
+    creatorPaymentDetails: {
+      upiId: profile.upiId ?? "",
+      paypalEmail: profile.paypalEmail ?? "",
+      bankAccountName: profile.bankAccountName ?? "",
+      bankAccountNumber: profile.bankAccountNumber ?? "",
+      ifsc: profile.ifsc ?? "",
+      preferredPaymentNote: profile.preferredPaymentNote ?? "",
+    },
   };
 }
 
@@ -420,6 +471,7 @@ export async function getCurrentUserCollaborationDetails(id: string): Promise<Co
   return {
     ...mapCollaboration(updatedDoc),
     ...(await getSharedContactEmails(updatedDoc)),
+    ...(await getCreatorPaymentDetails(updatedDoc, user.role)),
     ...(await getBrandVerificationStatus(updatedDoc)),
     creatorVerificationStatus: await getCreatorVerificationStatus(updatedDoc),
   };

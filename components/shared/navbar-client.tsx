@@ -2,8 +2,8 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { UserButton } from "@clerk/nextjs";
+import { usePathname, useRouter } from "next/navigation";
+import { useClerk, UserButton } from "@clerk/nextjs";
 import { Bell, History, LayoutDashboard, Menu, ShieldCheck, UserRound, X } from "lucide-react";
 
 import { NotificationIndicator } from "@/components/notifications/notification-indicator";
@@ -19,6 +19,7 @@ export type UserMenuLinks = {
   verificationHref: string;
   historyHref: string;
   notificationsHref: string;
+  accountHref: string;
 };
 
 type NavbarClientProps = {
@@ -46,6 +47,8 @@ export function NavbarClient({
 }: NavbarClientProps) {
   const [isOpen, setIsOpen] = useState(false);
   const pathname = usePathname();
+  const router = useRouter();
+  const { signOut } = useClerk();
 
   useEffect(() => {
     setIsOpen(false);
@@ -65,6 +68,24 @@ export function NavbarClient({
   function closeMenu() {
     setIsOpen(false);
   }
+
+  async function handleSignOut() {
+    closeMenu();
+    await signOut().catch(() => undefined);
+    router.replace("/");
+    router.refresh();
+  }
+
+  const mobileLinks: NavItem[] = [
+    { label: "Browse Creators", href: "/creators" },
+    { label: "For Brands", href: "/#for-brands" },
+    { label: isSignedIn ? primaryLabel : "Login", href: isSignedIn ? primaryHref : signInHref },
+    ...(isSignedIn && showNotificationBell ? [{ label: "Notifications", href: "/notifications" }] : []),
+    { label: "About", href: "/about" },
+    { label: "Contact", href: "/contact" },
+    { label: "Terms", href: "/terms" },
+    { label: "Privacy", href: "/privacy" },
+  ];
 
   return (
     <header className="sticky top-0 z-[70] border-b border-cyan-300/15 bg-[#070712]/88 shadow-[0_14px_46px_rgba(0,0,0,0.28),0_0_34px_rgba(103,232,249,0.08)] backdrop-blur-2xl transition-all duration-300">
@@ -113,18 +134,22 @@ export function NavbarClient({
           ) : null}
           {isSignedIn ? (
             userMenuLinks ? (
-              <UserButton>
+              <UserButton
+                customMenuItems={[
+                  { label: "Account Settings", href: userMenuLinks.accountHref },
+                  { label: "Sign out", onClick: handleSignOut },
+                ]}
+              >
                 <UserButton.MenuItems>
                   <UserButton.Link href={userMenuLinks.profileHref} label="My Profile" labelIcon={<UserRound size={16} />} />
                   <UserButton.Link href={userMenuLinks.verificationHref} label="Verification Center" labelIcon={<ShieldCheck size={16} />} />
                   <UserButton.Link href={userMenuLinks.historyHref} label="Collaboration History" labelIcon={<History size={16} />} />
                   <UserButton.Link href={userMenuLinks.notificationsHref} label="Notifications" labelIcon={<Bell size={16} />} />
                   <UserButton.Action label="manageAccount" />
-                  <UserButton.Action label="signOut" />
                 </UserButton.MenuItems>
               </UserButton>
             ) : (
-              <UserButton />
+              <UserButton customMenuItems={[{ label: "Sign out", onClick: handleSignOut }]} />
             )
           ) : null}
           <button
@@ -170,7 +195,7 @@ export function NavbarClient({
             </div>
 
             <nav className="mt-5 grid gap-2">
-              {navItems.map((item) => (
+              {mobileLinks.map((item) => (
                 <Link
                   key={item.label}
                   href={item.href}
@@ -180,20 +205,16 @@ export function NavbarClient({
                   {item.label}
                 </Link>
               ))}
-              {!isSignedIn ? (
-                <Link
-                  href={signInHref}
-                  onClick={closeMenu}
-                  className="focus-ring rounded-[8px] border border-white/10 bg-white/[0.035] px-4 py-3 text-sm font-semibold text-[var(--text-primary)] transition hover:border-cyan-300/30 hover:bg-cyan-300/10"
+              {isSignedIn ? (
+                <button
+                  type="button"
+                  onClick={handleSignOut}
+                  className="focus-ring rounded-[8px] border border-white/10 bg-white/[0.035] px-4 py-3 text-left text-sm font-semibold text-[var(--text-primary)] transition hover:border-cyan-300/30 hover:bg-cyan-300/10"
                 >
-                  Login
-                </Link>
+                  Sign out
+                </button>
               ) : null}
             </nav>
-
-            <Link href={primaryHref} onClick={closeMenu} className="bridge-button-primary mt-auto w-full">
-              {primaryLabel}
-            </Link>
           </aside>
         </div>
       ) : null}

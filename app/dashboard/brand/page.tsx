@@ -54,6 +54,7 @@ type MetricCardProps = {
   Icon: LucideIcon;
   tone?: "cyan" | "violet" | "emerald" | "amber";
   delay?: string;
+  href?: string;
 };
 
 function metricTone(tone: MetricCardProps["tone"] = "cyan") {
@@ -67,9 +68,9 @@ function metricTone(tone: MetricCardProps["tone"] = "cyan") {
   return tones[tone];
 }
 
-function DashboardMetricCard({ label, value, detail, Icon, tone, delay = "" }: MetricCardProps) {
-  return (
-    <article className={`animate-stat-up rounded-[8px] border border-white/10 bg-white/[0.045] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] ${delay}`}>
+function DashboardMetricCard({ label, value, detail, Icon, tone, delay = "", href }: MetricCardProps) {
+  const content = (
+    <>
       <div className="flex items-start justify-between gap-3">
         <div>
           <p className="text-xs font-semibold uppercase text-[var(--text-muted)]">{label}</p>
@@ -80,7 +81,16 @@ function DashboardMetricCard({ label, value, detail, Icon, tone, delay = "" }: M
         </span>
       </div>
       <p className="mt-3 text-sm leading-6 text-[var(--text-secondary)]">{detail}</p>
-    </article>
+    </>
+  );
+  const className = `animate-stat-up rounded-[8px] border border-white/10 bg-white/[0.045] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] ${delay}`;
+
+  return href ? (
+    <Link href={href} className={`${className} focus-ring block transition hover:border-cyan-300/35 hover:bg-white/[0.065]`}>
+      {content}
+    </Link>
+  ) : (
+    <article className={className}>{content}</article>
   );
 }
 
@@ -403,10 +413,10 @@ export default async function BrandDashboardPage() {
         </section>
 
         <section className="mt-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-          <DashboardMetricCard label="Waiting" value={waitingForCreator.length} detail="Briefs waiting for creator responses." Icon={UsersRound} tone="cyan" delay="stat-delay-1" />
-          <DashboardMetricCard label="In Progress" value={inProgress.length} detail="Campaigns with accepted creators in motion." Icon={Layers3} tone="violet" delay="stat-delay-2" />
-          <DashboardMetricCard label="Proof Review" value={proofReview.length} detail="Delivery proof and approvals needing attention." Icon={FileCheck2} tone="emerald" delay="stat-delay-3" />
-          <DashboardMetricCard label="Unread" value={notificationSummary.unreadCount} detail="Notification signals from campaigns and verification." Icon={Sparkles} tone="amber" delay="stat-delay-4" />
+          <DashboardMetricCard label="Waiting" value={waitingForCreator.length} detail="Briefs waiting for creator responses." Icon={UsersRound} tone="cyan" delay="stat-delay-1" href="#waiting-for-creator" />
+          <DashboardMetricCard label="In Progress" value={inProgress.length} detail="Campaigns with accepted creators in motion." Icon={Layers3} tone="violet" delay="stat-delay-2" href="#active-campaigns" />
+          <DashboardMetricCard label="Proof Review" value={proofReview.length} detail="Delivery proof and approvals needing attention." Icon={FileCheck2} tone="emerald" delay="stat-delay-3" href="#proof-review" />
+          <DashboardMetricCard label="Unread" value={notificationSummary.unreadCount} detail="Notification signals from campaigns and verification." Icon={Sparkles} tone="amber" delay="stat-delay-4" href="#notifications" />
         </section>
 
         {!dashboard.user ? (

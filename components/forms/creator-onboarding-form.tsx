@@ -31,7 +31,14 @@ type CreatorOnboardingFormProps = {
     rateType?: "per_video" | "per_post" | "per_campaign";
     pastBrandsText?: string;
     sampleWorkText?: string;
+    availabilityStatus?: "open_to_deals" | "limited_availability" | "unavailable" | "closed";
     isOpenToDeals?: boolean;
+    upiId?: string;
+    paypalEmail?: string;
+    bankAccountName?: string;
+    bankAccountNumber?: string;
+    ifsc?: string;
+    preferredPaymentNote?: string;
   };
   redirectHref?: string | null;
   submitLabel?: string;
@@ -59,7 +66,14 @@ type FormState = {
   rateType: "per_video" | "per_post" | "per_campaign";
   pastBrandsText: string;
   sampleWorkText: string;
+  availabilityStatus: "open_to_deals" | "limited_availability" | "unavailable" | "closed";
   isOpenToDeals: boolean;
+  upiId: string;
+  paypalEmail: string;
+  bankAccountName: string;
+  bankAccountNumber: string;
+  ifsc: string;
+  preferredPaymentNote: string;
 };
 
 export function CreatorOnboardingForm({
@@ -96,7 +110,14 @@ export function CreatorOnboardingForm({
     rateType: initialValues?.rateType ?? "per_video",
     pastBrandsText: initialValues?.pastBrandsText ?? "",
     sampleWorkText: initialValues?.sampleWorkText ?? "",
+    availabilityStatus: initialValues?.availabilityStatus ?? (initialValues?.isOpenToDeals === false ? "unavailable" : "open_to_deals"),
     isOpenToDeals: initialValues?.isOpenToDeals ?? true,
+    upiId: initialValues?.upiId ?? "",
+    paypalEmail: initialValues?.paypalEmail ?? "",
+    bankAccountName: initialValues?.bankAccountName ?? "",
+    bankAccountNumber: initialValues?.bankAccountNumber ?? "",
+    ifsc: initialValues?.ifsc ?? "",
+    preferredPaymentNote: initialValues?.preferredPaymentNote ?? "",
   });
 
   const selectedPlatforms = useMemo(
@@ -148,7 +169,14 @@ export function CreatorOnboardingForm({
       rateType: form.rateType,
       pastBrands: splitList(form.pastBrandsText),
       sampleWorkUrls: splitList(form.sampleWorkText),
-      isOpenToDeals: form.isOpenToDeals,
+      availabilityStatus: form.availabilityStatus,
+      isOpenToDeals: form.availabilityStatus === "open_to_deals" || form.availabilityStatus === "limited_availability",
+      upiId: form.upiId,
+      paypalEmail: form.paypalEmail,
+      bankAccountName: form.bankAccountName,
+      bankAccountNumber: form.bankAccountNumber,
+      ifsc: form.ifsc,
+      preferredPaymentNote: form.preferredPaymentNote,
     };
 
     try {
@@ -346,9 +374,61 @@ export function CreatorOnboardingForm({
           </label>
         </div>
         <label className="mt-5 flex items-center gap-3 rounded-[8px] border border-[var(--border)] bg-[#0d0d14] px-4 py-3 text-sm text-[var(--text-secondary)]">
-          <input type="checkbox" checked={form.isOpenToDeals} onChange={(event) => setField("isOpenToDeals", event.target.checked)} className="h-4 w-4 accent-violet-600" />
-          Show me as open to brand deals
+          <span className="min-w-0 flex-1">
+            <span className="bridge-label block">Collaboration availability</span>
+            <span className="mt-1 block text-xs leading-5 text-[var(--text-secondary)]">
+              Controls whether brands can start collaboration requests from your public profile.
+            </span>
+          </span>
+          <select
+            value={form.availabilityStatus}
+            onChange={(event) => setField("availabilityStatus", event.target.value as FormState["availabilityStatus"])}
+            className="bridge-input w-full sm:w-64"
+          >
+            <option value="open_to_deals">Open to deals</option>
+            <option value="limited_availability">Limited availability</option>
+            <option value="unavailable">Unavailable</option>
+            <option value="closed">Closed</option>
+          </select>
         </label>
+      </section>
+
+      <section className="bridge-card p-5">
+        <h2 className="font-display text-xl font-bold">Private payment details</h2>
+        <p className="mt-2 text-sm leading-6 text-[var(--text-secondary)]">
+          These details stay private and are shown only to a brand after you accept their collaboration request.
+        </p>
+        <div className="mt-5 grid gap-4 lg:grid-cols-2">
+          <label>
+            <span className="bridge-label">UPI ID</span>
+            <input value={form.upiId} onChange={(event) => setField("upiId", event.target.value)} className="bridge-input mt-2" placeholder="name@bank" />
+          </label>
+          <label>
+            <span className="bridge-label">PayPal email</span>
+            <input type="email" value={form.paypalEmail} onChange={(event) => setField("paypalEmail", event.target.value)} className="bridge-input mt-2" placeholder="name@example.com" />
+          </label>
+          <label>
+            <span className="bridge-label">Bank account name</span>
+            <input value={form.bankAccountName} onChange={(event) => setField("bankAccountName", event.target.value)} className="bridge-input mt-2" />
+          </label>
+          <label>
+            <span className="bridge-label">Bank account number</span>
+            <input value={form.bankAccountNumber} onChange={(event) => setField("bankAccountNumber", event.target.value)} className="bridge-input mt-2" inputMode="numeric" />
+          </label>
+          <label>
+            <span className="bridge-label">IFSC</span>
+            <input value={form.ifsc} onChange={(event) => setField("ifsc", event.target.value.toUpperCase())} className="bridge-input mt-2" />
+          </label>
+          <label>
+            <span className="bridge-label">Preferred payment note</span>
+            <textarea
+              value={form.preferredPaymentNote}
+              onChange={(event) => setField("preferredPaymentNote", event.target.value)}
+              className="bridge-input mt-2 min-h-24"
+              placeholder="Example: 50% advance before production, balance after approval."
+            />
+          </label>
+        </div>
       </section>
       </fieldset>
 

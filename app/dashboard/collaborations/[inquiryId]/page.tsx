@@ -258,7 +258,7 @@ export default async function CollaborationDetailsPage({ params }: Collaboration
 
               <div className="mt-4 grid gap-4">
                 <DetailBlock label="Campaign goal" value={collaboration.campaignGoal} Icon={FileText} />
-                <DetailBlock label="Brand message" value={collaboration.message || "No additional message was included."} Icon={MessageSquareText} />
+                <DetailBlock label="Message to creator" value={collaboration.message || "No additional message was included."} Icon={MessageSquareText} />
                 <DetailBlock
                   label="Attachments"
                   value={

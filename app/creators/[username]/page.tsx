@@ -10,6 +10,7 @@ import { Badge } from "@/components/shared/badge";
 import { Navbar } from "@/components/shared/navbar";
 import { ProfileCompletionCard } from "@/components/shared/profile-completion-card";
 import { TrustPassportCard } from "@/components/verification/trust-passport-card";
+import { canStartCreatorCollaboration, creatorAvailabilityNotice } from "@/lib/availability";
 import { authHref } from "@/lib/auth-redirect";
 import { formatINR, formatNumber } from "@/lib/format";
 import { getCurrentAppUser } from "@/lib/current-user";
@@ -97,6 +98,8 @@ export default async function CreatorProfilePage({ params }: { params: CreatorPr
   const publicAverageViews = getPublicAverageViews(creator);
   const publicEngagementRate = getPublicEngagementRate(creator);
   const normalizedVerification = normalizeCreatorVerificationStatus(creator.verificationStatus);
+  const canStart = canStartCreatorCollaboration(creator.availabilityStatus, creator.isOpenToDeals);
+  const availabilityNotice = creatorAvailabilityNotice(creator.availabilityStatus, creator.isOpenToDeals);
   const ownerProfileCompletion = calculateCreatorProfileCompletion({
     creator,
     emailVerified: Boolean(viewer?.emailVerified),
@@ -211,6 +214,7 @@ export default async function CreatorProfilePage({ params }: { params: CreatorPr
             accountType="creator"
             summary={historySummary}
             showDetails={false}
+            showPrivateDeclined={false}
             className="bridge-card p-5"
           />
 
@@ -252,7 +256,12 @@ export default async function CreatorProfilePage({ params }: { params: CreatorPr
                     ? "Browse this public profile without brand-only collaboration actions."
                     : "Sign in with a brand account to start a structured collaboration request."}
             </p>
-            {viewerRole === "brand" ? (
+            {availabilityNotice ? (
+              <p className="mt-4 rounded-[8px] border border-yellow-700/60 bg-yellow-950/30 px-3 py-2 text-xs leading-5 text-yellow-100">
+                {availabilityNotice}
+              </p>
+            ) : null}
+            {viewerRole === "brand" && canStart ? (
               <Link href={`/campaign-inquiry?creator=${creator.username}`} className="bridge-button-primary mt-5 w-full">
                 <Send size={17} />
                 Start Collaboration
@@ -266,11 +275,19 @@ export default async function CreatorProfilePage({ params }: { params: CreatorPr
                   View Dashboard
                 </Link>
               </>
-            ) : !viewerRole ? (
+            ) : !viewerRole && canStart ? (
               <Link href={authHref("/sign-in", `/campaign-inquiry?creator=${creator.username}`)} className="bridge-button-primary mt-5 w-full">
                 <Send size={17} />
                 Sign in to start collaboration
               </Link>
+            ) : !isOwner && !canStart ? (
+              <span
+                aria-disabled="true"
+                className="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-[8px] border border-[var(--border)] bg-[rgba(17,19,26,0.46)] px-5 py-3 text-sm font-semibold text-[var(--text-muted)]"
+              >
+                <Send size={17} />
+                Start Collaboration disabled
+              </span>
             ) : null}
             <Link href="/creators" className="bridge-button-secondary mt-3 w-full">
               Browse Directory

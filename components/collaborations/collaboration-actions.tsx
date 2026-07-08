@@ -3,7 +3,7 @@
 import { type FormEvent, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Check, ExternalLink, Flag, Loader2, PlayCircle, RotateCcw, Upload, XCircle } from "lucide-react";
+import { AlertTriangle, Check, CreditCard, ExternalLink, Flag, Loader2, PlayCircle, RotateCcw, Upload, XCircle } from "lucide-react";
 
 import { formatINR } from "@/lib/format";
 import { type BrandInquiryData } from "@/lib/types";
@@ -21,6 +21,11 @@ type ProofState = {
   referenceLink: string;
 };
 
+type PaymentState = {
+  paymentNote: string;
+  paymentScreenshotUrl: string;
+};
+
 function canCreatorSubmitProof(status: BrandInquiryData["status"]) {
   return ["ACCEPTED", "IN_PROGRESS", "PROOF_SUBMITTED", "REVISION_REQUESTED"].includes(status);
 }
@@ -31,6 +36,21 @@ function canCreatorRespond(status: BrandInquiryData["status"]) {
 
 function canBrandReviewProof(status: BrandInquiryData["status"]) {
   return ["PROOF_SUBMITTED", "REVISION_REQUESTED"].includes(status);
+}
+
+function canBrandCancel(status: BrandInquiryData["status"]) {
+  return ["NEW", "PENDING_CREATOR_RESPONSE"].includes(status);
+}
+
+function canManagePayment(status: BrandInquiryData["status"]) {
+  return ["ACCEPTED", "IN_PROGRESS", "PROOF_SUBMITTED", "REVISION_REQUESTED", "APPROVED", "COMPLETED"].includes(status);
+}
+
+function paymentStatusLabel(status: BrandInquiryData["paymentStatus"]) {
+  if (status === "payment_sent") return "Payment Sent";
+  if (status === "payment_received") return "Payment Received";
+  if (status === "payment_disputed") return "Payment Disputed";
+  return "Payment Pending";
 }
 
 function proofLabel(status: BrandInquiryData["status"]) {
@@ -59,6 +79,33 @@ function OfferSummary({ collaboration }: { collaboration: BrandInquiryData }) {
   );
 }
 
+function PaymentDetailsList({ collaboration }: { collaboration: BrandInquiryData }) {
+  const details = collaboration.creatorPaymentDetails;
+  const rows = [
+    ["UPI ID", details?.upiId],
+    ["PayPal email", details?.paypalEmail],
+    ["Bank account name", details?.bankAccountName],
+    ["Bank account number", details?.bankAccountNumber],
+    ["IFSC", details?.ifsc],
+    ["Preferred payment note", details?.preferredPaymentNote],
+  ].filter(([, value]) => value && String(value).trim());
+
+  if (!rows.length) {
+    return <p className="text-xs leading-5 text-[var(--text-secondary)]">Creator payment details have not been added yet.</p>;
+  }
+
+  return (
+    <div className="grid gap-2">
+      {rows.map(([label, value]) => (
+        <div key={label} className="rounded-[8px] border border-white/10 bg-black/20 px-3 py-2 text-xs leading-5">
+          <p className="font-semibold uppercase text-[var(--text-muted)]">{label}</p>
+          <p className="mt-1 break-words text-[var(--text-primary)]">{value}</p>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export function CollaborationActions({ collaboration, mode }: CollaborationActionsProps) {
   const router = useRouter();
   const proof = collaboration.deliveryProof;
@@ -67,6 +114,10 @@ export function CollaborationActions({ collaboration, mode }: CollaborationActio
   const [isSaving, setIsSaving] = useState(false);
   const [reviewNote, setReviewNote] = useState("");
   const [issueNote, setIssueNote] = useState("");
+  const [paymentForm, setPaymentForm] = useState<PaymentState>({
+    paymentNote: collaboration.paymentNote ?? "",
+    paymentScreenshotUrl: collaboration.paymentScreenshotUrl ?? "",
+  });
   const [proofForm, setProofForm] = useState<ProofState>({
     videoUrl: proof?.videoUrl ?? "",
     timestampStart: proof?.timestampStart ?? "",
@@ -77,6 +128,10 @@ export function CollaborationActions({ collaboration, mode }: CollaborationActio
 
   function setProofField<K extends keyof ProofState>(key: K, value: ProofState[K]) {
     setProofForm((current) => ({ ...current, [key]: value }));
+  }
+
+  function setPaymentField<K extends keyof PaymentState>(key: K, value: PaymentState[K]) {
+    setPaymentForm((current) => ({ ...current, [key]: value }));
   }
 
   async function request(path: string, body?: Record<string, unknown>, successMessage = "Collaboration updated.") {
@@ -128,6 +183,77 @@ export function CollaborationActions({ collaboration, mode }: CollaborationActio
       action === "accept_offer" ? "Offer accepted. Contact details are now unlocked." : "Offer declined.",
     );
   }
+
+  async function cancelCollaboration() {
+    await request(
+      `/api/collaborations/${collaboration.id}/cancel`,
+      { note: "Brand cancelled before creator acceptance." },
+      "Collaboration request was cancelled.",
+    );
+  }
+
+  async function updatePayment(action: "mark_payment_sent" | "mark_payment_received" | "mark_payment_disputed") {
+    const messages = {
+      mark_payment_sent: "Payment marked as sent.",
+      mark_payment_received: "Payment marked as received.",
+      mark_payment_disputed: "Payment marked as disputed.",
+    };
+    await request(`/api/collaborations/${collaboration.id}/payment`, { action, ...paymentForm }, messages[action]);
+  }
+
+  const paymentPanel = canManagePayment(collaboration.status) ? (
+    <div className="min-w-0 rounded-[8px] border border-yellow-700/40 bg-yellow-950/20 p-3 [overflow-wrap:anywhere]">
+      <div className="flex items-start gap-2">
+        <AlertTriangle size={16} className="mt-0.5 shrink-0 text-yellow-200" />
+        <p className="text-xs leading-5 text-yellow-100">
+          Branzzo does not process payments yet. Payments happen outside the platform. We recommend written confirmation and partial advance before work begins.
+        </p>
+      </div>
+      <div className="mt-3 flex flex-wrap items-center gap-2">
+        <span className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-black/20 px-3 py-1 text-xs font-semibold text-[var(--text-primary)]">
+          <CreditCard size={13} />
+          {paymentStatusLabel(collaboration.paymentStatus)}
+        </span>
+      </div>
+
+      {mode === "brand" ? (
+        <div className="mt-3 grid gap-3">
+          <p className="text-xs font-bold uppercase text-yellow-100">Creator payment details</p>
+          <PaymentDetailsList collaboration={collaboration} />
+        </div>
+      ) : null}
+
+      <div className="mt-3 grid gap-2">
+        <input
+          value={paymentForm.paymentScreenshotUrl}
+          onChange={(event) => setPaymentField("paymentScreenshotUrl", event.target.value)}
+          className="bridge-input px-3 py-2 text-xs"
+          placeholder="Optional payment screenshot URL"
+        />
+        <textarea
+          value={paymentForm.paymentNote}
+          onChange={(event) => setPaymentField("paymentNote", event.target.value)}
+          className="bridge-input min-h-16 px-3 py-2 text-xs"
+          placeholder="Optional payment note"
+        />
+        {mode === "brand" ? (
+          <button type="button" onClick={() => updatePayment("mark_payment_sent")} disabled={isSaving} className="bridge-button-secondary w-full px-3 py-2 text-xs">
+            {isSaving ? <Loader2 size={14} className="animate-spin" /> : <CreditCard size={14} />}
+            Mark Payment Sent
+          </button>
+        ) : (
+          <button type="button" onClick={() => updatePayment("mark_payment_received")} disabled={isSaving} className="bridge-button-secondary w-full px-3 py-2 text-xs">
+            {isSaving ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
+            Mark Payment Received
+          </button>
+        )}
+        <button type="button" onClick={() => updatePayment("mark_payment_disputed")} disabled={isSaving} className="bridge-button-secondary w-full px-3 py-2 text-xs">
+          {isSaving ? <Loader2 size={14} className="animate-spin" /> : <Flag size={14} />}
+          Mark Payment Disputed
+        </button>
+      </div>
+    </div>
+  ) : null;
 
   if (mode === "creator") {
     if (canCreatorRespond(collaboration.status)) {
@@ -201,6 +327,7 @@ export function CollaborationActions({ collaboration, mode }: CollaborationActio
     return (
       <div className="mt-4 grid gap-3">
         <OfferSummary collaboration={collaboration} />
+        {paymentPanel}
         <div className="min-w-0 rounded-[8px] border border-white/10 bg-white/[0.035] p-3 [overflow-wrap:anywhere]">
         {error ? (
           <div role="alert" className="mb-3 rounded-[8px] border border-red-900 bg-red-950/40 px-3 py-2 text-xs text-red-200">
@@ -302,6 +429,33 @@ export function CollaborationActions({ collaboration, mode }: CollaborationActio
   return (
     <div className="mt-4 grid gap-3">
       <OfferSummary collaboration={collaboration} />
+      {paymentPanel}
+      {canBrandCancel(collaboration.status) ? (
+        <div className="min-w-0 rounded-[8px] border border-red-900/60 bg-red-950/25 p-3 [overflow-wrap:anywhere]">
+          <p className="text-xs font-bold uppercase text-red-100">Pending request</p>
+          <p className="mt-2 text-xs leading-5 text-red-100/90">
+            You can cancel this request before the creator accepts. After acceptance or work start, cancellation requires dispute/admin review.
+          </p>
+          {error ? (
+            <div role="alert" className="mt-3 rounded-[8px] border border-red-900 bg-red-950/40 px-3 py-2 text-xs text-red-200">
+              {error}
+            </div>
+          ) : null}
+          {success ? (
+            <div role="status" className="mt-3 rounded-[8px] border border-emerald-800 bg-emerald-950/40 px-3 py-2 text-xs text-emerald-100">
+              {success}
+            </div>
+          ) : null}
+          <button type="button" onClick={cancelCollaboration} disabled={isSaving} className="bridge-button-secondary mt-3 w-full px-3 py-2 text-xs">
+            {isSaving ? <Loader2 size={14} className="animate-spin" /> : <XCircle size={14} />}
+            Cancel Collaboration
+          </button>
+        </div>
+      ) : canManagePayment(collaboration.status) ? (
+        <div className="rounded-[8px] border border-white/10 bg-black/20 px-3 py-2 text-xs leading-5 text-[var(--text-secondary)]">
+          Cancellation after acceptance or work start requires dispute/admin review.
+        </div>
+      ) : null}
       <div className="min-w-0 rounded-[8px] border border-white/10 bg-white/[0.035] p-3 [overflow-wrap:anywhere]">
       <p className="text-xs font-bold uppercase text-[var(--text-muted)]">Delivery Proof</p>
       {error ? (

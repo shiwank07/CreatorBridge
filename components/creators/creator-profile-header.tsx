@@ -3,6 +3,7 @@ import { ArrowLeft, BadgeCheck, Crown, MapPin, Send } from "lucide-react";
 
 import { Badge } from "@/components/shared/badge";
 import { InitialsAvatar } from "@/components/shared/initials-avatar";
+import { canStartCreatorCollaboration, creatorAvailabilityLabel, creatorAvailabilityNotice, creatorAvailabilityTone } from "@/lib/availability";
 import { authHref } from "@/lib/auth-redirect";
 import { type CreatorCardData } from "@/lib/types";
 import { normalizeCreatorVerificationStatus, verificationBadgeLabel } from "@/lib/verification";
@@ -16,6 +17,8 @@ type CreatorProfileHeaderProps = {
 export function CreatorProfileHeader({ creator, viewerRole, viewerUsername }: CreatorProfileHeaderProps) {
   const isOwner = viewerRole === "creator" && viewerUsername === creator.username;
   const verificationStatus = normalizeCreatorVerificationStatus(creator.verificationStatus);
+  const canStart = canStartCreatorCollaboration(creator.availabilityStatus, creator.isOpenToDeals);
+  const availabilityNotice = creatorAvailabilityNotice(creator.availabilityStatus, creator.isOpenToDeals);
 
   return (
     <header className="surface-grid border-b border-[var(--border)] bg-[rgba(8,11,17,0.88)]">
@@ -55,12 +58,14 @@ export function CreatorProfileHeader({ creator, viewerRole, viewerUsername }: Cr
                     {creator.country}
                   </Badge>
                 ) : null}
-                {creator.isOpenToDeals ? <Badge tone="green">Open to deals</Badge> : <Badge tone="neutral">Limited availability</Badge>}
+                <Badge tone={creatorAvailabilityTone(creator.availabilityStatus, creator.isOpenToDeals)}>
+                  {creatorAvailabilityLabel(creator.availabilityStatus, creator.isOpenToDeals)}
+                </Badge>
               </div>
             </div>
           </div>
 
-          {viewerRole === "brand" ? (
+          {viewerRole === "brand" && canStart ? (
             <Link href={`/campaign-inquiry?creator=${creator.username}`} className="bridge-button-primary w-full sm:w-auto">
               <Send size={17} />
               Start Collaboration
@@ -74,11 +79,20 @@ export function CreatorProfileHeader({ creator, viewerRole, viewerUsername }: Cr
                 View Dashboard
               </Link>
             </div>
-          ) : !viewerRole ? (
+          ) : !viewerRole && canStart ? (
             <Link href={authHref("/sign-in", `/campaign-inquiry?creator=${creator.username}`)} className="bridge-button-primary w-full sm:w-auto">
               <Send size={17} />
               Sign in to start collaboration
             </Link>
+          ) : !isOwner && !canStart ? (
+            <span
+              aria-disabled="true"
+              title={availabilityNotice}
+              className="inline-flex w-full max-w-full items-center justify-center gap-2 rounded-[8px] border border-[var(--border)] bg-[rgba(17,19,26,0.46)] px-5 py-3 text-center text-sm font-semibold text-[var(--text-muted)] sm:w-auto"
+            >
+              <Send size={17} />
+              Unavailable
+            </span>
           ) : null}
         </div>
       </div>

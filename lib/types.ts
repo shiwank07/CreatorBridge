@@ -1,5 +1,6 @@
 export type Role = "creator" | "brand" | "agency" | "talent";
 export type AccountStatus = "active" | "hidden" | "suspended";
+export type CreatorAvailabilityStatus = "open_to_deals" | "limited_availability" | "unavailable" | "closed";
 export type VerificationStatus =
   | "unverified"
   | "pending"
@@ -34,6 +35,16 @@ export type CollaborationTimelineEvent =
   | "APPROVED"
   | "COMPLETED"
   | "CANCELLED";
+export type PaymentStatus = "payment_pending" | "payment_sent" | "payment_received" | "payment_disputed";
+
+export type CreatorPaymentDetailsData = {
+  upiId?: string;
+  paypalEmail?: string;
+  bankAccountName?: string;
+  bankAccountNumber?: string;
+  ifsc?: string;
+  preferredPaymentNote?: string;
+};
 
 export type CreatorCardData = {
   id: string;
@@ -67,6 +78,7 @@ export type CreatorCardData = {
   pastBrands: string[];
   sampleWorkUrls: string[];
   isOpenToDeals: boolean;
+  availabilityStatus: CreatorAvailabilityStatus;
   isFeatured: boolean;
   isVerified: boolean;
   emailVerified?: boolean;
@@ -198,6 +210,11 @@ export type BrandInquiryData = {
     issueNote?: string;
     issueReportedAt?: string;
   };
+  paymentStatus?: PaymentStatus;
+  paymentNote?: string;
+  paymentScreenshotUrl?: string;
+  paymentUpdatedAt?: string;
+  creatorPaymentDetails?: CreatorPaymentDetailsData;
   createdAt?: string;
 };
 

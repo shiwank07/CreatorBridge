@@ -2,6 +2,8 @@ import { z } from "zod";
 
 import { COLLABORATION_STATUSES } from "@/lib/collaborations";
 
+const timelinePattern = /\b\d+\s*(day|days|week|weeks|month|months)\b/i;
+
 export const brandInquirySchema = z.object({
   companyName: z.string().trim().min(2, "Company name is required.").max(120),
   contactName: z.string().trim().min(2, "Contact name is required.").max(100),
@@ -19,9 +21,25 @@ export const brandInquirySchema = z.object({
   budgetRange: z.string().trim().optional().default(""),
   initialOfferAmount: z.coerce.number().int("Enter a whole INR amount.").positive("Enter the exact initial offer amount."),
   isNegotiable: z.boolean().default(false),
-  timeline: z.string().trim().min(2, "Timeline is required.").max(120),
+  timeline: z
+    .string()
+    .trim()
+    .min(2, "Timeline is required.")
+    .max(120)
+    .refine((value) => timelinePattern.test(value), "Use a clear timeline, for example 2 weeks or 14 days."),
   message: z.string().trim().max(1500).optional().default(""),
   creatorUsername: z.string().trim().toLowerCase().max(40).optional().default(""),
+});
+
+export const collaborationPaymentSchema = z.object({
+  action: z.enum(["mark_payment_sent", "mark_payment_received", "mark_payment_disputed"]),
+  paymentNote: z.string().trim().max(1000).optional().default(""),
+  paymentScreenshotUrl: z
+    .string()
+    .trim()
+    .optional()
+    .transform((value) => value ?? "")
+    .refine((value) => !value || /^https?:\/\/.+/i.test(value), "Use a full screenshot URL beginning with http or https."),
 });
 
 export const inquiryStatusSchema = z.object({
