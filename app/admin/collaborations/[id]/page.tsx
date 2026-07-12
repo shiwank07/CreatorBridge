@@ -6,6 +6,7 @@ import { CollaborationTimeline } from "@/components/collaborations/collaboration
 import { Badge } from "@/components/shared/badge";
 import { collaborationStatusLabel } from "@/lib/collaborations";
 import { formatINR } from "@/lib/format";
+import { platformDisplayName } from "@/lib/platforms";
 import { getAdminInquiryById } from "@/lib/queries/admin";
 
 export const dynamic = "force-dynamic";
@@ -20,6 +21,7 @@ export default async function AdminCollaborationDetailsPage({ params }: { params
   const { id } = await params;
   const collaboration = await getAdminInquiryById(id);
   if (!collaboration) notFound();
+  const targetPlatforms = collaboration.targetPlatforms.map((platform) => platformDisplayName(platform, collaboration.customPlatformName));
 
   return (
     <div>
@@ -59,6 +61,18 @@ export default async function AdminCollaborationDetailsPage({ params }: { params
             <p className="text-xs font-semibold uppercase text-[var(--text-secondary)]">Goal</p>
             <p className="mt-2 text-sm leading-7 text-[var(--text-secondary)]">{collaboration.campaignGoal}</p>
           </div>
+          {targetPlatforms.length > 0 ? (
+            <div className="mt-5">
+              <p className="text-xs font-semibold uppercase text-[var(--text-secondary)]">Target platforms</p>
+              <div className="mt-2 flex flex-wrap gap-2">
+                {targetPlatforms.map((platform) => (
+                  <Badge key={platform} tone="neutral">
+                    {platform}
+                  </Badge>
+                ))}
+              </div>
+            </div>
+          ) : null}
           {collaboration.message ? (
             <div className="mt-5">
               <p className="text-xs font-semibold uppercase text-[var(--text-secondary)]">Message</p>

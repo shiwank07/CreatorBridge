@@ -6,6 +6,7 @@ import { InitialsAvatar } from "@/components/shared/initials-avatar";
 import { canStartCreatorCollaboration, creatorAvailabilityLabel, creatorAvailabilityNotice, creatorAvailabilityTone } from "@/lib/availability";
 import { authHref } from "@/lib/auth-redirect";
 import { formatINR, formatNumber } from "@/lib/format";
+import { platformDisplayName } from "@/lib/platforms";
 import { type CreatorCardData } from "@/lib/types";
 import {
   getPublicAverageViews,
@@ -38,10 +39,17 @@ export function CreatorCard({ creator, viewerRole }: CreatorCardProps) {
   const engagement = getPublicEngagementRate(creator);
   const canStart = canStartCreatorCollaboration(creator.availabilityStatus, creator.isOpenToDeals);
   const availabilityNotice = creatorAvailabilityNotice(creator.availabilityStatus, creator.isOpenToDeals);
+  const knownPlatformUrls = [creator.youtubeUrl, creator.instagramUrl, creator.podcastUrl].filter(Boolean);
+  const customPlatformLabel = creator.verificationPlatform === "other" ? platformDisplayName("other", creator.customPlatformName) : "";
+  const hasCustomPlatform =
+    Boolean(customPlatformLabel) &&
+    Boolean(creator.verificationProfileUrl) &&
+    !knownPlatformUrls.includes(creator.verificationProfileUrl ?? "");
   const platforms = [
     creator.youtubeUrl ? { label: "YouTube", icon: TvMinimalPlay } : null,
     creator.instagramUrl ? { label: "Instagram", icon: Camera } : null,
     creator.podcastUrl ? { label: "Podcast", icon: Radio } : null,
+    hasCustomPlatform ? { label: customPlatformLabel, icon: Globe2 } : null,
   ].filter(Boolean) as { label: string; icon: typeof TvMinimalPlay }[];
 
   return (

@@ -6,6 +6,7 @@ import { BadgeCheck, ExternalLink, Loader2, XCircle } from "lucide-react";
 
 import { Badge } from "@/components/shared/badge";
 import { formatNumber } from "@/lib/format";
+import { platformDisplayName } from "@/lib/platforms";
 import { type CreatorVerificationData } from "@/lib/types";
 import { normalizeCreatorVerificationStatus, verificationBadgeLabel } from "@/lib/verification";
 
@@ -17,6 +18,10 @@ type VerificationAction = "approve" | "reject";
 
 function statusLabel(status: CreatorVerificationData["verificationStatus"]) {
   return verificationBadgeLabel(status);
+}
+
+function submittedPlatformLabel(creator: CreatorVerificationData) {
+  return platformDisplayName(creator.verificationPlatform, creator.customPlatformName) || creator.youtubeHandle || creator.verificationProfileUrl || creator.youtubeUrl;
 }
 
 export function VerificationTable({ creators }: VerificationTableProps) {
@@ -142,7 +147,7 @@ export function VerificationTable({ creators }: VerificationTableProps) {
                       rel="noreferrer"
                       className="focus-ring inline-flex max-w-[220px] items-center gap-2 rounded-[8px] border border-[var(--border)] px-3 py-2 text-xs font-semibold text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
                     >
-                      <span className="truncate">{creator.verificationPlatform || creator.youtubeHandle || creator.verificationProfileUrl || creator.youtubeUrl}</span>
+                      <span className="truncate">{submittedPlatformLabel(creator)}</span>
                       <ExternalLink size={14} />
                     </Link>
                   ) : null}
@@ -281,7 +286,7 @@ export function VerificationTable({ creators }: VerificationTableProps) {
                 rel="noreferrer"
                 className="mt-4 inline-flex max-w-full items-center gap-2 rounded-[8px] border border-[var(--border)] px-3 py-2 text-xs font-semibold text-[var(--text-secondary)]"
               >
-                <span className="truncate">{creator.verificationPlatform || creator.youtubeHandle || creator.verificationProfileUrl || creator.youtubeUrl}</span>
+                <span className="truncate">{submittedPlatformLabel(creator)}</span>
                 <ExternalLink size={14} />
               </Link>
             ) : null}

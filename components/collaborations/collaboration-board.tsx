@@ -7,6 +7,7 @@ import { Badge } from "@/components/shared/badge";
 import { collaborationDetailsHref } from "@/lib/collaboration-routes";
 import { collaborationStatusLabel } from "@/lib/collaborations";
 import { formatINR } from "@/lib/format";
+import { platformDisplayName } from "@/lib/platforms";
 import { type BrandInquiryData } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
@@ -30,8 +31,8 @@ function collaborationDate(value?: string) {
   }).format(new Date(value));
 }
 
-function platformLabel(platform: string) {
-  return platform.replaceAll("_", " ");
+function platformLabel(platform: string, customPlatformName?: string) {
+  return platformDisplayName(platform, customPlatformName);
 }
 
 function offerLabel(collaboration: BrandInquiryData) {
@@ -92,7 +93,10 @@ export function CollaborationBoard({ columns, mode }: CollaborationBoardProps) {
 
                       {collaboration.deliverables.length > 0 || collaboration.targetPlatforms.length > 0 ? (
                         <div className="mt-4 flex min-w-0 flex-wrap gap-2">
-                          {[...collaboration.deliverables.slice(0, 2), ...collaboration.targetPlatforms.slice(0, 2).map(platformLabel)].map((item) => (
+                          {[
+                            ...collaboration.deliverables.slice(0, 2),
+                            ...collaboration.targetPlatforms.slice(0, 2).map((platform) => platformLabel(platform, collaboration.customPlatformName)),
+                          ].map((item) => (
                             <span key={item} className="max-w-full break-words rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-1 text-[11px] leading-4 text-[var(--text-secondary)]">
                               {item}
                             </span>

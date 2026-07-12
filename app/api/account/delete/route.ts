@@ -63,6 +63,7 @@ export async function POST(req: Request) {
               verificationStatus: "unverified",
               statsVerificationStatus: "unverified",
               verificationCode: "",
+              customPlatformName: "",
               verificationProfileUrl: "",
               verificationSubmittedNote: "",
               verificationNote: "",

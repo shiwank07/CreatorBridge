@@ -27,6 +27,7 @@ import { TrustPassportCard } from "@/components/verification/trust-passport-card
 import { collaborationStatusLabel } from "@/lib/collaborations";
 import { getCurrentAppUser, getCurrentClerkUserId } from "@/lib/current-user";
 import { formatINR } from "@/lib/format";
+import { platformDisplayName } from "@/lib/platforms";
 import { getCurrentUserCollaborationDetails } from "@/lib/queries/collaborations";
 import { type BrandVerificationStatus } from "@/lib/types";
 import { normalizeCreatorVerificationStatus, verificationBadgeLabel } from "@/lib/verification";
@@ -87,12 +88,12 @@ function DetailBlock({
   Icon: ComponentType<{ size?: number; className?: string }>;
 }) {
   return (
-    <div className="min-w-0 max-w-full rounded-[8px] border border-white/10 bg-black/20 p-4 [overflow-wrap:anywhere]">
+    <div className="min-w-0 max-w-full rounded-[8px] border border-white/10 bg-black/20 p-4 [overflow-wrap:break-word] [word-break:normal]">
       <div className="flex min-w-0 items-center gap-2 text-xs font-semibold uppercase text-[var(--text-muted)]">
         <Icon size={15} className="shrink-0 text-cyan-200" />
         <span className="min-w-0 break-words">{label}</span>
       </div>
-      <div className="mt-3 min-w-0 max-w-full text-sm leading-6 text-[var(--text-primary)] [overflow-wrap:anywhere]">{value}</div>
+      <div className="mt-3 min-w-0 max-w-full text-sm leading-6 text-[var(--text-primary)] [overflow-wrap:break-word] [word-break:normal]">{value}</div>
     </div>
   );
 }
@@ -117,6 +118,7 @@ export default async function CollaborationDetailsPage({ params }: Collaboration
     collaboration.deliveryProof?.referenceLink ? { label: "Reference link", href: collaboration.deliveryProof.referenceLink } : null,
     collaboration.deliveryProof?.screenshotUrl ? { label: "Screenshot", href: collaboration.deliveryProof.screenshotUrl } : null,
   ].filter(Boolean) as { label: string; href: string }[];
+  const targetPlatforms = collaboration.targetPlatforms.map((platform) => platformDisplayName(platform, collaboration.customPlatformName));
 
   return (
     <>
@@ -132,7 +134,7 @@ export default async function CollaborationDetailsPage({ params }: Collaboration
           <div className="flex min-w-0 flex-col justify-between gap-5 lg:flex-row lg:items-start">
             <div className="min-w-0 max-w-3xl flex-1">
               <p className="bridge-eyebrow">Collaboration Details</p>
-              <h1 className="mt-3 break-words font-display text-3xl font-black leading-tight [overflow-wrap:anywhere] sm:text-4xl">
+              <h1 className="mt-3 break-words font-display text-3xl font-black leading-tight [overflow-wrap:break-word] [word-break:normal] sm:text-4xl">
                 {campaignTitle(collaboration.campaignGoal, collaboration.companyName)}
               </h1>
               <div className="mt-4 flex flex-wrap gap-2">
@@ -143,7 +145,7 @@ export default async function CollaborationDetailsPage({ params }: Collaboration
               </div>
             </div>
             <div className="grid w-full max-w-full min-w-0 gap-3 lg:w-80">
-              <div className="min-w-0 rounded-[8px] border border-white/10 bg-black/20 p-4 [overflow-wrap:anywhere]">
+              <div className="min-w-0 rounded-[8px] border border-white/10 bg-black/20 p-4 [overflow-wrap:break-word] [word-break:normal]">
                 <div className="flex items-start gap-3">
                   <InitialsAvatar
                     name={collaboration.companyName}
@@ -152,12 +154,12 @@ export default async function CollaborationDetailsPage({ params }: Collaboration
                   />
                   <div className="min-w-0">
                     <p className="text-xs font-semibold uppercase text-[var(--text-muted)]">Brand details</p>
-                    <p className="mt-1 break-words font-semibold text-[var(--text-primary)] [overflow-wrap:anywhere]">{collaboration.companyName}</p>
+                    <p className="mt-1 break-words font-semibold text-[var(--text-primary)] [overflow-wrap:break-word] [word-break:normal]">{collaboration.companyName}</p>
                     <p className="mt-1 break-words text-xs text-[var(--text-secondary)]">{verificationLabel(collaboration.brandVerificationStatus)}</p>
                   </div>
                 </div>
               </div>
-              <div className="min-w-0 rounded-[8px] border border-white/10 bg-black/20 p-4 [overflow-wrap:anywhere]">
+              <div className="min-w-0 rounded-[8px] border border-white/10 bg-black/20 p-4 [overflow-wrap:break-word] [word-break:normal]">
                 <div className="flex items-start gap-3">
                   <InitialsAvatar
                     name={collaboration.creatorUsername}
@@ -167,7 +169,7 @@ export default async function CollaborationDetailsPage({ params }: Collaboration
                   />
                   <div className="min-w-0">
                     <p className="text-xs font-semibold uppercase text-[var(--text-muted)]">Creator details</p>
-                    <p className="mt-1 break-words font-semibold text-[var(--text-primary)] [overflow-wrap:anywhere]">
+                    <p className="mt-1 break-words font-semibold text-[var(--text-primary)] [overflow-wrap:break-word] [word-break:normal]">
                       {collaboration.creatorUsername ? `@${collaboration.creatorUsername}` : "Creator not linked"}
                     </p>
                     <p className="mt-1 break-words text-xs text-[var(--text-secondary)]">{verificationBadgeLabel(collaboration.creatorVerificationStatus)}</p>
@@ -243,8 +245,25 @@ export default async function CollaborationDetailsPage({ params }: Collaboration
                     collaboration.deliverables.length ? (
                       <div className="flex flex-wrap gap-2">
                         {collaboration.deliverables.map((deliverable) => (
-                          <span key={deliverable} className="max-w-full break-words rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-1 text-xs text-[var(--text-secondary)] [overflow-wrap:anywhere]">
+                          <span key={deliverable} className="max-w-full break-words rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-1 text-xs text-[var(--text-secondary)] [overflow-wrap:break-word] [word-break:normal]">
                             {deliverable}
+                          </span>
+                        ))}
+                      </div>
+                    ) : (
+                      "Not specified"
+                    )
+                  }
+                  Icon={Layers3}
+                />
+                <DetailBlock
+                  label="Target platforms"
+                  value={
+                    targetPlatforms.length ? (
+                      <div className="flex flex-wrap gap-2">
+                        {targetPlatforms.map((platform) => (
+                          <span key={platform} className="max-w-full break-words rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-1 text-xs text-[var(--text-secondary)]">
+                            {platform}
                           </span>
                         ))}
                       </div>
@@ -295,14 +314,14 @@ export default async function CollaborationDetailsPage({ params }: Collaboration
 
           <div className="grid h-fit min-w-0 gap-4">
             <CollaborationDetailActions collaboration={collaboration} viewerRole={user.role} />
-            <section className="min-w-0 rounded-[8px] border border-white/10 bg-white/[0.04] p-5 [overflow-wrap:anywhere]">
+            <section className="min-w-0 rounded-[8px] border border-white/10 bg-white/[0.04] p-5 [overflow-wrap:break-word] [word-break:normal]">
               <p className="bridge-eyebrow">Brand Verification Status</p>
               <h2 className="mt-2 font-display text-xl font-bold">{verificationLabel(collaboration.brandVerificationStatus)}</h2>
               <p className="mt-3 text-sm leading-6 text-[var(--text-secondary)]">
                 {collaboration.brandVerificationNote || "Verification context is based on the existing brand profile linked to this inquiry."}
               </p>
             </section>
-            <section className="min-w-0 rounded-[8px] border border-white/10 bg-white/[0.04] p-5 [overflow-wrap:anywhere]">
+            <section className="min-w-0 rounded-[8px] border border-white/10 bg-white/[0.04] p-5 [overflow-wrap:break-word] [word-break:normal]">
               <p className="bridge-eyebrow">Creator Verification Status</p>
               <h2 className="mt-2 font-display text-xl font-bold">{verificationBadgeLabel(collaboration.creatorVerificationStatus)}</h2>
               <p className="mt-3 text-sm leading-6 text-[var(--text-secondary)]">

@@ -373,7 +373,7 @@ export function CreatorOnboardingForm({
             <textarea value={form.sampleWorkText} onChange={(event) => setField("sampleWorkText", event.target.value)} className="bridge-input mt-2 min-h-24" placeholder="One URL per line" />
           </label>
         </div>
-        <label className="mt-5 flex items-center gap-3 rounded-[8px] border border-[var(--border)] bg-[#0d0d14] px-4 py-3 text-sm text-[var(--text-secondary)]">
+        <label className="mt-5 flex min-w-0 flex-col gap-3 rounded-[8px] border border-[var(--border)] bg-[#0d0d14] px-4 py-3 text-sm text-[var(--text-secondary)] sm:flex-row sm:items-center">
           <span className="min-w-0 flex-1">
             <span className="bridge-label block">Collaboration availability</span>
             <span className="mt-1 block text-xs leading-5 text-[var(--text-secondary)]">

@@ -56,6 +56,7 @@ type InquiryDocument = {
   deliverables?: string[];
   targetNiches?: string[];
   targetPlatforms?: string[];
+  customPlatformName?: string;
   budgetRange: string;
   initialOfferAmount?: number;
   currentOfferAmount?: number;
@@ -105,6 +106,7 @@ type CreatorVerificationDocument = {
   verificationStatus?: VerificationStatus;
   verificationCode?: string;
   verificationPlatform?: CreatorVerificationData["verificationPlatform"];
+  customPlatformName?: string;
   verificationProfileUrl?: string;
   verificationSubmittedNote?: string;
   verificationNote?: string;
@@ -265,6 +267,7 @@ function mapInquiry(doc: InquiryDocument): BrandInquiryData {
     deliverables: doc.deliverables ?? [],
     targetNiches: doc.targetNiches ?? [],
     targetPlatforms: doc.targetPlatforms ?? [],
+    customPlatformName: doc.customPlatformName,
     budgetRange: doc.budgetRange,
     initialOfferAmount: doc.initialOfferAmount && doc.initialOfferAmount > 0 ? doc.initialOfferAmount : undefined,
     currentOfferAmount: doc.currentOfferAmount && doc.currentOfferAmount > 0 ? doc.currentOfferAmount : latestOfferAmount,
@@ -329,6 +332,7 @@ function mapCreatorVerification(doc: CreatorVerificationDocument): CreatorVerifi
     verificationStatus: doc.verificationStatus ?? "unverified",
     verificationCode: doc.verificationCode,
     verificationPlatform: doc.verificationPlatform,
+    customPlatformName: doc.customPlatformName,
     verificationProfileUrl: doc.verificationProfileUrl,
     verificationSubmittedNote: doc.verificationSubmittedNote,
     verificationNote: doc.verificationNote,

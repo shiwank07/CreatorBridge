@@ -57,6 +57,7 @@ type CollaborationDocument = {
   deliverables?: string[];
   targetNiches?: string[];
   targetPlatforms?: string[];
+  customPlatformName?: string;
   budgetRange: string;
   initialOfferAmount?: number;
   currentOfferAmount?: number;
@@ -192,6 +193,7 @@ function mapCollaboration(doc: CollaborationDocument): BrandInquiryData {
     deliverables: doc.deliverables ?? [],
     targetNiches: doc.targetNiches ?? [],
     targetPlatforms: doc.targetPlatforms ?? [],
+    customPlatformName: doc.customPlatformName,
     budgetRange: doc.budgetRange,
     initialOfferAmount: doc.initialOfferAmount && doc.initialOfferAmount > 0 ? doc.initialOfferAmount : undefined,
     currentOfferAmount: doc.currentOfferAmount && doc.currentOfferAmount > 0 ? doc.currentOfferAmount : latestOfferAmount,

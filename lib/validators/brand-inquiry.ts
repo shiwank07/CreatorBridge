@@ -4,32 +4,47 @@ import { COLLABORATION_STATUSES } from "@/lib/collaborations";
 
 const timelinePattern = /\b\d+\s*(day|days|week|weeks|month|months)\b/i;
 
-export const brandInquirySchema = z.object({
-  companyName: z.string().trim().min(2, "Company name is required.").max(120),
-  contactName: z.string().trim().min(2, "Contact name is required.").max(100),
-  email: z.string().trim().email("Enter a valid email address.").max(160),
-  website: z
-    .string()
-    .trim()
-    .optional()
-    .transform((value) => value ?? "")
-    .refine((value) => !value || /^https?:\/\/.+/i.test(value), "Use a full URL beginning with http or https."),
-  campaignGoal: z.string().trim().min(20, "Tell us a little more about the campaign.").max(1000),
-  deliverables: z.array(z.string().trim().min(1)).min(1, "Choose at least one deliverable.").max(8),
-  targetNiches: z.array(z.string().trim().min(1)).min(1, "Choose at least one niche.").max(6),
-  targetPlatforms: z.array(z.string().trim().min(1)).min(1, "Choose at least one platform.").max(4),
-  budgetRange: z.string().trim().optional().default(""),
-  initialOfferAmount: z.coerce.number().int("Enter a whole INR amount.").positive("Enter the exact initial offer amount."),
-  isNegotiable: z.boolean().default(false),
-  timeline: z
-    .string()
-    .trim()
-    .min(2, "Timeline is required.")
-    .max(120)
-    .refine((value) => timelinePattern.test(value), "Use a clear timeline, for example 2 weeks or 14 days."),
-  message: z.string().trim().max(1500).optional().default(""),
-  creatorUsername: z.string().trim().toLowerCase().max(40).optional().default(""),
-});
+export const brandInquirySchema = z
+  .object({
+    companyName: z.string().trim().min(2, "Company name is required.").max(120),
+    contactName: z.string().trim().min(2, "Contact name is required.").max(100),
+    email: z.string().trim().email("Enter a valid email address.").max(160),
+    website: z
+      .string()
+      .trim()
+      .optional()
+      .transform((value) => value ?? "")
+      .refine((value) => !value || /^https?:\/\/.+/i.test(value), "Use a full URL beginning with http or https."),
+    campaignGoal: z.string().trim().min(20, "Tell us a little more about the campaign.").max(1000),
+    deliverables: z.array(z.string().trim().min(1)).min(1, "Choose at least one deliverable.").max(8),
+    targetNiches: z.array(z.string().trim().min(1)).min(1, "Choose at least one niche.").max(6),
+    targetPlatforms: z.array(z.string().trim().min(1)).min(1, "Choose at least one platform.").max(4),
+    customPlatformName: z.string().trim().max(80).optional().default(""),
+    budgetRange: z.string().trim().optional().default(""),
+    initialOfferAmount: z.coerce.number().int("Enter a whole INR amount.").positive("Enter the exact initial offer amount."),
+    isNegotiable: z.boolean().default(false),
+    timeline: z
+      .string()
+      .trim()
+      .min(2, "Timeline is required.")
+      .max(120)
+      .refine((value) => timelinePattern.test(value), "Use a clear timeline, for example 2 weeks or 14 days."),
+    message: z.string().trim().max(1500).optional().default(""),
+    creatorUsername: z.string().trim().toLowerCase().max(40).optional().default(""),
+  })
+  .superRefine((value, context) => {
+    if (value.targetPlatforms.includes("other") && value.customPlatformName.trim().length < 2) {
+      context.addIssue({
+        code: "custom",
+        message: "Specify the other platform.",
+        path: ["customPlatformName"],
+      });
+    }
+  })
+  .transform((value) => ({
+    ...value,
+    customPlatformName: value.targetPlatforms.includes("other") ? value.customPlatformName.trim() : "",
+  }));
 
 export const collaborationPaymentSchema = z.object({
   action: z.enum(["mark_payment_sent", "mark_payment_received", "mark_payment_disputed"]),

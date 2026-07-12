@@ -36,6 +36,7 @@ export interface ICreatorProfile extends Document {
   verifiedEngagementRate?: number;
   verificationCode?: string;
   verificationPlatform?: CreatorVerificationPlatform;
+  customPlatformName?: string;
   verificationProfileUrl?: string;
   verificationSubmittedNote?: string;
   verificationNote?: string;
@@ -107,6 +108,7 @@ const CreatorProfileSchema = new Schema<ICreatorProfile>(
     verifiedEngagementRate: { type: Number, default: 0, min: 0 },
     verificationCode: { type: String, default: "" },
     verificationPlatform: { type: String, enum: ["youtube", "instagram", "twitch", "other"], default: "youtube" },
+    customPlatformName: { type: String, trim: true, maxlength: 80, default: "" },
     verificationProfileUrl: { type: String, trim: true, default: "" },
     verificationSubmittedNote: { type: String, trim: true, maxlength: 500, default: "" },
     verificationNote: { type: String, maxlength: 500, default: "" },

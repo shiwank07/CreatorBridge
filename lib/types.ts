@@ -70,7 +70,9 @@ export type CreatorCardData = {
   verificationStatus: VerificationStatus;
   verificationCode?: string;
   verificationPlatform?: CreatorVerificationPlatform;
+  customPlatformName?: string;
   verificationProfileUrl?: string;
+  verificationSubmittedNote?: string;
   avgViews?: number;
   instagramFollowers?: number;
   sponsorshipRate?: number;
@@ -106,6 +108,7 @@ export type CreatorVerificationData = {
   verificationStatus: VerificationStatus;
   verificationCode?: string;
   verificationPlatform?: CreatorVerificationPlatform;
+  customPlatformName?: string;
   verificationProfileUrl?: string;
   verificationSubmittedNote?: string;
   verificationNote?: string;
@@ -184,6 +187,7 @@ export type BrandInquiryData = {
   deliverables: string[];
   targetNiches: string[];
   targetPlatforms: string[];
+  customPlatformName?: string;
   budgetRange: string;
   initialOfferAmount?: number;
   currentOfferAmount?: number;

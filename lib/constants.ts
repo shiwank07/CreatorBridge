@@ -30,6 +30,7 @@ export const PLATFORMS = [
   { label: "YouTube", value: "youtube" },
   { label: "Instagram", value: "instagram" },
   { label: "Podcast", value: "podcast" },
+  { label: "Other", value: "other" },
 ] as const;
 
 export const BUDGET_RANGES = [

@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Camera, ExternalLink, Languages, MapPin, Radio, Send, ShieldCheck, Tags, TvMinimalPlay } from "lucide-react";
+import { Camera, ExternalLink, Globe2, Languages, MapPin, Radio, Send, ShieldCheck, Tags, TvMinimalPlay } from "lucide-react";
 
 import { CreatorProfileHeader } from "@/components/creators/creator-profile-header";
 import { StatBox } from "@/components/creators/stat-box";
@@ -14,6 +14,7 @@ import { canStartCreatorCollaboration, creatorAvailabilityNotice } from "@/lib/a
 import { authHref } from "@/lib/auth-redirect";
 import { formatINR, formatNumber } from "@/lib/format";
 import { getCurrentAppUser } from "@/lib/current-user";
+import { platformDisplayName } from "@/lib/platforms";
 import { calculateCreatorProfileCompletion } from "@/lib/profile-completion";
 import { getCreatorCollaborationHistorySummary } from "@/lib/queries/collaborations";
 import { creatorMetaDescription, getCreatorByUsername } from "@/lib/queries/creators";
@@ -100,6 +101,12 @@ export default async function CreatorProfilePage({ params }: { params: CreatorPr
   const normalizedVerification = normalizeCreatorVerificationStatus(creator.verificationStatus);
   const canStart = canStartCreatorCollaboration(creator.availabilityStatus, creator.isOpenToDeals);
   const availabilityNotice = creatorAvailabilityNotice(creator.availabilityStatus, creator.isOpenToDeals);
+  const knownPlatformUrls = [creator.youtubeUrl, creator.instagramUrl, creator.podcastUrl].filter(Boolean);
+  const customPlatformLabel = creator.verificationPlatform === "other" ? platformDisplayName("other", creator.customPlatformName) : "";
+  const customPlatformHref =
+    customPlatformLabel && creator.verificationProfileUrl && !knownPlatformUrls.includes(creator.verificationProfileUrl)
+      ? creator.verificationProfileUrl
+      : "";
   const ownerProfileCompletion = calculateCreatorProfileCompletion({
     creator,
     emailVerified: Boolean(viewer?.emailVerified),
@@ -109,6 +116,7 @@ export default async function CreatorProfilePage({ params }: { params: CreatorPr
     creator.youtubeUrl ? { label: "YouTube", href: creator.youtubeUrl, icon: TvMinimalPlay } : null,
     creator.instagramUrl ? { label: "Instagram", href: creator.instagramUrl, icon: Camera } : null,
     creator.podcastUrl ? { label: "Podcast", href: creator.podcastUrl, icon: Radio } : null,
+    customPlatformHref ? { label: customPlatformLabel, href: customPlatformHref, icon: Globe2 } : null,
   ].filter(Boolean) as { label: string; href: string; icon: typeof TvMinimalPlay }[];
   const rateType = (creator.rateType ?? "per_video").replace("_", " ");
 
@@ -118,7 +126,7 @@ export default async function CreatorProfilePage({ params }: { params: CreatorPr
     name: creator.name,
     url: `${process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000"}/creators/${creator.username}`,
     jobTitle: `${creator.niche[0] ?? "Content"} Creator`,
-    sameAs: [creator.youtubeUrl, creator.instagramUrl, creator.podcastUrl].filter(Boolean),
+    sameAs: [creator.youtubeUrl, creator.instagramUrl, creator.podcastUrl, customPlatformHref].filter(Boolean),
   };
 
   return (

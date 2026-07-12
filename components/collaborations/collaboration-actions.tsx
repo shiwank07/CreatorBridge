@@ -65,7 +65,7 @@ function currentOfferLabel(collaboration: BrandInquiryData) {
 
 function OfferSummary({ collaboration }: { collaboration: BrandInquiryData }) {
   return (
-    <div className="min-w-0 rounded-[8px] border border-cyan-300/20 bg-cyan-300/10 p-3 [overflow-wrap:anywhere]">
+    <div className="min-w-0 rounded-[8px] border border-cyan-300/20 bg-cyan-300/10 p-3 [overflow-wrap:break-word] [word-break:normal]">
       <p className="text-xs font-bold uppercase text-cyan-100">Offer Details</p>
       <div className="mt-3 grid gap-2 text-xs leading-5 text-[var(--text-secondary)]">
         <p>
@@ -202,7 +202,7 @@ export function CollaborationActions({ collaboration, mode }: CollaborationActio
   }
 
   const paymentPanel = canManagePayment(collaboration.status) ? (
-    <div className="min-w-0 rounded-[8px] border border-yellow-700/40 bg-yellow-950/20 p-3 [overflow-wrap:anywhere]">
+    <div className="min-w-0 rounded-[8px] border border-yellow-700/40 bg-yellow-950/20 p-3 [overflow-wrap:break-word] [word-break:normal]">
       <div className="flex items-start gap-2">
         <AlertTriangle size={16} className="mt-0.5 shrink-0 text-yellow-200" />
         <p className="text-xs leading-5 text-yellow-100">
@@ -260,7 +260,7 @@ export function CollaborationActions({ collaboration, mode }: CollaborationActio
       return (
         <div className="mt-4 grid gap-3">
           <OfferSummary collaboration={collaboration} />
-          <div className="min-w-0 rounded-[8px] border border-white/10 bg-white/[0.035] p-3 [overflow-wrap:anywhere]">
+          <div className="min-w-0 rounded-[8px] border border-white/10 bg-white/[0.035] p-3 [overflow-wrap:break-word] [word-break:normal]">
           <p className="text-xs font-bold uppercase text-cyan-100">Request Details</p>
           {error ? (
             <div role="alert" className="mt-3 rounded-[8px] border border-red-900 bg-red-950/40 px-3 py-2 text-xs text-red-200">
@@ -311,7 +311,7 @@ export function CollaborationActions({ collaboration, mode }: CollaborationActio
       return (
         <div className="mt-4 grid gap-3">
           <OfferSummary collaboration={collaboration} />
-          <div className="min-w-0 rounded-[8px] border border-white/10 bg-white/[0.035] p-3 text-xs leading-5 text-[var(--text-secondary)] [overflow-wrap:anywhere]">
+          <div className="min-w-0 rounded-[8px] border border-white/10 bg-white/[0.035] p-3 text-xs leading-5 text-[var(--text-secondary)] [overflow-wrap:break-word] [word-break:normal]">
             {collaboration.creatorResponseNote ? (
               <span>
                 <span className="font-semibold text-[var(--text-primary)]">Response:</span> {collaboration.creatorResponseNote}
@@ -328,7 +328,7 @@ export function CollaborationActions({ collaboration, mode }: CollaborationActio
       <div className="mt-4 grid gap-3">
         <OfferSummary collaboration={collaboration} />
         {paymentPanel}
-        <div className="min-w-0 rounded-[8px] border border-white/10 bg-white/[0.035] p-3 [overflow-wrap:anywhere]">
+        <div className="min-w-0 rounded-[8px] border border-white/10 bg-white/[0.035] p-3 [overflow-wrap:break-word] [word-break:normal]">
         {error ? (
           <div role="alert" className="mb-3 rounded-[8px] border border-red-900 bg-red-950/40 px-3 py-2 text-xs text-red-200">
             {error}
@@ -431,7 +431,7 @@ export function CollaborationActions({ collaboration, mode }: CollaborationActio
       <OfferSummary collaboration={collaboration} />
       {paymentPanel}
       {canBrandCancel(collaboration.status) ? (
-        <div className="min-w-0 rounded-[8px] border border-red-900/60 bg-red-950/25 p-3 [overflow-wrap:anywhere]">
+        <div className="min-w-0 rounded-[8px] border border-red-900/60 bg-red-950/25 p-3 [overflow-wrap:break-word] [word-break:normal]">
           <p className="text-xs font-bold uppercase text-red-100">Pending request</p>
           <p className="mt-2 text-xs leading-5 text-red-100/90">
             You can cancel this request before the creator accepts. After acceptance or work start, cancellation requires dispute/admin review.
@@ -456,7 +456,7 @@ export function CollaborationActions({ collaboration, mode }: CollaborationActio
           Cancellation after acceptance or work start requires dispute/admin review.
         </div>
       ) : null}
-      <div className="min-w-0 rounded-[8px] border border-white/10 bg-white/[0.035] p-3 [overflow-wrap:anywhere]">
+      <div className="min-w-0 rounded-[8px] border border-white/10 bg-white/[0.035] p-3 [overflow-wrap:break-word] [word-break:normal]">
       <p className="text-xs font-bold uppercase text-[var(--text-muted)]">Delivery Proof</p>
       {error ? (
         <div role="alert" className="mt-3 rounded-[8px] border border-red-900 bg-red-950/40 px-3 py-2 text-xs text-red-200">

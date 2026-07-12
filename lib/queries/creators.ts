@@ -42,7 +42,9 @@ type CreatorDocumentWithUser = {
   verificationStatus?: VerificationStatus;
   verificationCode?: string;
   verificationPlatform?: "youtube" | "instagram" | "twitch" | "other";
+  customPlatformName?: string;
   verificationProfileUrl?: string;
+  verificationSubmittedNote?: string;
   avgViews?: number;
   instagramFollowers?: number;
   sponsorshipRate?: number;
@@ -89,6 +91,7 @@ export const demoCreators: CreatorCardData[] = [
     verifiedEngagementRate: 21.3,
     statsVerificationStatus: "verified",
     verificationStatus: "verified",
+    verificationPlatform: "youtube",
     avgViews: 145000,
     instagramFollowers: 94000,
     sponsorshipRate: 85000,
@@ -119,6 +122,7 @@ export const demoCreators: CreatorCardData[] = [
     verifiedEngagementRate: 21.7,
     statsVerificationStatus: "verified",
     verificationStatus: "verified",
+    verificationPlatform: "youtube",
     avgViews: 260000,
     sponsorshipRate: 140000,
     rateType: "per_campaign",
@@ -147,6 +151,7 @@ export const demoCreators: CreatorCardData[] = [
     claimedEngagementRate: 20.7,
     statsVerificationStatus: "unverified",
     verificationStatus: "unverified",
+    verificationPlatform: "youtube",
     avgViews: 87000,
     instagramFollowers: 185000,
     sponsorshipRate: 65000,
@@ -178,6 +183,7 @@ export const demoCreators: CreatorCardData[] = [
     verifiedEngagementRate: 26.8,
     statsVerificationStatus: "verified",
     verificationStatus: "verified",
+    verificationPlatform: "youtube",
     avgViews: 51000,
     instagramFollowers: 320000,
     sponsorshipRate: 52000,
@@ -206,6 +212,7 @@ export const demoCreators: CreatorCardData[] = [
     claimedEngagementRate: 29.5,
     statsVerificationStatus: "unverified",
     verificationStatus: "unverified",
+    verificationPlatform: "instagram",
     avgViews: 23000,
     instagramFollowers: 410000,
     sponsorshipRate: 38000,
@@ -237,6 +244,7 @@ export const demoCreators: CreatorCardData[] = [
     verifiedEngagementRate: 24.6,
     statsVerificationStatus: "verified",
     verificationStatus: "verified",
+    verificationPlatform: "youtube",
     avgViews: 64000,
     instagramFollowers: 530000,
     sponsorshipRate: 72000,
@@ -304,7 +312,9 @@ function mapCreator(doc: CreatorDocumentWithUser, options?: { includePrivatePaym
     verificationStatus,
     verificationCode: doc.verificationCode,
     verificationPlatform: doc.verificationPlatform,
+    customPlatformName: doc.customPlatformName,
     verificationProfileUrl: doc.verificationProfileUrl,
+    verificationSubmittedNote: doc.verificationSubmittedNote,
     avgViews: getPublicAverageViews(subscriberSnapshot),
     instagramFollowers: doc.instagramFollowers,
     sponsorshipRate: doc.sponsorshipRate,
@@ -364,6 +374,10 @@ function filterDemoCreators(filters: CreatorFilters) {
 
   if (filters.platform === "podcast") {
     result = result.filter((creator) => Boolean(creator.podcastUrl));
+  }
+
+  if (filters.platform === "other") {
+    result = result.filter((creator) => creator.verificationPlatform === "other" && Boolean(creator.verificationProfileUrl));
   }
 
   if (filters.country) {
@@ -431,6 +445,7 @@ export async function getCreators(filters: CreatorFilters = {}): Promise<Creator
     if (filters.platform === "youtube") andClauses.push({ youtubeUrl: { $ne: "" } });
     if (filters.platform === "instagram") andClauses.push({ instagramUrl: { $ne: "" } });
     if (filters.platform === "podcast") andClauses.push({ podcastUrl: { $ne: "" } });
+    if (filters.platform === "other") andClauses.push({ verificationPlatform: "other", verificationProfileUrl: { $ne: "" } });
 
     if (filters.search) {
       const regex = new RegExp(escapeRegex(filters.search.trim()), "i");

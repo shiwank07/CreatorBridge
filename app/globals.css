@@ -85,9 +85,11 @@ textarea {
 
 .bridge-card {
   @apply rounded-[8px] border border-[var(--border)] bg-[rgba(17,19,26,0.88)] shadow-[0_18px_50px_rgba(0,0,0,0.18)] transition-all duration-300;
+  width: 100%;
   min-width: 0;
   max-width: 100%;
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word;
+  word-break: normal;
   position: relative;
   transform: translateZ(0);
   transition:
@@ -105,6 +107,8 @@ textarea {
   @apply focus-ring w-full rounded-[8px] border border-[var(--border)] bg-[#0b0f16] px-4 py-3 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)] transition-colors disabled:cursor-not-allowed disabled:opacity-70;
   min-width: 0;
   max-width: 100%;
+  overflow-wrap: break-word;
+  word-break: normal;
 }
 
 .bridge-input:focus {
@@ -124,13 +128,15 @@ textarea {
 
 .bridge-button-primary {
   @apply focus-ring inline-flex max-w-full items-center justify-center gap-2 whitespace-normal rounded-[8px] bg-[var(--accent)] px-5 py-3 text-center text-sm font-semibold text-white shadow-[0_12px_28px_rgba(124,58,237,0.24)] transition hover:-translate-y-0.5 hover:bg-violet-500 disabled:cursor-not-allowed disabled:opacity-55;
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word;
+  word-break: normal;
   transform: translateZ(0);
 }
 
 .bridge-button-secondary {
   @apply focus-ring inline-flex max-w-full items-center justify-center gap-2 whitespace-normal rounded-[8px] border border-[var(--border)] bg-[rgba(17,19,26,0.72)] px-5 py-3 text-center text-sm font-semibold text-[var(--text-primary)] transition hover:-translate-y-0.5 hover:border-[var(--border-accent)] hover:bg-[var(--bg-elevated)] disabled:cursor-not-allowed disabled:opacity-55;
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word;
+  word-break: normal;
   transform: translateZ(0);
 }
 
@@ -195,9 +201,11 @@ textarea {
 
 .bridge-panel {
   @apply rounded-[8px] border border-[var(--border)] bg-[rgba(8,11,17,0.76)];
+  width: 100%;
   min-width: 0;
   max-width: 100%;
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word;
+  word-break: normal;
   position: relative;
   transform: translateZ(0);
   transition:
@@ -489,7 +497,9 @@ textarea {
 
 .creator-filter-input {
   width: 100%;
+  min-width: 0;
   min-height: 48px;
+  max-width: 100%;
   border-radius: 8px;
   border: 1px solid rgba(255, 255, 255, 0.1);
   background: rgba(5, 8, 18, 0.72);

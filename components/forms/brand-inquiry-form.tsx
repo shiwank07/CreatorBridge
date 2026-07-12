@@ -6,6 +6,7 @@ import { Building2, Check, ChevronLeft, ChevronRight, ClipboardList, Loader2, Me
 
 import { NICHES, PLATFORMS } from "@/lib/constants";
 import { formatINR } from "@/lib/format";
+import { customPlatformValue, platformDisplayName } from "@/lib/platforms";
 import { cn } from "@/lib/utils";
 
 type BrandInquiryFormProps = {
@@ -21,6 +22,7 @@ type InquiryState = {
   deliverables: string[];
   targetNiches: string[];
   targetPlatforms: string[];
+  customPlatformName: string;
   initialOfferAmount: string;
   timeline: string;
   message: string;
@@ -101,14 +103,15 @@ export function BrandInquiryForm({ creatorUsername = "" }: BrandInquiryFormProps
     deliverables: ["Dedicated video"],
     targetNiches: creatorUsername ? [] : ["Tech"],
     targetPlatforms: ["youtube"],
+    customPlatformName: "",
     initialOfferAmount: "",
     timeline: "",
     message: "",
   });
 
   const selectedPlatforms = useMemo(
-    () => PLATFORMS.filter((platform) => form.targetPlatforms.includes(platform.value)).map((platform) => platform.label),
-    [form.targetPlatforms],
+    () => form.targetPlatforms.map((platform) => platformDisplayName(platform, form.customPlatformName)),
+    [form.customPlatformName, form.targetPlatforms],
   );
   const currentStep = steps[stepIndex];
   const isFinalStep = stepIndex === steps.length - 1;
@@ -139,10 +142,14 @@ export function BrandInquiryForm({ creatorUsername = "" }: BrandInquiryFormProps
   }
 
   function toggleArray(key: "targetNiches" | "targetPlatforms" | "deliverables", value: string) {
-    setForm((current) => ({
-      ...current,
-      [key]: current[key].includes(value) ? current[key].filter((item) => item !== value) : [...current[key], value],
-    }));
+    setForm((current) => {
+      const nextValues = current[key].includes(value) ? current[key].filter((item) => item !== value) : [...current[key], value];
+      return {
+        ...current,
+        [key]: nextValues,
+        ...(key === "targetPlatforms" ? { customPlatformName: customPlatformValue(nextValues, current.customPlatformName) } : {}),
+      };
+    });
     setFieldErrors((current) => ({ ...current, [key]: undefined, form: undefined }));
   }
 
@@ -169,6 +176,9 @@ export function BrandInquiryForm({ creatorUsername = "" }: BrandInquiryFormProps
       if (form.deliverables.length === 0) errors.deliverables = "Choose at least one deliverable.";
       if (form.targetNiches.length === 0) errors.targetNiches = "Choose at least one target niche.";
       if (form.targetPlatforms.length === 0) errors.targetPlatforms = "Choose at least one platform.";
+      if (form.targetPlatforms.includes("other") && form.customPlatformName.trim().length < 2) {
+        errors.customPlatformName = "Specify the other platform.";
+      }
     }
 
     return errors;
@@ -228,6 +238,7 @@ export function BrandInquiryForm({ creatorUsername = "" }: BrandInquiryFormProps
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           ...form,
+          customPlatformName: customPlatformValue(form.targetPlatforms, form.customPlatformName),
           budgetRange: form.initialOfferAmount ? formatINR(Number(form.initialOfferAmount)) : "Exact offer not recorded",
           isNegotiable: false,
           creatorUsername,
@@ -492,6 +503,19 @@ export function BrandInquiryForm({ creatorUsername = "" }: BrandInquiryFormProps
                       })}
                     </div>
                     <FieldError message={fieldErrors.targetPlatforms} />
+                    {form.targetPlatforms.includes("other") ? (
+                      <label className="mt-4 block">
+                        <span className="bridge-label">Specify platform</span>
+                        <input
+                          value={form.customPlatformName}
+                          onChange={(event) => setField("customPlatformName", event.target.value)}
+                          className="bridge-input mt-2"
+                          placeholder="Kick, Snapchat, Threads, personal blog..."
+                          required
+                        />
+                        <FieldError message={fieldErrors.customPlatformName} />
+                      </label>
+                    ) : null}
                   </div>
                 </div>
               ) : null}

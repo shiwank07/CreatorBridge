@@ -35,6 +35,7 @@ export async function GET() {
       status: profile.verificationStatus,
       verificationCode: profile.verificationCode,
       verificationPlatform: profile.verificationPlatform,
+      customPlatformName: profile.customPlatformName,
       verificationProfileUrl: profile.verificationProfileUrl,
       verificationSubmittedNote: profile.verificationSubmittedNote,
       verificationCodeExpiresAt: profile.verificationCodeExpiresAt?.toISOString(),

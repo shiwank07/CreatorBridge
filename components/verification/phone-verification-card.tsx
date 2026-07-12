@@ -1,7 +1,8 @@
 "use client";
 
-import { useRef, useState } from "react";
-import { useUser } from "@clerk/nextjs";
+import { useEffect, useRef, useState } from "react";
+import { useReverification, useUser } from "@clerk/nextjs";
+import { isReverificationCancelledError } from "@clerk/nextjs/errors";
 import { useRouter } from "next/navigation";
 import { CheckCircle2, Loader2, Phone, Send } from "lucide-react";
 
@@ -26,25 +27,63 @@ type PhoneVerificationCardProps = {
   className?: string;
 };
 
+type PhoneVerificationPhase =
+  | "not_added"
+  | "reverification_required"
+  | "sending_otp"
+  | "otp_sent"
+  | "verifying"
+  | "verified"
+  | "failed";
+
 const E164_PHONE_PATTERN = /^\+\d{7,15}$/;
+const RESEND_COOLDOWN_SECONDS = 30;
 
 function isVerified(phone?: ClerkPhoneResource | null) {
   return phone?.verification?.status === "verified";
 }
 
-function clerkErrorMessage(error: unknown) {
+function clerkErrors(error: unknown) {
   if (typeof error === "object" && error !== null && "errors" in error) {
-    const errors = (error as { errors?: { longMessage?: string; message?: string }[] }).errors;
-    const message = errors?.[0]?.longMessage ?? errors?.[0]?.message;
-    if (message) return message;
+    return (error as { errors?: { code?: string; longMessage?: string; message?: string }[] }).errors ?? [];
   }
 
-  return error instanceof Error ? error.message : "Could not verify this phone number.";
+  return [];
 }
 
-function statusLabel(phoneNumber: string, phoneVerified: boolean) {
-  if (phoneVerified) return { label: "Verified", tone: "green" as const };
-  if (phoneNumber.trim()) return { label: "Pending verification", tone: "yellow" as const };
+function hasClerkErrorCode(error: unknown, code: string) {
+  return clerkErrors(error).some((item) => item.code === code);
+}
+
+function clerkErrorMessage(error: unknown, fallback = "Could not verify this phone number.") {
+  const errors = clerkErrors(error);
+  const firstError = errors[0];
+  const errorCode = firstError?.code ?? "";
+  const message = firstError?.longMessage ?? firstError?.message ?? (error instanceof Error ? error.message : "");
+  const normalizedMessage = message.toLowerCase();
+
+  if (errorCode === "session_reverification_required") {
+    return "Reverification is required before adding this phone number. Complete the Clerk security check, then the OTP will be sent.";
+  }
+
+  if (errorCode === "form_code_incorrect" || normalizedMessage.includes("incorrect") || normalizedMessage.includes("invalid code")) {
+    return "That OTP is incorrect. Check the code and try again.";
+  }
+
+  if (errorCode.includes("expired") || normalizedMessage.includes("expired")) {
+    return "That OTP has expired. Send a new OTP and try again.";
+  }
+
+  return message || fallback;
+}
+
+function statusLabel(phase: PhoneVerificationPhase) {
+  if (phase === "verified") return { label: "Verified", tone: "green" as const };
+  if (phase === "reverification_required") return { label: "Reverification required", tone: "yellow" as const };
+  if (phase === "sending_otp") return { label: "Sending OTP", tone: "yellow" as const };
+  if (phase === "otp_sent") return { label: "OTP sent", tone: "yellow" as const };
+  if (phase === "verifying") return { label: "Verifying", tone: "yellow" as const };
+  if (phase === "failed") return { label: "Failed", tone: "neutral" as const };
   return { label: "Not added", tone: "neutral" as const };
 }
 
@@ -59,15 +98,56 @@ export function PhoneVerificationCard({
   const [phoneNumber, setPhoneNumber] = useState(initialPhoneNumber);
   const [code, setCode] = useState("");
   const [phoneVerified, setPhoneVerified] = useState(initialPhoneVerified);
+  const [phase, setPhase] = useState<PhoneVerificationPhase>(initialPhoneVerified ? "verified" : "not_added");
   const [codeSent, setCodeSent] = useState(false);
   const [isSending, setIsSending] = useState(false);
   const [isVerifying, setIsVerifying] = useState(false);
+  const [cooldownEndsAt, setCooldownEndsAt] = useState(0);
+  const [cooldownRemaining, setCooldownRemaining] = useState(0);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const normalizedPhoneNumber = normalizePhoneNumber(phoneNumber);
-  const currentStatus = statusLabel(phoneNumber, phoneVerified);
-  const canSend = isLoaded && Boolean(user) && E164_PHONE_PATTERN.test(normalizedPhoneNumber) && !phoneVerified && !isSending && !isVerifying;
-  const canVerify = Boolean(code.trim()) && !isSending && !isVerifying;
+  const currentStatus = statusLabel(phase);
+  const canSend =
+    isLoaded &&
+    Boolean(user) &&
+    E164_PHONE_PATTERN.test(normalizedPhoneNumber) &&
+    !phoneVerified &&
+    !isSending &&
+    !isVerifying &&
+    cooldownRemaining === 0;
+  const canVerify = codeSent && Boolean(code.trim()) && !isSending && !isVerifying;
+
+  const findOrCreatePhoneNumber = useReverification(async (value: string) => {
+    if (!user) throw new Error("Sign in before verifying a phone number.");
+
+    const existingPhone = user.phoneNumbers.find((phone) => samePhoneNumber(phone.phoneNumber, value)) as ClerkPhoneResource | undefined;
+    if (existingPhone) return existingPhone;
+
+    try {
+      return (await user.createPhoneNumber({ phoneNumber: value })) as ClerkPhoneResource;
+    } catch (createError) {
+      if (hasClerkErrorCode(createError, "session_reverification_required")) {
+        setPhase("reverification_required");
+      }
+      throw createError;
+    }
+  });
+
+  useEffect(() => {
+    if (!cooldownEndsAt) {
+      setCooldownRemaining(0);
+      return;
+    }
+
+    function updateCooldown() {
+      setCooldownRemaining(Math.max(0, Math.ceil((cooldownEndsAt - Date.now()) / 1000)));
+    }
+
+    updateCooldown();
+    const intervalId = window.setInterval(updateCooldown, 1000);
+    return () => window.clearInterval(intervalId);
+  }, [cooldownEndsAt]);
 
   async function syncVerifiedPhone(phone: ClerkPhoneResource) {
     const response = await fetch("/api/account/phone-verification", {
@@ -90,11 +170,12 @@ export function PhoneVerificationCard({
 
     setPhoneNumber(result.phoneNumber ?? phone.phoneNumber);
     setPhoneVerified(true);
+    setPhase("verified");
     setCode("");
     setCodeSent(false);
+    setCooldownEndsAt(0);
     activePhoneRef.current = null;
     setSuccess("Phone verified.");
-    await user?.reload();
     router.refresh();
   }
 
@@ -114,11 +195,13 @@ export function PhoneVerificationCard({
     }
 
     setIsSending(true);
+    setPhase("sending_otp");
     try {
-      const existingPhone = user.phoneNumbers.find((phone) => samePhoneNumber(phone.phoneNumber, normalizedPhoneNumber)) as ClerkPhoneResource | undefined;
-      const phone = existingPhone ?? ((await user.createPhoneNumber({ phoneNumber: normalizedPhoneNumber })) as ClerkPhoneResource);
+      const phone = await findOrCreatePhoneNumber(normalizedPhoneNumber);
+      setPhase("sending_otp");
 
       if (isVerified(phone)) {
+        await user.reload();
         await syncVerifiedPhone(phone);
         return;
       }
@@ -128,9 +211,16 @@ export function PhoneVerificationCard({
       setPhoneNumber(preparedPhone.phoneNumber || normalizedPhoneNumber);
       setPhoneVerified(false);
       setCodeSent(true);
+      setPhase("otp_sent");
+      setCooldownEndsAt(Date.now() + RESEND_COOLDOWN_SECONDS * 1000);
       setSuccess("Verification code sent.");
     } catch (sendError) {
-      setError(clerkErrorMessage(sendError));
+      setPhase("failed");
+      setError(
+        isReverificationCancelledError(sendError)
+          ? "Reverification was cancelled. Complete reverification before sending an OTP."
+          : clerkErrorMessage(sendError, "Could not send an OTP to this phone number."),
+      );
     } finally {
       setIsSending(false);
     }
@@ -156,20 +246,29 @@ export function PhoneVerificationCard({
     }
 
     setIsVerifying(true);
+    setPhase("verifying");
     try {
       const attemptedPhone = await activePhone.attemptVerification({ code: code.trim() });
+      const reloadedUser = await user.reload();
       const verifiedPhone = isVerified(attemptedPhone)
         ? attemptedPhone
-        : ((await user.reload()).phoneNumbers.find((phone) => phone.id === activePhone.id) as ClerkPhoneResource | undefined);
+        : (reloadedUser.phoneNumbers.find((phone) => phone.id === activePhone.id) as ClerkPhoneResource | undefined);
 
       if (!verifiedPhone || !isVerified(verifiedPhone)) {
-        setError("That code did not verify the phone number.");
+        setPhase("failed");
+        const verificationStatus = attemptedPhone.verification?.status ?? verifiedPhone?.verification?.status ?? "";
+        setError(
+          verificationStatus === "expired"
+            ? "That OTP has expired. Send a new OTP and try again."
+            : "That OTP did not verify the phone number. Check the code or request a new OTP.",
+        );
         return;
       }
 
       await syncVerifiedPhone(verifiedPhone);
     } catch (verifyError) {
-      setError(clerkErrorMessage(verifyError));
+      setPhase("failed");
+      setError(clerkErrorMessage(verifyError, "Could not verify this OTP."));
     } finally {
       setIsVerifying(false);
     }
@@ -198,7 +297,9 @@ export function PhoneVerificationCard({
             onChange={(event) => {
               setPhoneNumber(event.target.value);
               setPhoneVerified(false);
+              setPhase("not_added");
               setCodeSent(false);
+              setCooldownEndsAt(0);
               setCode("");
               activePhoneRef.current = null;
             }}
@@ -210,7 +311,15 @@ export function PhoneVerificationCard({
         </label>
         <button type="button" onClick={sendCode} disabled={!canSend} className="bridge-button-secondary mt-0 h-12 self-end px-4 lg:mt-7">
           {isSending ? <Loader2 size={17} className="animate-spin" /> : phoneVerified ? <CheckCircle2 size={17} /> : <Send size={17} />}
-          {phoneVerified ? "Synced" : isSending ? "Sending" : "Send OTP"}
+          {phoneVerified
+            ? "Synced"
+            : isSending
+              ? "Sending"
+              : cooldownRemaining > 0
+                ? `Resend in ${cooldownRemaining}s`
+                : codeSent
+                  ? "Resend OTP"
+                  : "Send OTP"}
         </button>
       </div>
 

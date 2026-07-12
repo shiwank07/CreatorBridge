@@ -18,6 +18,7 @@ export interface IBrandInquiry extends Document {
   deliverables: string[];
   targetNiches: string[];
   targetPlatforms: string[];
+  customPlatformName?: string;
   budgetRange: string;
   initialOfferAmount?: number;
   currentOfferAmount?: number;
@@ -126,6 +127,7 @@ const BrandInquirySchema = new Schema<IBrandInquiry>(
     deliverables: [{ type: String }],
     targetNiches: [{ type: String }],
     targetPlatforms: [{ type: String }],
+    customPlatformName: { type: String, trim: true, maxlength: 80, default: "" },
     budgetRange: { type: String, required: true },
     initialOfferAmount: { type: Number, min: 0, default: 0 },
     currentOfferAmount: { type: Number, min: 0, default: 0 },

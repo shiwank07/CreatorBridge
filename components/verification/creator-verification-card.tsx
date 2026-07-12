@@ -5,19 +5,19 @@ import { BadgeCheck, Check, Copy, ExternalLink, Loader2, ShieldCheck } from "luc
 
 import { Badge } from "@/components/shared/badge";
 import { type CreatorCardData, type CreatorVerificationPlatform } from "@/lib/types";
+import { platformDisplayName } from "@/lib/platforms";
 import { normalizeCreatorVerificationStatus, verificationBadgeLabel } from "@/lib/verification";
 
 type CreatorVerificationCardProps = {
   creator: CreatorCardData | null;
 };
 
-type CreatorVerificationUiPlatform = CreatorVerificationPlatform | "linkedin";
+type CreatorVerificationUiPlatform = CreatorVerificationPlatform;
 
 const platformOptions: { label: string; value: CreatorVerificationUiPlatform }[] = [
   { label: "YouTube", value: "youtube" },
   { label: "Instagram", value: "instagram" },
   { label: "Twitch", value: "twitch" },
-  { label: "LinkedIn", value: "linkedin" },
   { label: "Other", value: "other" },
 ];
 
@@ -26,18 +26,17 @@ function defaultProfileUrl(creator: CreatorCardData | null) {
 }
 
 function defaultPlatform(creator: CreatorCardData | null): CreatorVerificationUiPlatform {
-  const profileUrl = defaultProfileUrl(creator).toLowerCase();
-  if (profileUrl.includes("linkedin.com")) return "linkedin";
-
   return creator?.verificationPlatform ?? "youtube";
 }
 
-function platformSubmitValue(platform: CreatorVerificationUiPlatform): CreatorVerificationPlatform {
-  return platform === "linkedin" ? "other" : platform;
+function defaultCustomPlatformName(creator: CreatorCardData | null) {
+  if (creator?.customPlatformName) return creator.customPlatformName;
+  const noteMatch = creator?.verificationSubmittedNote?.match(/^Platform:\s*([^.]+)\./i);
+  return noteMatch?.[1]?.trim() ?? "";
 }
 
-function platformLabel(platform: CreatorVerificationUiPlatform) {
-  return platformOptions.find((option) => option.value === platform)?.label ?? "Other";
+function platformLabel(platform: CreatorVerificationUiPlatform, customPlatformName = "") {
+  return platformDisplayName(platform, customPlatformName);
 }
 
 function createClientVerificationCode() {
@@ -57,9 +56,11 @@ function ownershipStatusLabel(status: string, hasSubmittedProfileUrl: boolean) {
 
 export function CreatorVerificationCard({ creator }: CreatorVerificationCardProps) {
   const [platform, setPlatform] = useState<CreatorVerificationUiPlatform>(defaultPlatform(creator));
+  const [customPlatformName, setCustomPlatformName] = useState(defaultCustomPlatformName(creator));
   const [profileUrl, setProfileUrl] = useState(defaultProfileUrl(creator));
   const [submittedProfileUrl, setSubmittedProfileUrl] = useState(creator?.verificationProfileUrl ?? "");
   const [submittedPlatform, setSubmittedPlatform] = useState<CreatorVerificationUiPlatform>(defaultPlatform(creator));
+  const [submittedCustomPlatformName, setSubmittedCustomPlatformName] = useState(defaultCustomPlatformName(creator));
   const [note, setNote] = useState("");
   const [verificationCode, setVerificationCode] = useState(creator?.verificationCode ?? "");
   const [copied, setCopied] = useState(false);
@@ -74,7 +75,11 @@ export function CreatorVerificationCard({ creator }: CreatorVerificationCardProp
   const shouldShowForm = !isOwnershipVerified && (!hasSubmittedProfileUrl || canResubmit);
   const statusLabel = ownershipStatusLabel(status, hasSubmittedProfileUrl);
   const statusBadgeTone = isOwnershipVerified ? "green" : normalizedStatus === "pending" || status === "needs_review" ? "yellow" : "neutral";
-  const canSubmit = Boolean(verificationCode.trim()) && Boolean(profileUrl.trim()) && !isSaving;
+  const canSubmit =
+    Boolean(verificationCode.trim()) &&
+    Boolean(profileUrl.trim()) &&
+    (platform !== "other" || customPlatformName.trim().length >= 2) &&
+    !isSaving;
 
   useEffect(() => {
     if (!verificationCode && !isOwnershipVerified) {
@@ -102,15 +107,14 @@ export function CreatorVerificationCard({ creator }: CreatorVerificationCardProp
     setIsSaving(true);
 
     try {
-      const platformNote = platform === "linkedin" ? "Platform: LinkedIn." : "";
-      const submittedNote = [platformNote, note.trim()].filter(Boolean).join(" ");
       const response = await fetch("/api/creator-verification/submit", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          platform: platformSubmitValue(platform),
+          platform,
+          customPlatformName: platform === "other" ? customPlatformName.trim() : "",
           profileUrl,
-          note: submittedNote,
+          note: note.trim(),
           verificationCode,
         }),
       });
@@ -125,6 +129,7 @@ export function CreatorVerificationCard({ creator }: CreatorVerificationCardProp
       setVerificationCode(result.verificationCode ?? verificationCode);
       setSubmittedProfileUrl(profileUrl);
       setSubmittedPlatform(platform);
+      setSubmittedCustomPlatformName(platform === "other" ? customPlatformName.trim() : "");
       setSuccess("Creator verification was submitted for admin review.");
     } catch {
       setError("Could not reach the server. Please try again.");
@@ -150,7 +155,7 @@ export function CreatorVerificationCard({ creator }: CreatorVerificationCardProp
 
       <div className="mt-4 flex flex-wrap gap-2">
         <Badge tone={statusBadgeTone}>{statusLabel}</Badge>
-        {hasSubmittedProfileUrl ? <Badge tone="neutral">{platformLabel(submittedPlatform)}</Badge> : null}
+        {hasSubmittedProfileUrl ? <Badge tone="neutral">{platformLabel(submittedPlatform, submittedCustomPlatformName)}</Badge> : null}
       </div>
 
       {!isOwnershipVerified ? (
@@ -214,7 +219,15 @@ export function CreatorVerificationCard({ creator }: CreatorVerificationCardProp
       <form onSubmit={onSubmit} aria-busy={isSaving} className="mt-5 grid gap-3">
         <label>
           <span className="bridge-label">Platform type</span>
-          <select value={platform} onChange={(event) => setPlatform(event.target.value as CreatorVerificationUiPlatform)} className="bridge-input mt-2">
+          <select
+            value={platform}
+            onChange={(event) => {
+              const nextPlatform = event.target.value as CreatorVerificationUiPlatform;
+              setPlatform(nextPlatform);
+              if (nextPlatform !== "other") setCustomPlatformName("");
+            }}
+            className="bridge-input mt-2"
+          >
             {platformOptions.map((option) => (
               <option key={option.value} value={option.value}>
                 {option.label}
@@ -222,6 +235,18 @@ export function CreatorVerificationCard({ creator }: CreatorVerificationCardProp
             ))}
           </select>
         </label>
+        {platform === "other" ? (
+          <label>
+            <span className="bridge-label">Specify platform</span>
+            <input
+              value={customPlatformName}
+              onChange={(event) => setCustomPlatformName(event.target.value)}
+              className="bridge-input mt-2"
+              placeholder="Kick, Snapchat, Threads, personal blog..."
+              required
+            />
+          </label>
+        ) : null}
         <label>
           <span className="bridge-label">Platform profile URL</span>
           <input value={profileUrl} onChange={(event) => setProfileUrl(event.target.value)} className="bridge-input mt-2" placeholder="https://..." required />

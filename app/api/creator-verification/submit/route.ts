@@ -19,12 +19,27 @@ async function generateUniqueCreatorCode() {
   return `BZ-${Date.now().toString().slice(-6)}`;
 }
 
-const creatorVerificationSubmitSchema = z.object({
-  platform: z.enum(["youtube", "instagram", "twitch", "other"]),
-  profileUrl: z.string().trim().url("Enter a valid public profile URL.").max(500),
-  note: z.string().trim().max(500).optional().default(""),
-  verificationCode: z.string().trim().regex(/^BZ-\d{6}$/, "Use a valid BZ verification code.").optional(),
-});
+const creatorVerificationSubmitSchema = z
+  .object({
+    platform: z.enum(["youtube", "instagram", "twitch", "other"]),
+    customPlatformName: z.string().trim().max(80).optional().default(""),
+    profileUrl: z.string().trim().url("Enter a valid public profile URL.").max(500),
+    note: z.string().trim().max(500).optional().default(""),
+    verificationCode: z.string().trim().regex(/^BZ-\d{6}$/, "Use a valid BZ verification code.").optional(),
+  })
+  .superRefine((value, context) => {
+    if (value.platform === "other" && value.customPlatformName.trim().length < 2) {
+      context.addIssue({
+        code: "custom",
+        message: "Specify the other platform.",
+        path: ["customPlatformName"],
+      });
+    }
+  })
+  .transform((value) => ({
+    ...value,
+    customPlatformName: value.platform === "other" ? value.customPlatformName.trim() : "",
+  }));
 
 export async function POST(req: Request) {
   try {
@@ -79,6 +94,7 @@ export async function POST(req: Request) {
           verificationCode,
           verificationCodeExpiresAt: isExpired || !profile.verificationCodeExpiresAt ? verificationCodeExpiry() : profile.verificationCodeExpiresAt,
           verificationPlatform: parsed.data.platform,
+          customPlatformName: parsed.data.customPlatformName,
           verificationProfileUrl: parsed.data.profileUrl,
           verificationSubmittedNote: parsed.data.note,
           verificationSubmittedAt: now,

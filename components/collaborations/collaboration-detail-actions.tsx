@@ -14,7 +14,7 @@ export function CollaborationDetailActions({ collaboration, viewerRole }: Collab
   }
 
   return (
-    <section className="min-w-0 rounded-[8px] border border-white/10 bg-white/[0.04] p-5 [overflow-wrap:anywhere]">
+    <section className="min-w-0 rounded-[8px] border border-white/10 bg-white/[0.04] p-5 [overflow-wrap:break-word] [word-break:normal]">
       <p className="bridge-eyebrow">Actions</p>
       <h2 className="mt-2 font-display text-2xl font-bold">Collaboration response</h2>
       <p className="mt-2 text-sm leading-6 text-[var(--text-secondary)]">

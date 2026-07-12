@@ -144,6 +144,7 @@ export async function POST(req: Request) {
           ...(platformChanged
             ? {
                 verificationPlatform: "youtube",
+                customPlatformName: "",
                 verificationProfileUrl: "",
                 verificationSubmittedNote: "",
                 verificationNote: "",

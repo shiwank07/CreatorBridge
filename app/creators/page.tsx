@@ -10,6 +10,7 @@ import { Navbar } from "@/components/shared/navbar";
 import { authHref } from "@/lib/auth-redirect";
 import { getCurrentAppUser } from "@/lib/current-user";
 import { formatNumber } from "@/lib/format";
+import { platformDisplayName } from "@/lib/platforms";
 import { getCreators } from "@/lib/queries/creators";
 import { type CreatorCardData } from "@/lib/types";
 import { getPublicSubscriberCount } from "@/lib/verification";
@@ -95,7 +96,7 @@ export default async function CreatorsPage({ searchParams }: { searchParams: Cre
   const activeFilters = [
     filters.search ? `Search: ${filters.search}` : "",
     filters.niche ? `Niche: ${filters.niche}` : "",
-    filters.platform ? `Platform: ${filters.platform}` : "",
+    filters.platform ? `Platform: ${platformDisplayName(filters.platform)}` : "",
     filters.subscriberRange ? subscriberRangeLabel(filters.subscriberRange) : "",
     filters.priceRange ? priceRangeLabel(filters.priceRange) : "",
     filters.country ? `Country: ${filters.country}` : "",
