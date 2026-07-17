@@ -17,8 +17,6 @@ export function LandingHero({ viewerRole }: LandingHeroProps) {
       <div className="marketing-hero__grid" />
       <div className="marketing-hero__noise" />
       <div className="marketing-hero__streak" />
-      <CyberHeroMedia />
-
       <div className="bridge-section marketing-hero__inner">
         <div className="hero-copy-load marketing-hero__copy">
           <p className="marketing-hero__eyebrow">THE CREATOR COLLABORATION NETWORK</p>
@@ -43,6 +41,7 @@ export function LandingHero({ viewerRole }: LandingHeroProps) {
             </Link>
           </div>
         </div>
+        <CyberHeroMedia />
       </div>
     </section>
   );

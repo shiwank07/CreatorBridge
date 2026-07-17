@@ -1,7 +1,7 @@
 import { Geist, Geist_Mono, Manrope } from "next/font/google";
 
-import { MarketingNavbar } from "@/components/marketing/marketing-navbar";
 import { Footer } from "@/components/shared/footer";
+import { Navbar } from "@/components/shared/navbar";
 
 const manrope = Manrope({
   subsets: ["latin"],
@@ -24,7 +24,7 @@ const geistMono = Geist_Mono({
 export default function MarketingLayout({ children }: { children: React.ReactNode }) {
   return (
     <div className={`${manrope.variable} ${geistSans.variable} ${geistMono.variable} marketing-shell`}>
-      <MarketingNavbar />
+      <Navbar />
       {children}
       <Footer />
     </div>
