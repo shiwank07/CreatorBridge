@@ -8,6 +8,7 @@ import { User } from "@/lib/models/User";
 import { notificationService } from "@/lib/notifications/notification-service";
 import { getPendingCreatorVerifications } from "@/lib/queries/admin";
 import { creatorVerificationUpdateSchema } from "@/lib/validators/admin";
+import { isVerificationCode } from "@/lib/verification-code";
 
 export async function GET() {
   const admin = await getAdminState();
@@ -38,6 +39,10 @@ export async function PATCH(req: Request) {
 
     const profile = await CreatorProfile.findOne({ userId: user._id });
     if (!profile) return NextResponse.json({ error: "Creator profile not found." }, { status: 404 });
+
+    if ((parsed.data.action === "approve" || parsed.data.action === "approve_ownership") && !isVerificationCode(profile.verificationCode)) {
+      return NextResponse.json({ error: "The creator does not have a valid stored BZ or legacy CB verification code." }, { status: 400 });
+    }
 
     const now = new Date();
     const claimedSubscribers = profile.claimedSubscribers ?? profile.subscribers ?? 0;

@@ -61,27 +61,6 @@ function statusTone(status?: VerificationStatus | BrandVerificationStatus, accou
   return passportTone(normalized === "verified", normalized === "pending");
 }
 
-function phoneStatus(phoneAdded: boolean, phoneVerified: boolean) {
-  if (phoneVerified) {
-    return {
-      label: "Verified",
-      tone: "green" as const,
-    };
-  }
-
-  if (phoneAdded) {
-    return {
-      label: "Pending verification",
-      tone: "yellow" as const,
-    };
-  }
-
-  return {
-    label: "Not added",
-    tone: "neutral" as const,
-  };
-}
-
 function creatorPassportLabel(status?: VerificationStatus) {
   const normalized = normalizeCreatorVerificationStatus(status);
   if (normalized === "verified") return "Verified";
@@ -131,8 +110,6 @@ export function TrustPassportCard(props: TrustPassportCardProps) {
   const completedCollaborations = props.completedCollaborations ?? props.successfulCollaborations ?? 0;
   const disputes = props.disputes ?? 0;
   const hasResponseTime = Boolean(props.responseTimeLabel && props.responseTimeLabel !== "No data");
-  const hasPhone = Boolean(props.phoneVerified || props.phoneAdded || props.phoneNumber?.trim());
-  const phone = phoneStatus(hasPhone, Boolean(props.phoneVerified));
 
   return (
     <section className={props.className ?? "bridge-card p-5"}>
@@ -140,7 +117,6 @@ export function TrustPassportCard(props: TrustPassportCardProps) {
       <h2 className="mt-2 font-display text-xl font-bold">Verification and history signals</h2>
       <div className="mt-4 grid gap-2">
         <TrustRow label="Email Verified" value={props.emailVerified ? "Verified" : "Not verified"} tone={passportTone(Boolean(props.emailVerified))} />
-        <TrustRow label="Phone" value={phone.label} tone={phone.tone} />
         <TrustRow
           label="Creator Verification"
           value={creatorVerificationStatus ? creatorPassportLabel(creatorVerificationStatus) : "Not applicable"}

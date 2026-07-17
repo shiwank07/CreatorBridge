@@ -110,7 +110,6 @@ export default async function CreatorProfilePage({ params }: { params: CreatorPr
   const ownerProfileCompletion = calculateCreatorProfileCompletion({
     creator,
     emailVerified: Boolean(viewer?.emailVerified),
-    phoneVerified: Boolean(viewer?.phoneVerified || creator.phoneVerified),
   });
   const platformLinks = [
     creator.youtubeUrl ? { label: "YouTube", href: creator.youtubeUrl, icon: TvMinimalPlay } : null,

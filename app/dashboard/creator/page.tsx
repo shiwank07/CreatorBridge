@@ -254,7 +254,6 @@ export default async function CreatorDashboardPage() {
   const profileCompletion = calculateCreatorProfileCompletion({
     creator: creatorProfile,
     emailVerified: Boolean(user?.emailVerified),
-    phoneVerified: Boolean(user?.phoneVerified || creatorProfile?.phoneVerified),
   });
   const responseTime = averageResponseTimeLabel(collaborations, "creator");
   const disputes = countDisputes(collaborations);

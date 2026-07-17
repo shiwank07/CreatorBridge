@@ -73,6 +73,7 @@ export type CreatorCardData = {
   customPlatformName?: string;
   verificationProfileUrl?: string;
   verificationSubmittedNote?: string;
+  verificationRejectedReason?: string;
   avgViews?: number;
   instagramFollowers?: number;
   sponsorshipRate?: number;

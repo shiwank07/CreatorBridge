@@ -234,20 +234,6 @@ export function CreatorOnboardingForm({
             />
           </label>
           <label className="lg:col-span-2">
-            <span className="bridge-label">Phone number</span>
-            <input
-              value={form.phoneNumber}
-              onChange={(event) => setField("phoneNumber", event.target.value)}
-              className="bridge-input mt-2"
-              autoComplete="tel"
-              inputMode="tel"
-              placeholder="+91 98765 43210"
-            />
-            <span className="mt-2 block text-xs leading-5 text-[var(--text-secondary)]">
-              Your phone number is private and used only for account trust, support, and urgent collaboration issues.
-            </span>
-          </label>
-          <label className="lg:col-span-2">
             <span className="bridge-label">Profile photo image URL</span>
             {/* TODO: Replace URL-only profile photos with Cloudflare R2 or UploadThing uploads. Do not store image files in MongoDB. */}
             <input value={form.avatar} onChange={(event) => setField("avatar", event.target.value)} className="bridge-input mt-2" placeholder="https://example.com/photo.jpg" />

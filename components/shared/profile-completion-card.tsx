@@ -12,7 +12,6 @@ type ProfileCompletionCardProps = {
 
 const completedLabels: Record<string, string> = {
   email: "Email verified",
-  phone: "Phone verified",
   photo: "Profile photo added",
   bio: "Bio added",
   categories: "Categories added",
@@ -25,7 +24,6 @@ const completedLabels: Record<string, string> = {
 
 const remainingLabels: Record<string, string> = {
   email: "Email not verified",
-  phone: "Phone not verified",
   photo: "Profile photo missing",
   bio: "Bio missing",
   categories: "Categories missing",

@@ -39,11 +39,6 @@ function platformLabel(platform: CreatorVerificationUiPlatform, customPlatformNa
   return platformDisplayName(platform, customPlatformName);
 }
 
-function createClientVerificationCode() {
-  const suffix = Math.floor(100000 + Math.random() * 900000);
-  return `BZ-${suffix}`;
-}
-
 function ownershipStatusLabel(status: string, hasSubmittedProfileUrl: boolean) {
   if (status === "verified" || status === "ownership_verified") return "Verified Creator";
   if (status === "rejected") return "Verification Rejected";
@@ -82,9 +77,19 @@ export function CreatorVerificationCard({ creator }: CreatorVerificationCardProp
     !isSaving;
 
   useEffect(() => {
-    if (!verificationCode && !isOwnershipVerified) {
-      setVerificationCode(createClientVerificationCode());
-    }
+    if (verificationCode || isOwnershipVerified) return;
+
+    let active = true;
+    void fetch("/api/creator-verification/status")
+      .then((response) => response.json())
+      .then((result: { verificationCode?: string }) => {
+        if (active && result.verificationCode) setVerificationCode(result.verificationCode);
+      })
+      .catch(() => undefined);
+
+    return () => {
+      active = false;
+    };
   }, [isOwnershipVerified, verificationCode]);
 
   async function copyVerificationCode() {
@@ -115,7 +120,6 @@ export function CreatorVerificationCard({ creator }: CreatorVerificationCardProp
           customPlatformName: platform === "other" ? customPlatformName.trim() : "",
           profileUrl,
           note: note.trim(),
-          verificationCode,
         }),
       });
       const result = (await response.json().catch(() => ({}))) as { error?: string; status?: string; verificationCode?: string };
@@ -139,7 +143,7 @@ export function CreatorVerificationCard({ creator }: CreatorVerificationCardProp
   }
 
   return (
-    <section className="rounded-[8px] border border-white/10 bg-white/[0.04] p-5">
+    <section id="platform-verification" className="scroll-mt-24 rounded-[8px] border border-white/10 bg-white/[0.04] p-5">
       <div className="flex items-start justify-between gap-3">
         <div>
           <p className="bridge-eyebrow">Branzzo</p>
@@ -171,7 +175,7 @@ export function CreatorVerificationCard({ creator }: CreatorVerificationCardProp
             </button>
           </div>
           <p className="mt-3 text-xs leading-5 text-[var(--text-secondary)]">
-            Add this code to your platform bio/About section, then submit your platform link for admin review.
+            Place this exact code in your public platform bio/About section. Then submit the public profile URL so an admin can verify it.
           </p>
         </div>
       ) : null}
@@ -220,6 +224,7 @@ export function CreatorVerificationCard({ creator }: CreatorVerificationCardProp
         <label>
           <span className="bridge-label">Platform type</span>
           <select
+            id="creator-verification-platform"
             value={platform}
             onChange={(event) => {
               const nextPlatform = event.target.value as CreatorVerificationUiPlatform;
@@ -249,7 +254,7 @@ export function CreatorVerificationCard({ creator }: CreatorVerificationCardProp
         ) : null}
         <label>
           <span className="bridge-label">Platform profile URL</span>
-          <input value={profileUrl} onChange={(event) => setProfileUrl(event.target.value)} className="bridge-input mt-2" placeholder="https://..." required />
+          <input id="creator-verification-url" type="url" value={profileUrl} onChange={(event) => setProfileUrl(event.target.value)} className="bridge-input mt-2" placeholder="https://..." required />
         </label>
         <label>
           <span className="bridge-label">Verification note optional</span>

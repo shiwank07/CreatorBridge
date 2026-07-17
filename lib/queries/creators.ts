@@ -45,6 +45,7 @@ type CreatorDocumentWithUser = {
   customPlatformName?: string;
   verificationProfileUrl?: string;
   verificationSubmittedNote?: string;
+  verificationRejectedReason?: string;
   avgViews?: number;
   instagramFollowers?: number;
   sponsorshipRate?: number;
@@ -315,6 +316,7 @@ function mapCreator(doc: CreatorDocumentWithUser, options?: { includePrivatePaym
     customPlatformName: doc.customPlatformName,
     verificationProfileUrl: doc.verificationProfileUrl,
     verificationSubmittedNote: doc.verificationSubmittedNote,
+    verificationRejectedReason: doc.verificationRejectedReason,
     avgViews: getPublicAverageViews(subscriberSnapshot),
     instagramFollowers: doc.instagramFollowers,
     sponsorshipRate: doc.sponsorshipRate,

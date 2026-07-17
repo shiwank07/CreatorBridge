@@ -1,21 +1,6 @@
-import { randomInt } from "crypto";
-
-const VERIFICATION_CODE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 const PUBLIC_EMAIL_DOMAINS = new Set(["gmail.com", "yahoo.com", "outlook.com", "hotmail.com", "icloud.com"]);
 
-export function createVerificationCode(prefix = "BZ") {
-  if (prefix === "BZ") {
-    return `BZ-${randomInt(100000, 1000000)}`;
-  }
-
-  let suffix = "";
-
-  for (let index = 0; index < 5; index += 1) {
-    suffix += VERIFICATION_CODE_ALPHABET[randomInt(VERIFICATION_CODE_ALPHABET.length)];
-  }
-
-  return `${prefix}-${suffix}`;
-}
+export { createVerificationCode, formatVerificationCode, isVerificationCode, VERIFICATION_CODE_PATTERN } from "@/lib/verification-code";
 
 export function verificationCodeExpiry(days = 14) {
   const expiry = new Date();

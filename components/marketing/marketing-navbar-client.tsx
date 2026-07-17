@@ -1,12 +1,13 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useClerk, UserButton } from "@clerk/nextjs";
-import { Bell, History, LayoutDashboard, Menu, ShieldCheck, UserRound, X } from "lucide-react";
+import { useAuth, useClerk, UserButton } from "@clerk/nextjs";
+import { Bell, History, LayoutDashboard, Menu, Repeat2, ShieldCheck, UserRound, X } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 
 import { NotificationIndicator } from "@/components/notifications/notification-indicator";
+import { clearBranzzoClientState } from "@/lib/auth-client";
 import { type InAppNotificationData } from "@/lib/types";
 
 type NavItem = {
@@ -53,6 +54,7 @@ export function MarketingNavbarClient({
   const pathname = usePathname();
   const router = useRouter();
   const { signOut } = useClerk();
+  const { sessionId } = useAuth();
 
   useEffect(() => {
     setIsOpen(false);
@@ -75,9 +77,17 @@ export function MarketingNavbarClient({
 
   async function handleSignOut() {
     closeMenu();
-    await signOut().catch(() => undefined);
+    clearBranzzoClientState();
+    await signOut({ sessionId: sessionId ?? undefined });
     router.replace("/");
     router.refresh();
+  }
+
+  async function handleSwitchAccount() {
+    closeMenu();
+    clearBranzzoClientState();
+    await signOut({ sessionId: sessionId ?? undefined });
+    window.location.assign("/sign-in?switch=google");
   }
 
   const mobileLinks: NavItem[] = [
@@ -141,6 +151,7 @@ export function MarketingNavbarClient({
               <UserButton
                 customMenuItems={[
                   { label: "Account Settings", href: userMenuLinks.accountHref },
+                  { label: "Switch account", onClick: handleSwitchAccount },
                   { label: "Sign out", onClick: handleSignOut },
                 ]}
               >
@@ -153,7 +164,7 @@ export function MarketingNavbarClient({
                 </UserButton.MenuItems>
               </UserButton>
             ) : (
-              <UserButton customMenuItems={[{ label: "Sign out", onClick: handleSignOut }]} />
+              <UserButton customMenuItems={[{ label: "Switch account", onClick: handleSwitchAccount }, { label: "Sign out", onClick: handleSignOut }]} />
             )
           ) : null}
           <button
@@ -189,6 +200,12 @@ export function MarketingNavbarClient({
                   {item.label}
                 </Link>
               ))}
+              {isSignedIn ? (
+                <button type="button" onClick={handleSwitchAccount} className="focus-ring marketing-mobile-nav__link marketing-mobile-nav__button">
+                  <Repeat2 size={16} />
+                  Switch account
+                </button>
+              ) : null}
               {isSignedIn ? (
                 <button type="button" onClick={handleSignOut} className="focus-ring marketing-mobile-nav__link marketing-mobile-nav__button">
                   Sign out

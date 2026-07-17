@@ -372,7 +372,6 @@ export default async function BrandDashboardPage() {
   const profileCompletion = calculateBrandProfileCompletion({
     brand: brandProfile,
     emailVerified: Boolean(user?.emailVerified),
-    phoneVerified: Boolean(user?.phoneVerified || brandProfile?.phoneVerified),
     collaborations,
   });
   const responseTime = averageResponseTimeLabel(collaborations, "brand");

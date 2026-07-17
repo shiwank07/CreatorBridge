@@ -20,13 +20,11 @@ export type ProfileCompletionResult = {
 type CreatorCompletionInput = {
   creator: CreatorCardData | null;
   emailVerified?: boolean;
-  phoneVerified?: boolean;
 };
 
 type BrandCompletionInput = {
   brand: BrandProfileData | null;
   emailVerified?: boolean;
-  phoneVerified?: boolean;
   collaborations?: BrandInquiryData[];
 };
 
@@ -57,7 +55,6 @@ function summarize(items: ProfileCompletionItem[]): ProfileCompletionResult {
 export function calculateCreatorProfileCompletion({
   creator,
   emailVerified = false,
-  phoneVerified = false,
 }: CreatorCompletionInput): ProfileCompletionResult {
   const items: ProfileCompletionItem[] = [
     {
@@ -65,13 +62,6 @@ export function calculateCreatorProfileCompletion({
       label: "Email verified",
       done: emailVerified,
       helper: "Confirm the account email used for creator notifications.",
-      weight: 10,
-    },
-    {
-      key: "phone",
-      label: "Phone verified",
-      done: Boolean(phoneVerified || creator?.phoneVerified),
-      helper: "Verify a private phone number for trust and urgent support.",
       weight: 10,
     },
     {
@@ -138,7 +128,6 @@ export function calculateCreatorProfileCompletion({
 export function calculateBrandProfileCompletion({
   brand,
   emailVerified = false,
-  phoneVerified = false,
   collaborations = [],
 }: BrandCompletionInput): ProfileCompletionResult {
   const hasBudgetContext = collaborations.some((collaboration) =>
@@ -150,13 +139,6 @@ export function calculateBrandProfileCompletion({
       label: "Email verified",
       done: emailVerified,
       helper: "Use a reachable work email for brand contact and support.",
-      weight: 10,
-    },
-    {
-      key: "phone",
-      label: "Phone verified",
-      done: Boolean(phoneVerified || brand?.phoneVerified),
-      helper: "Verify a private phone number for trust and urgent support.",
       weight: 10,
     },
     {

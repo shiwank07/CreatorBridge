@@ -16,7 +16,7 @@ async function generateUniqueCreatorCode() {
     if (!existing) return code;
   }
 
-  return `BZ-${Date.now().toString().slice(-6)}`;
+  throw new Error("Could not allocate a unique verification code.");
 }
 
 const creatorVerificationSubmitSchema = z
@@ -25,7 +25,6 @@ const creatorVerificationSubmitSchema = z
     customPlatformName: z.string().trim().max(80).optional().default(""),
     profileUrl: z.string().trim().url("Enter a valid public profile URL.").max(500),
     note: z.string().trim().max(500).optional().default(""),
-    verificationCode: z.string().trim().regex(/^BZ-\d{6}$/, "Use a valid BZ verification code.").optional(),
   })
   .superRefine((value, context) => {
     if (value.platform === "other" && value.customPlatformName.trim().length < 2) {
@@ -74,17 +73,10 @@ export async function POST(req: Request) {
     }
 
     const now = new Date();
-    const isExpired = profile.verificationCodeExpiresAt ? profile.verificationCodeExpiresAt < now : false;
-    const requestedVerificationCode = parsed.data.verificationCode;
-    const requestedCodeExists = requestedVerificationCode
-      ? await CreatorProfile.exists({ verificationCode: requestedVerificationCode, _id: { $ne: profile._id } })
-      : null;
     const verificationCode =
-      profile.verificationCode && !isExpired
+      profile.verificationCode
         ? profile.verificationCode
-        : requestedVerificationCode && !requestedCodeExists
-          ? requestedVerificationCode
-          : await generateUniqueCreatorCode();
+        : await generateUniqueCreatorCode();
 
     await CreatorProfile.updateOne(
       { _id: profile._id },
@@ -92,7 +84,7 @@ export async function POST(req: Request) {
         $set: {
           verificationStatus: "pending",
           verificationCode,
-          verificationCodeExpiresAt: isExpired || !profile.verificationCodeExpiresAt ? verificationCodeExpiry() : profile.verificationCodeExpiresAt,
+          verificationCodeExpiresAt: profile.verificationCodeExpiresAt ?? verificationCodeExpiry(),
           verificationPlatform: parsed.data.platform,
           customPlatformName: parsed.data.customPlatformName,
           verificationProfileUrl: parsed.data.profileUrl,

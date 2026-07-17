@@ -1,10 +1,11 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { ArrowLeft, Building2, CheckCircle2, Circle, Clock3, UserRound } from "lucide-react";
+import { ArrowLeft, Building2, UserRound } from "lucide-react";
 import { type ReactNode } from "react";
 
 import { BrandVerificationCard } from "@/components/verification/brand-verification-card";
 import { CreatorVerificationCard } from "@/components/verification/creator-verification-card";
+import { VerificationStep as VerificationStepRow } from "@/components/verification/verification-step";
 import { Badge } from "@/components/shared/badge";
 import { Navbar } from "@/components/shared/navbar";
 import { getCurrentAppUser, getCurrentClerkUserId } from "@/lib/current-user";
@@ -25,6 +26,9 @@ type VerificationStep = {
   detail: string;
   done: boolean;
   current?: boolean;
+  href?: string;
+  targetId?: string;
+  focusId?: string;
 };
 
 function progressPercent(steps: VerificationStep[]) {
@@ -86,20 +90,8 @@ function ProgressPanel({
 
       <div className="mt-5 grid gap-3">
         {steps.map((step, index) => {
-          const Icon = step.done ? CheckCircle2 : step.current ? Clock3 : Circle;
-          const iconClass = step.done ? "text-emerald-200" : step.current ? "text-yellow-200" : "text-[var(--text-muted)]";
-
           return (
-            <div key={step.label} className="flex min-w-0 items-start gap-3 rounded-[8px] border border-white/10 bg-black/20 p-3">
-              <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-[8px] border border-white/10 bg-white/[0.04] text-xs font-bold text-[var(--text-secondary)]">
-                {index + 1}
-              </span>
-              <Icon size={18} className={`mt-1 shrink-0 ${iconClass}`} />
-              <div className="min-w-0">
-                <p className="text-sm font-semibold text-[var(--text-primary)]">{step.label}</p>
-                <p className="mt-1 text-xs leading-5 text-[var(--text-secondary)]">{step.detail}</p>
-              </div>
-            </div>
+            <VerificationStepRow key={step.label} index={index} {...step} />
           );
         })}
       </div>
@@ -117,7 +109,7 @@ function ProgressPanel({
   );
 }
 
-function creatorSteps(emailVerified: boolean, phoneVerified: boolean, creator: CreatorCardData | null): VerificationStep[] {
+function creatorSteps(emailVerified: boolean, creator: CreatorCardData | null): VerificationStep[] {
   const status = normalizeCreatorVerificationStatus(creator?.verificationStatus);
   const profileCompleted = Boolean(creator?.bio && creator.niche.length > 0 && creator.languages.length > 0);
   const platformSubmitted = Boolean(creator?.verificationProfileUrl);
@@ -127,39 +119,39 @@ function creatorSteps(emailVerified: boolean, phoneVerified: boolean, creator: C
       label: "Email verified",
       detail: emailVerified ? "Your Clerk email is verified on your Branzzo account." : "Verify your account email before review.",
       done: emailVerified,
-    },
-    {
-      label: "Phone verified",
-      detail: phoneVerified
-        ? "Your private support phone is verified."
-        : "Verify a phone from profile edit. It is used for trust, support, and urgent contact only.",
-      done: phoneVerified,
+      href: emailVerified ? undefined : "/dashboard/settings/account",
     },
     {
       label: "Profile completed",
       detail: profileCompleted ? "Your creator profile has the basic public details reviewers need." : "Add bio, niche, and languages in onboarding.",
       done: profileCompleted,
+      href: "/dashboard/creator/edit",
     },
     {
       label: "Platform ownership submitted",
       detail: platformSubmitted ? "A public platform link has been submitted for manual review." : "Submit a YouTube, Instagram, Twitch, or other public bio link.",
       done: platformSubmitted,
+      targetId: "platform-verification",
+      focusId: platformSubmitted ? "creator-verification-url" : "creator-verification-platform",
     },
     {
       label: "Admin review",
-      detail: status === "pending" ? "An admin needs to manually check your submitted bio/About section." : "Manual review starts after your platform link is submitted.",
-      done: status === "verified" || status === "rejected",
+      detail: status === "pending" ? "Under admin review." : status === "rejected" ? `Rejected: ${creator?.verificationRejectedReason || "Update the submission and resubmit."}` : "Manual review starts after your platform link is submitted.",
+      done: status === "verified",
       current: status === "pending",
+      targetId: status === "pending" ? undefined : "platform-verification",
+      focusId: "creator-verification-url",
     },
     {
       label: "Verified creator",
       detail: status === "verified" ? "Your public creator verification badge is active." : "Your badge appears after admin approval.",
       done: status === "verified",
+      href: status === "verified" && creator?.username ? `/creators/${creator.username}` : undefined,
     },
   ];
 }
 
-function brandSteps(emailVerified: boolean, phoneVerified: boolean, brand: BrandProfileData | null): VerificationStep[] {
+function brandSteps(emailVerified: boolean, brand: BrandProfileData | null): VerificationStep[] {
   const status = brand?.verificationStatus ?? "unverified";
   const profileCompleted = Boolean(brand?.companyName && brand.contactName && brand.industry);
 
@@ -168,18 +160,13 @@ function brandSteps(emailVerified: boolean, phoneVerified: boolean, brand: Brand
       label: "Email verified",
       detail: emailVerified ? "Your Clerk email is verified on your Branzzo account." : "Verify your account email before review.",
       done: emailVerified,
-    },
-    {
-      label: "Phone verified",
-      detail: phoneVerified
-        ? "Your private support phone is verified."
-        : "Verify a phone from profile edit. It is used for trust, support, and urgent contact only.",
-      done: phoneVerified,
+      href: emailVerified ? undefined : "/dashboard/settings/account",
     },
     {
       label: "Brand profile completed",
       detail: profileCompleted ? "Your brand profile includes company and industry details." : "Complete the brand profile basics in onboarding.",
       done: profileCompleted,
+      href: "/dashboard/brand/edit",
     },
     {
       label: "Company website submitted",
@@ -194,13 +181,15 @@ function brandSteps(emailVerified: boolean, phoneVerified: boolean, brand: Brand
     {
       label: "Admin review",
       detail: status === "pending" ? "An admin needs to manually check your company details." : "Manual review starts after company details are submitted.",
-      done: status === "verified" || status === "rejected",
+      done: status === "verified",
       current: status === "pending",
+      href: status === "pending" ? undefined : "/dashboard/brand/edit",
     },
     {
       label: "Verified brand",
       detail: status === "verified" ? "Your public brand verification badge is active." : "Your badge appears after admin approval.",
       done: status === "verified",
+      href: status === "verified" && brand?.username ? `/brands/${brand.username}` : undefined,
     },
   ];
 }
@@ -219,7 +208,7 @@ export default async function VerificationCenterPage() {
   if (user.role === "creator") {
     const creator = await getCreatorByUsername(user.username);
     const normalizedStatus = normalizeCreatorVerificationStatus(creator?.verificationStatus);
-    const code = creator?.verificationCode || "BZ-123456";
+    const code = creator?.verificationCode;
 
     return (
       <>
@@ -251,7 +240,7 @@ export default async function VerificationCenterPage() {
               description="Place your BZ code in your YouTube About section, Instagram bio, Twitch profile, or other platform bio, then submit the public link for admin review."
               status={normalizedStatus}
               statusLabel={verificationBadgeLabel(normalizedStatus)}
-              steps={creatorSteps(user.emailVerified, user.phoneVerified, creator)}
+              steps={creatorSteps(user.emailVerified, creator)}
               code={code}
               codeLabel={creator?.verificationCode ? "Your verification code" : "Code format"}
               codeHelp={
@@ -305,7 +294,7 @@ export default async function VerificationCenterPage() {
             description="Add your official website, work email or domain, and optional GST/CIN/VAT or company registration text so an admin can review trust signals."
             status={status}
             statusLabel={verificationBadgeLabel(status, "brand")}
-            steps={brandSteps(user.emailVerified, user.phoneVerified, brand)}
+            steps={brandSteps(user.emailVerified, brand)}
           >
             <div className="grid gap-3 sm:grid-cols-2">
               <div className="rounded-[8px] border border-white/10 bg-black/20 p-4 text-sm leading-6">

@@ -189,20 +189,6 @@ export function BrandOnboardingForm({
             <input type="email" value={form.contactEmail} onChange={(event) => setField("contactEmail", event.target.value)} className="bridge-input mt-2" required />
           </label>
           <label className="lg:col-span-2">
-            <span className="bridge-label">Phone number</span>
-            <input
-              value={form.phoneNumber}
-              onChange={(event) => setField("phoneNumber", event.target.value)}
-              className="bridge-input mt-2"
-              autoComplete="tel"
-              inputMode="tel"
-              placeholder="+91 98765 43210"
-            />
-            <span className="mt-2 block text-xs leading-5 text-[var(--text-secondary)]">
-              Your phone number is private and used only for account trust, support, and urgent collaboration issues.
-            </span>
-          </label>
-          <label className="lg:col-span-2">
             <span className="bridge-label">Notes</span>
           <textarea value={form.notes} onChange={(event) => setField("notes", event.target.value)} className="bridge-input mt-2 min-h-28" placeholder="Creator categories, markets, or internal context." />
         </label>

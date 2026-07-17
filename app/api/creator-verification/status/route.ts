@@ -6,6 +6,25 @@ import { hasClerkKeys } from "@/lib/clerk-config";
 import { connectDB, hasMongoUri } from "@/lib/db";
 import { CreatorProfile } from "@/lib/models/CreatorProfile";
 import { User } from "@/lib/models/User";
+import { createVerificationCode, verificationCodeExpiry } from "@/lib/verification-helpers";
+
+async function ensureVerificationCode(profileId: string, currentCode?: string) {
+  if (currentCode) return currentCode;
+
+  for (let attempt = 0; attempt < 25; attempt += 1) {
+    const verificationCode = createVerificationCode();
+    if (await CreatorProfile.exists({ verificationCode })) continue;
+
+    const updated = await CreatorProfile.findOneAndUpdate(
+      { _id: profileId, verificationCode: { $in: ["", null] } },
+      { $set: { verificationCode, verificationCodeExpiresAt: verificationCodeExpiry() } },
+      { new: true },
+    );
+    return updated?.verificationCode ?? verificationCode;
+  }
+
+  throw new Error("Could not allocate a unique verification code.");
+}
 
 export async function GET() {
   try {
@@ -30,10 +49,12 @@ export async function GET() {
     const profile = await CreatorProfile.findOne({ userId: user._id });
     if (!profile) return NextResponse.json({ error: "Creator profile not found." }, { status: 404 });
 
+    const verificationCode = await ensureVerificationCode(profile._id.toString(), profile.verificationCode);
+
     return NextResponse.json({
       ok: true,
       status: profile.verificationStatus,
-      verificationCode: profile.verificationCode,
+      verificationCode,
       verificationPlatform: profile.verificationPlatform,
       customPlatformName: profile.customPlatformName,
       verificationProfileUrl: profile.verificationProfileUrl,

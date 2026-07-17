@@ -3,10 +3,11 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useClerk, UserButton } from "@clerk/nextjs";
-import { Bell, History, LayoutDashboard, Menu, ShieldCheck, UserRound, X } from "lucide-react";
+import { useAuth, useClerk, UserButton } from "@clerk/nextjs";
+import { Bell, History, LayoutDashboard, Menu, Repeat2, ShieldCheck, UserRound, X } from "lucide-react";
 
 import { NotificationIndicator } from "@/components/notifications/notification-indicator";
+import { clearBranzzoClientState } from "@/lib/auth-client";
 import { type InAppNotificationData } from "@/lib/types";
 
 type NavItem = {
@@ -53,6 +54,7 @@ export function NavbarClient({
   const pathname = usePathname();
   const router = useRouter();
   const { signOut } = useClerk();
+  const { sessionId } = useAuth();
 
   useEffect(() => {
     setIsOpen(false);
@@ -75,9 +77,17 @@ export function NavbarClient({
 
   async function handleSignOut() {
     closeMenu();
-    await signOut().catch(() => undefined);
+    clearBranzzoClientState();
+    await signOut({ sessionId: sessionId ?? undefined });
     router.replace("/");
     router.refresh();
+  }
+
+  async function handleSwitchAccount() {
+    closeMenu();
+    clearBranzzoClientState();
+    await signOut({ sessionId: sessionId ?? undefined });
+    window.location.assign("/sign-in?switch=google");
   }
 
   const mobileLinks: NavItem[] = [
@@ -154,6 +164,7 @@ export function NavbarClient({
               <UserButton
                 customMenuItems={[
                   { label: "Account Settings", href: userMenuLinks.accountHref },
+                  { label: "Switch account", onClick: handleSwitchAccount },
                   { label: "Sign out", onClick: handleSignOut },
                 ]}
               >
@@ -166,7 +177,7 @@ export function NavbarClient({
                 </UserButton.MenuItems>
               </UserButton>
             ) : (
-              <UserButton customMenuItems={[{ label: "Sign out", onClick: handleSignOut }]} />
+              <UserButton customMenuItems={[{ label: "Switch account", onClick: handleSwitchAccount }, { label: "Sign out", onClick: handleSignOut }]} />
             )
           ) : null}
           <button
@@ -222,6 +233,16 @@ export function NavbarClient({
                   {item.label}
                 </Link>
               ))}
+              {isSignedIn ? (
+                <button
+                  type="button"
+                  onClick={handleSwitchAccount}
+                  className="focus-ring flex items-center gap-2 rounded-[8px] border border-white/10 bg-white/[0.035] px-4 py-3 text-left text-sm font-semibold text-[var(--text-primary)] transition hover:border-cyan-300/30 hover:bg-cyan-300/10"
+                >
+                  <Repeat2 size={16} />
+                  Switch account
+                </button>
+              ) : null}
               {isSignedIn ? (
                 <button
                   type="button"

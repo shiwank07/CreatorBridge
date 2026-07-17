@@ -54,7 +54,6 @@ export default async function BrandProfilePage({ params }: { params: BrandProfil
   const ownerProfileCompletion = calculateBrandProfileCompletion({
     brand,
     emailVerified: Boolean(viewer?.emailVerified),
-    phoneVerified: Boolean(viewer?.phoneVerified || brand.phoneVerified),
   });
 
   return (
