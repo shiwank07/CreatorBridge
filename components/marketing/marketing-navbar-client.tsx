@@ -81,7 +81,8 @@ export function MarketingNavbarClient({
   }
 
   const mobileLinks: NavItem[] = [
-    ...(showCreatorsAction ? [{ label: creatorsLabel, href: "/creators" }] : [{ label: "Browse Creators", href: "/creators" }]),
+    ...(isSignedIn ? navItems : []),
+    ...(showCreatorsAction ? [{ label: creatorsLabel, href: "/creators" }] : !isSignedIn ? [{ label: "Browse Creators", href: "/creators" }] : []),
     ...(!isSignedIn ? [{ label: "For Brands", href: "/#for-brands" }] : []),
     { label: isSignedIn ? primaryLabel : "Login", href: isSignedIn ? primaryHref : signInHref },
     ...(isSignedIn && showNotificationBell ? [{ label: "Notifications", href: "/notifications" }] : []),
@@ -102,15 +103,24 @@ export function MarketingNavbarClient({
           <span className="marketing-navbar__wordmark">Branzzo</span>
         </Link>
 
-        <nav className="marketing-navbar__links" aria-label="Primary navigation">
-          {navItems.map((item) => (
-            <Link key={item.label} href={item.href} className="focus-ring marketing-navbar__link">
-              {item.label}
-            </Link>
-          ))}
-        </nav>
+        {!isSignedIn ? (
+          <nav className="marketing-navbar__links" aria-label="Primary navigation">
+            {navItems.map((item) => (
+              <Link key={item.label} href={item.href} className="focus-ring marketing-navbar__link">
+                {item.label}
+              </Link>
+            ))}
+          </nav>
+        ) : null}
 
         <div className="marketing-navbar__actions">
+          {isSignedIn
+            ? navItems.map((item) => (
+                <Link key={item.label} href={item.href} className="focus-ring marketing-navbar__action-link">
+                  {item.label}
+                </Link>
+              ))
+            : null}
           {!isSignedIn ? (
             <Link href={signInHref} className="focus-ring marketing-navbar__login">
               Login

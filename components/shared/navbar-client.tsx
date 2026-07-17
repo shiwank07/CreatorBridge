@@ -81,7 +81,8 @@ export function NavbarClient({
   }
 
   const mobileLinks: NavItem[] = [
-    ...(showCreatorsAction ? [{ label: creatorsLabel, href: "/creators" }] : [{ label: "Browse Creators", href: "/creators" }]),
+    ...(isSignedIn ? navItems : []),
+    ...(showCreatorsAction ? [{ label: creatorsLabel, href: "/creators" }] : !isSignedIn ? [{ label: "Browse Creators", href: "/creators" }] : []),
     ...(!isSignedIn ? [{ label: "For Brands", href: "/#for-brands" }] : []),
     { label: isSignedIn ? primaryLabel : "Login", href: isSignedIn ? primaryHref : signInHref },
     ...(isSignedIn && showNotificationBell ? [{ label: "Notifications", href: "/notifications" }] : []),
@@ -107,19 +108,26 @@ export function NavbarClient({
           <span className="hidden truncate sm:inline">Branzzo</span>
         </Link>
 
-        <nav className="ml-auto hidden min-w-0 items-center rounded-full border border-white/10 bg-white/[0.045] px-1.5 py-1 text-xs text-[var(--text-secondary)] shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] lg:flex xl:text-sm">
+        <nav className={`ml-auto min-w-0 items-center text-sm text-[var(--text-secondary)] ${isSignedIn ? "hidden" : "hidden lg:flex"}`}>
           {navItems.map((item) => (
             <Link
               key={item.label}
               href={item.href}
-              className="focus-ring whitespace-nowrap rounded-full px-2.5 py-2 transition hover:bg-white/[0.07] hover:text-[var(--text-primary)] xl:px-3.5"
+              className="focus-ring inline-flex h-10 items-center whitespace-nowrap rounded-[8px] px-3 transition hover:bg-white/[0.06] hover:text-[var(--text-primary)]"
             >
               {item.label}
             </Link>
           ))}
         </nav>
 
-        <div className="ml-auto flex shrink-0 items-center gap-2 lg:ml-2">
+        <div className="ml-auto flex h-10 shrink-0 items-center gap-2">
+          {isSignedIn
+            ? navItems.map((item) => (
+                <Link key={item.label} href={item.href} className="focus-ring hidden h-10 items-center whitespace-nowrap rounded-[8px] px-3 text-sm font-semibold text-[var(--text-secondary)] transition hover:bg-white/[0.06] hover:text-white xl:inline-flex">
+                  {item.label}
+                </Link>
+              ))
+            : null}
           {!isSignedIn ? (
             <Link href={signInHref} className="bridge-button-secondary hidden px-4 py-2 xl:inline-flex">
               Login

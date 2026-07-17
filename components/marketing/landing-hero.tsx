@@ -23,8 +23,8 @@ export function LandingHero({ viewerRole }: LandingHeroProps) {
         <div className="hero-copy-load marketing-hero__copy">
           <p className="marketing-hero__eyebrow">THE CREATOR COLLABORATION NETWORK</p>
           <h1 className="marketing-hero__title">
-            Creator signals.<br />
-            Real brand partnerships.
+            <span className="marketing-hero__title-line">Creator signals.</span>
+            <span className="marketing-hero__title-line">Real brand partnerships.</span>
           </h1>
           <p className="marketing-hero__support">Discover trusted creators, send structured offers and manage every collaboration from first contact to final delivery.</p>
 
