@@ -54,7 +54,7 @@ export function CreatorCard({ creator, viewerRole }: CreatorCardProps) {
 
   return (
     <article className="creator-premium-card group flex h-full flex-col overflow-hidden">
-      <div className={`relative h-32 overflow-hidden bg-gradient-to-br ${coverClass(creator.username)}`}>
+      <div className={`relative h-36 overflow-hidden bg-gradient-to-br ${coverClass(creator.username)}`}>
         <div className="absolute inset-0 creator-card-grid" />
         <div className="absolute left-4 top-4 flex flex-wrap gap-2">
           {creator.isFeatured ? (
@@ -81,7 +81,7 @@ export function CreatorCard({ creator, viewerRole }: CreatorCardProps) {
         </div>
       </div>
 
-      <div className="relative flex flex-1 flex-col p-5 pt-0">
+      <div className="relative flex flex-1 flex-col p-6 pt-0">
         <div className="-mt-9 flex items-end gap-4">
           <InitialsAvatar
             imageUrl={creator.avatar}
@@ -123,7 +123,7 @@ export function CreatorCard({ creator, viewerRole }: CreatorCardProps) {
             { label: "Engagement", value: engagement > 0 ? `${engagement.toFixed(1)}%` : "Complete profile", muted: engagement <= 0 },
             { label: "Starting Price", value: creator.sponsorshipRate && creator.sponsorshipRate > 0 ? formatINR(creator.sponsorshipRate) : "Pricing not set", muted: !creator.sponsorshipRate },
           ].map((stat) => (
-            <div key={stat.label} className="min-w-0 rounded-[8px] border border-white/10 bg-white/[0.045] p-3">
+            <div key={stat.label} className="min-w-0 rounded-[8px] bg-white/[0.04] p-3.5">
               <p className={`${stat.muted ? "text-sm font-semibold leading-5 text-cyan-100" : "font-mono text-base font-bold text-white"} break-words`}>
                 {stat.value}
               </p>

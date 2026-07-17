@@ -91,8 +91,6 @@ export default async function CreatorsPage({ searchParams }: { searchParams: Cre
   const visibleCreators = creators.slice(0, 24);
   const verifiedCreators = creators.filter((creator) => creator.isVerified).length;
   const totalReach = creators.reduce((sum, creator) => sum + getPublicSubscriberCount(creator), 0);
-  const brandSignal = Math.max(24, creators.length * 4);
-  const campaignSignal = Math.max(60, creators.length * 9);
   const activeFilters = [
     filters.search ? `Search: ${filters.search}` : "",
     filters.niche ? `Niche: ${filters.niche}` : "",
@@ -178,26 +176,7 @@ export default async function CreatorsPage({ searchParams }: { searchParams: Cre
         </section>
 
         <section className="bridge-section py-10 sm:py-12">
-          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-            {[
-              { label: "Verified Creators", value: String(verifiedCreators), detail: "approved platform ownership", icon: BadgeCheck, motionClass: "stat-delay-1" },
-              { label: "Brands", value: `${brandSignal}+`, detail: "manual brand review flow", icon: Building2, motionClass: "stat-delay-2" },
-              { label: "Collaborations", value: `${campaignSignal}+`, detail: "structured collaboration requests", icon: Rocket, motionClass: "stat-delay-3" },
-              { label: "Success Rate", value: "94%", detail: "quality before automation", icon: Sparkles, motionClass: "stat-delay-4" },
-            ].map(({ label, value, detail, icon: Icon, motionClass }) => (
-              <div key={label} className={`animate-stat-up creator-stat-card ${motionClass}`}>
-                <div className="flex items-center justify-between gap-3">
-                  <Icon size={20} className="text-cyan-200" />
-                  <span className="h-2 w-2 rounded-full bg-cyan-200 shadow-[0_0_18px_rgba(103,232,249,0.9)]" />
-                </div>
-                <p className="mt-5 font-mono text-3xl font-bold text-white">{value}</p>
-                <p className="mt-1 text-sm font-semibold text-[var(--text-primary)]">{label}</p>
-                <p className="mt-2 text-xs leading-5 text-[var(--text-secondary)]">{detail}</p>
-              </div>
-            ))}
-          </div>
-
-          <div className="mt-8 flex flex-col justify-between gap-4 md:flex-row md:items-end">
+          <div className="flex flex-col justify-between gap-4 md:flex-row md:items-end">
             <div>
               <p className="bridge-eyebrow">Creator Matrix</p>
               <h2 className="mt-3 font-display text-3xl font-black">Campaign-fit profiles</h2>
@@ -242,6 +221,26 @@ export default async function CreatorsPage({ searchParams }: { searchParams: Cre
               />
             </div>
           )}
+
+          {creators.length > 0 ? (
+            <aside className="mt-14 border-t border-white/10 pt-8" aria-label="Current marketplace statistics">
+              <p className="bridge-eyebrow">Current marketplace signals</p>
+              <div className="mt-5 grid gap-3 sm:grid-cols-3">
+                {[
+                  { label: "Matching creators", value: String(creators.length), detail: "live results for this search", icon: Sparkles },
+                  { label: "Verified creators", value: String(verifiedCreators), detail: "approved platform ownership", icon: BadgeCheck },
+                  { label: "Visible audience reach", value: formatNumber(totalReach), detail: "combined public subscriber count", icon: Zap },
+                ].map(({ label, value, detail, icon: Icon }) => (
+                  <div key={label} className="creator-stat-card">
+                    <Icon size={19} className="text-cyan-200" />
+                    <p className="mt-4 font-mono text-2xl font-bold text-white">{value}</p>
+                    <p className="mt-1 text-sm font-semibold text-[var(--text-primary)]">{label}</p>
+                    <p className="mt-1 text-xs leading-5 text-[var(--text-secondary)]">{detail}</p>
+                  </div>
+                ))}
+              </div>
+            </aside>
+          ) : null}
         </section>
       </main>
     </>

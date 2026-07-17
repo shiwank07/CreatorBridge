@@ -28,6 +28,8 @@ type NavbarClientProps = {
   signInHref: string;
   primaryHref: string;
   primaryLabel: string;
+  creatorsLabel: string;
+  showCreatorsAction: boolean;
   userMenuLinks?: UserMenuLinks | null;
   showNotificationBell?: boolean;
   initialNotifications?: InAppNotificationData[];
@@ -40,6 +42,8 @@ export function NavbarClient({
   signInHref,
   primaryHref,
   primaryLabel,
+  creatorsLabel,
+  showCreatorsAction,
   userMenuLinks,
   showNotificationBell = false,
   initialNotifications = [],
@@ -77,8 +81,8 @@ export function NavbarClient({
   }
 
   const mobileLinks: NavItem[] = [
-    { label: "Browse Creators", href: "/creators" },
-    { label: "For Brands", href: "/#for-brands" },
+    ...(showCreatorsAction ? [{ label: creatorsLabel, href: "/creators" }] : [{ label: "Browse Creators", href: "/creators" }]),
+    ...(!isSignedIn ? [{ label: "For Brands", href: "/#for-brands" }] : []),
     { label: isSignedIn ? primaryLabel : "Login", href: isSignedIn ? primaryHref : signInHref },
     ...(isSignedIn && showNotificationBell ? [{ label: "Notifications", href: "/notifications" }] : []),
     { label: "About", href: "/about" },
@@ -119,6 +123,11 @@ export function NavbarClient({
           {!isSignedIn ? (
             <Link href={signInHref} className="bridge-button-secondary hidden px-4 py-2 xl:inline-flex">
               Login
+            </Link>
+          ) : null}
+          {showCreatorsAction ? (
+            <Link href="/creators" className="focus-ring hidden rounded-[8px] px-3 py-2 text-sm font-semibold text-cyan-100 transition hover:bg-cyan-300/10 sm:inline-flex">
+              {creatorsLabel}
             </Link>
           ) : null}
           <Link

@@ -22,17 +22,12 @@ export async function MarketingNavbar() {
   const navItems =
     user?.role === "creator" && user.onboardingComplete
       ? [
-          { label: "Dashboard", href: "/dashboard/creator" },
           { label: "Collaborations", href: "/dashboard/creator#collaborations" },
-          { label: "Notifications", href: "/notifications" },
           { label: "My Profile", href: `/creators/${user.username}` },
         ]
       : user?.role === "brand" && user.onboardingComplete
         ? [
-            { label: "Dashboard", href: "/dashboard/brand" },
-            { label: "Discover Creators", href: "/creators" },
             { label: "Campaigns", href: "/dashboard/brand#campaigns" },
-            { label: "Notifications", href: "/notifications" },
           ]
         : isSignedIn
           ? [{ label: "Complete Onboarding", href: "/onboarding" }]
@@ -70,6 +65,8 @@ export async function MarketingNavbar() {
       signInHref={authHref("/sign-in", onboardingHref)}
       primaryHref={primaryHref}
       primaryLabel={primaryLabel}
+      creatorsLabel={user?.role === "creator" ? "Explore Creators" : "Creators"}
+      showCreatorsAction={Boolean(user?.onboardingComplete && (user.role === "creator" || user.role === "brand"))}
       userMenuLinks={userMenuLinks}
       showNotificationBell={canShowNotifications}
       initialNotifications={notificationSummary.notifications}

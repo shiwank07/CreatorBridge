@@ -28,6 +28,8 @@ type MarketingNavbarClientProps = {
   signInHref: string;
   primaryHref: string;
   primaryLabel: string;
+  creatorsLabel: string;
+  showCreatorsAction: boolean;
   userMenuLinks?: MarketingUserMenuLinks | null;
   showNotificationBell?: boolean;
   initialNotifications?: InAppNotificationData[];
@@ -40,6 +42,8 @@ export function MarketingNavbarClient({
   signInHref,
   primaryHref,
   primaryLabel,
+  creatorsLabel,
+  showCreatorsAction,
   userMenuLinks,
   showNotificationBell = false,
   initialNotifications = [],
@@ -77,8 +81,8 @@ export function MarketingNavbarClient({
   }
 
   const mobileLinks: NavItem[] = [
-    { label: "Browse Creators", href: "/creators" },
-    { label: "For Brands", href: "/#for-brands" },
+    ...(showCreatorsAction ? [{ label: creatorsLabel, href: "/creators" }] : [{ label: "Browse Creators", href: "/creators" }]),
+    ...(!isSignedIn ? [{ label: "For Brands", href: "/#for-brands" }] : []),
     { label: isSignedIn ? primaryLabel : "Login", href: isSignedIn ? primaryHref : signInHref },
     ...(isSignedIn && showNotificationBell ? [{ label: "Notifications", href: "/notifications" }] : []),
     { label: "About", href: "/about" },
@@ -110,6 +114,11 @@ export function MarketingNavbarClient({
           {!isSignedIn ? (
             <Link href={signInHref} className="focus-ring marketing-navbar__login">
               Login
+            </Link>
+          ) : null}
+          {showCreatorsAction ? (
+            <Link href="/creators" className="focus-ring marketing-navbar__login">
+              {creatorsLabel}
             </Link>
           ) : null}
           <Link href={primaryHref} aria-label={primaryLabel} className="focus-ring marketing-navbar__primary">

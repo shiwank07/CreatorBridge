@@ -1,24 +1,16 @@
-const POSTER_SRC = "/marketing/cyber-creator-poster.png";
+const WEBM_SRC = "/media/cyber-creator-hero.webm";
+const MP4_SRC = "/media/cyber-creator-hero.mp4";
+const POSTER_SRC = "/media/cyber-creator-poster.webp";
 
-type CyberHeroMediaProps = {
-  videoSrc?: string;
-  posterSrc?: string;
-};
-
-function videoType(src: string) {
-  return src.endsWith(".webm") ? "video/webm" : "video/mp4";
-}
-
-export function CyberHeroMedia({ videoSrc, posterSrc = POSTER_SRC }: CyberHeroMediaProps) {
+export function CyberHeroMedia() {
   return (
     <div className="cyber-hero-media" aria-hidden="true">
       <div className="cyber-hero-media__frame">
-        <div className="cyber-hero-media__poster" style={{ backgroundImage: `url(${posterSrc})` }} />
-        {videoSrc ? (
-          <video className="cyber-hero-media__video" autoPlay muted loop playsInline controls={false} preload="metadata" poster={posterSrc}>
-            <source src={videoSrc} type={videoType(videoSrc)} />
-          </video>
-        ) : null}
+        <div className="cyber-hero-media__poster" style={{ backgroundImage: `url(${POSTER_SRC})` }} />
+        <video className="cyber-hero-media__video" autoPlay muted loop playsInline controls={false} preload="metadata" poster={POSTER_SRC}>
+          <source src={WEBM_SRC} type="video/webm" />
+          <source src={MP4_SRC} type="video/mp4" />
+        </video>
         <div className="cyber-hero-media__blend" />
       </div>
 
