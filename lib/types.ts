@@ -1,4 +1,4 @@
-export type Role = "creator" | "brand" | "agency" | "talent";
+export type Role = "admin" | "creator" | "brand" | "agency" | "talent";
 export type AccountStatus = "active" | "hidden" | "suspended";
 export type CreatorAvailabilityStatus = "open_to_deals" | "limited_availability" | "unavailable" | "closed";
 export type VerificationStatus =

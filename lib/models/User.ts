@@ -10,7 +10,7 @@ export interface IUser extends Document {
   username: string;
   name: string;
   avatar: string;
-  role: "creator" | "brand" | "agency" | "talent";
+  role: "admin" | "creator" | "brand" | "agency" | "talent";
   onboardingComplete: boolean;
   subscriptionTier: "free" | "pro" | "business";
   subscriptionExpiry: Date | null;
@@ -37,7 +37,7 @@ const UserSchema = new Schema<IUser>(
     avatar: { type: String, default: "" },
     role: {
       type: String,
-      enum: ["creator", "brand", "agency", "talent"],
+      enum: ["admin", "creator", "brand", "agency", "talent"],
       default: "creator",
       required: true,
     },

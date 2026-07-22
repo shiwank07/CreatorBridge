@@ -1,6 +1,7 @@
 import mongoose, { type Document, type Model, Schema } from "mongoose";
 
 export interface IInAppNotification extends Document {
+  seedKey?: string;
   recipientUserId: mongoose.Types.ObjectId;
   actorUserId?: mongoose.Types.ObjectId | null;
   event: string;
@@ -15,6 +16,7 @@ export interface IInAppNotification extends Document {
 
 const InAppNotificationSchema = new Schema<IInAppNotification>(
   {
+    seedKey: { type: String, trim: true, default: undefined },
     recipientUserId: { type: Schema.Types.ObjectId, ref: "User", required: true, index: true },
     actorUserId: { type: Schema.Types.ObjectId, ref: "User", default: null },
     event: { type: String, required: true, trim: true, index: true },
@@ -29,6 +31,10 @@ const InAppNotificationSchema = new Schema<IInAppNotification>(
 
 InAppNotificationSchema.index({ recipientUserId: 1, createdAt: -1 });
 InAppNotificationSchema.index({ recipientUserId: 1, isRead: 1, createdAt: -1 });
+InAppNotificationSchema.index(
+  { seedKey: 1 },
+  { unique: true, partialFilterExpression: { seedKey: { $type: "string" } } },
+);
 
 export const InAppNotification =
   (mongoose.models.InAppNotification as Model<IInAppNotification> | undefined) ??

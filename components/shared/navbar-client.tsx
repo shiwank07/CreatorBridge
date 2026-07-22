@@ -51,10 +51,15 @@ export function NavbarClient({
   initialUnreadCount = 0,
 }: NavbarClientProps) {
   const [isOpen, setIsOpen] = useState(false);
+  const [isMounted, setIsMounted] = useState(false);
   const pathname = usePathname();
   const router = useRouter();
   const { signOut } = useClerk();
   const { sessionId } = useAuth();
+
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
 
   useEffect(() => {
     setIsOpen(false);
@@ -160,25 +165,29 @@ export function NavbarClient({
             <NotificationIndicator initialNotifications={initialNotifications} initialUnreadCount={initialUnreadCount} />
           ) : null}
           {isSignedIn ? (
-            userMenuLinks ? (
-              <UserButton
-                customMenuItems={[
-                  { label: "Account Settings", href: userMenuLinks.accountHref },
-                  { label: "Switch account", onClick: handleSwitchAccount },
-                  { label: "Sign out", onClick: handleSignOut },
-                ]}
-              >
-                <UserButton.MenuItems>
-                  <UserButton.Link href={userMenuLinks.profileHref} label="My Profile" labelIcon={<UserRound size={16} />} />
-                  <UserButton.Link href={userMenuLinks.verificationHref} label="Verification Center" labelIcon={<ShieldCheck size={16} />} />
-                  <UserButton.Link href={userMenuLinks.historyHref} label="Collaboration History" labelIcon={<History size={16} />} />
-                  <UserButton.Link href={userMenuLinks.notificationsHref} label="Notifications" labelIcon={<Bell size={16} />} />
-                  <UserButton.Action label="manageAccount" />
-                </UserButton.MenuItems>
-              </UserButton>
-            ) : (
-              <UserButton customMenuItems={[{ label: "Switch account", onClick: handleSwitchAccount }, { label: "Sign out", onClick: handleSignOut }]} />
-            )
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center">
+              {isMounted ? (
+                userMenuLinks ? (
+                  <UserButton
+                    customMenuItems={[
+                      { label: "Account Settings", href: userMenuLinks.accountHref },
+                      { label: "Switch account", onClick: handleSwitchAccount },
+                      { label: "Sign out", onClick: handleSignOut },
+                    ]}
+                  >
+                    <UserButton.MenuItems>
+                      <UserButton.Link href={userMenuLinks.profileHref} label="My Profile" labelIcon={<UserRound size={16} />} />
+                      <UserButton.Link href={userMenuLinks.verificationHref} label="Verification Center" labelIcon={<ShieldCheck size={16} />} />
+                      <UserButton.Link href={userMenuLinks.historyHref} label="Collaboration History" labelIcon={<History size={16} />} />
+                      <UserButton.Link href={userMenuLinks.notificationsHref} label="Notifications" labelIcon={<Bell size={16} />} />
+                      <UserButton.Action label="manageAccount" />
+                    </UserButton.MenuItems>
+                  </UserButton>
+                ) : (
+                  <UserButton customMenuItems={[{ label: "Switch account", onClick: handleSwitchAccount }, { label: "Sign out", onClick: handleSignOut }]} />
+                )
+              ) : null}
+            </div>
           ) : null}
           <button
             type="button"

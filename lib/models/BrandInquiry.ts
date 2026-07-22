@@ -6,6 +6,7 @@ import { type PaymentStatus } from "@/lib/types";
 type OfferHistoryAction = "offer_sent" | "counter_requested" | "counter_sent" | "offer_accepted" | "offer_declined";
 
 export interface IBrandInquiry extends Document {
+  seedKey?: string;
   brandUserId?: mongoose.Types.ObjectId;
   brandProfileId?: mongoose.Types.ObjectId;
   creatorUserId?: mongoose.Types.ObjectId;
@@ -115,6 +116,7 @@ const StatusHistorySchema = new Schema(
 
 const BrandInquirySchema = new Schema<IBrandInquiry>(
   {
+    seedKey: { type: String, trim: true, default: undefined },
     brandUserId: { type: Schema.Types.ObjectId, ref: "User", default: null, index: true },
     brandProfileId: { type: Schema.Types.ObjectId, ref: "BrandProfile", default: null, index: true },
     creatorUserId: { type: Schema.Types.ObjectId, ref: "User", default: null, index: true },
@@ -183,6 +185,11 @@ const BrandInquirySchema = new Schema<IBrandInquiry>(
     userAgentHash: { type: String, default: "" },
   },
   { timestamps: true },
+);
+
+BrandInquirySchema.index(
+  { seedKey: 1 },
+  { unique: true, partialFilterExpression: { seedKey: { $type: "string" } } },
 );
 
 export const BrandInquiry =

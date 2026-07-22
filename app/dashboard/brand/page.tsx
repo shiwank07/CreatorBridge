@@ -120,7 +120,7 @@ function StageCard({
   empty: string;
 }) {
   return (
-    <section id={id} className="animate-stat-up scroll-mt-24 rounded-[8px] border border-white/10 bg-white/[0.04] p-4">
+    <section id={id} className="min-w-0 animate-stat-up scroll-mt-24 rounded-[8px] border border-white/10 bg-white/[0.04] p-4">
       <div className="flex items-start justify-between gap-3">
         <div>
           <p className="text-xs font-semibold uppercase text-cyan-200">{title}</p>
@@ -130,13 +130,13 @@ function StageCard({
           <Icon size={18} />
         </span>
       </div>
-      <div className="mt-4 grid gap-2">
+      <div className="mt-4 min-w-0 grid gap-2">
         {items.length ? (
           items.slice(0, 3).map((item) => (
             <Link
               key={item.id}
               href={collaborationDetailsHref(item.id)}
-              className="focus-ring rounded-[8px] border border-white/10 bg-black/20 p-3 transition hover:border-cyan-300/30 hover:bg-cyan-300/10"
+              className="focus-ring min-w-0 rounded-[8px] border border-white/10 bg-black/20 p-3 transition hover:border-cyan-300/30 hover:bg-cyan-300/10"
             >
               <span className="flex items-start justify-between gap-3">
                 <span className="min-w-0">

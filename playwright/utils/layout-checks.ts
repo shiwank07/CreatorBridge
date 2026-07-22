@@ -1,0 +1,154 @@
+import { expect, type Locator, type Page } from '@playwright/test';
+
+type LocatorInput = string | Locator;
+
+export type ElementBox = {
+  index: number;
+  text: string;
+  box: { x: number; y: number; width: number; height: number };
+};
+
+export type ElementOverlap = {
+  first: ElementBox;
+  second: ElementBox;
+};
+
+function asLocator(page: Page, selectorOrLocator: LocatorInput): Locator {
+  return typeof selectorOrLocator === 'string'
+    ? page.locator(selectorOrLocator)
+    : selectorOrLocator;
+}
+
+export async function assertNoHorizontalPageOverflow(
+  page: Page,
+  tolerance = 2,
+): Promise<void> {
+  const dimensions = await page.evaluate(() => ({
+    scrollWidth: document.documentElement.scrollWidth,
+    clientWidth: document.documentElement.clientWidth,
+  }));
+
+  expect(
+    dimensions.scrollWidth,
+    `Horizontal page overflow: scrollWidth=${dimensions.scrollWidth}, clientWidth=${dimensions.clientWidth}, tolerance=${tolerance}`,
+  ).toBeLessThanOrEqual(dimensions.clientWidth + tolerance);
+}
+
+export async function findElementOverlaps(
+  page: Page,
+  selectorOrLocator: LocatorInput,
+): Promise<ElementOverlap[]> {
+  const locator = asLocator(page, selectorOrLocator);
+
+  return locator.evaluateAll((nodes) => {
+    const visible = nodes
+      .map((node, index) => {
+        const element = node as HTMLElement;
+        const style = window.getComputedStyle(element);
+        const rect = element.getBoundingClientRect();
+        return {
+          node: element,
+          index,
+          text: (element.innerText || element.getAttribute('aria-label') || element.tagName)
+            .replace(/\s+/g, ' ')
+            .trim()
+            .slice(0, 120),
+          box: { x: rect.x, y: rect.y, width: rect.width, height: rect.height },
+          visible:
+            style.display !== 'none' &&
+            style.visibility !== 'hidden' &&
+            Number(style.opacity) > 0 &&
+            rect.width > 0 &&
+            rect.height > 0,
+        };
+      })
+      .filter((item) => item.visible);
+
+    const overlaps: ElementOverlap[] = [];
+    for (let firstIndex = 0; firstIndex < visible.length; firstIndex += 1) {
+      for (let secondIndex = firstIndex + 1; secondIndex < visible.length; secondIndex += 1) {
+        const first = visible[firstIndex];
+        const second = visible[secondIndex];
+        if (first.node.contains(second.node) || second.node.contains(first.node)) continue;
+
+        const intersects =
+          first.box.x < second.box.x + second.box.width &&
+          first.box.x + first.box.width > second.box.x &&
+          first.box.y < second.box.y + second.box.height &&
+          first.box.y + first.box.height > second.box.y;
+
+        if (intersects) {
+          overlaps.push({
+            first: { index: first.index, text: first.text, box: first.box },
+            second: { index: second.index, text: second.text, box: second.box },
+          });
+        }
+      }
+    }
+    return overlaps;
+  });
+}
+
+export async function assertElementsDoNotOverlap(
+  page: Page,
+  selectorOrLocator: LocatorInput,
+): Promise<void> {
+  const overlaps = await findElementOverlaps(page, selectorOrLocator);
+  const report = overlaps
+    .map(
+      ({ first, second }) =>
+        `[${first.index}] ${JSON.stringify(first.text)} ${JSON.stringify(first.box)} overlaps ` +
+        `[${second.index}] ${JSON.stringify(second.text)} ${JSON.stringify(second.box)}`,
+    )
+    .join('\n');
+
+  expect(overlaps, `Overlapping elements${report ? `:\n${report}` : ''}`).toEqual([]);
+}
+
+export async function assertElementsInsideViewport(
+  page: Page,
+  selectorOrLocator: LocatorInput,
+  tolerance = 2,
+): Promise<void> {
+  const locator = asLocator(page, selectorOrLocator);
+  const outside = await locator.evaluateAll((nodes, allowedTolerance) =>
+    nodes.flatMap((node, index) => {
+      const element = node as HTMLElement;
+      const style = window.getComputedStyle(element);
+      const rect = element.getBoundingClientRect();
+      const visible =
+        style.display !== 'none' &&
+        style.visibility !== 'hidden' &&
+        Number(style.opacity) > 0 &&
+        rect.width > 0 &&
+        rect.height > 0;
+      const intersectsVerticalViewport = rect.bottom > 0 && rect.top < window.innerHeight;
+      if (!visible || !intersectsVerticalViewport) return [];
+
+      // Vertical clipping at the fold is normal for a scrolling document. For
+      // controls intersecting the current viewport, flag horizontal escape.
+      const isOutside =
+        rect.left < -allowedTolerance ||
+        rect.right > window.innerWidth + allowedTolerance;
+      if (!isOutside) return [];
+
+      return [{
+        index,
+        text: (element.innerText || element.getAttribute('aria-label') || element.tagName)
+          .replace(/\s+/g, ' ')
+          .trim()
+          .slice(0, 120),
+        box: { x: rect.x, y: rect.y, width: rect.width, height: rect.height },
+        viewport: { width: window.innerWidth, height: window.innerHeight },
+      }];
+    }), tolerance);
+
+  const report = outside
+    .map(
+      (item) =>
+        `[${item.index}] ${JSON.stringify(item.text)} box=${JSON.stringify(item.box)} viewport=${JSON.stringify(item.viewport)}`,
+    )
+    .join('\n');
+
+  expect(outside, `Elements outside viewport${report ? `:\n${report}` : ''}`).toEqual([]);
+}
