@@ -58,6 +58,10 @@ const UserSchema = new Schema<IUser>(
   },
   { timestamps: true },
 );
+UserSchema.index({ name: "text", username: "text" });
+UserSchema.index({ role: 1, onboardingComplete: 1, accountStatus: 1 });
+UserSchema.index({ role: 1, createdAt: -1 });
+UserSchema.index({ isVerified: 1, createdAt: -1 });
 
 export const User =
   (mongoose.models.User as Model<IUser> | undefined) ?? mongoose.model<IUser>("User", UserSchema);

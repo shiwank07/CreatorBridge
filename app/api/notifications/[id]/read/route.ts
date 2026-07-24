@@ -11,7 +11,7 @@ type RouteContext = {
   params: Promise<{ id: string }>;
 };
 
-export async function PATCH(_req: Request, { params }: RouteContext) {
+export async function PATCH(req: Request, { params }: RouteContext) {
   try {
     const access = await resolveNotificationRequestUser();
     if (access.response) return access.response;
@@ -21,16 +21,18 @@ export async function PATCH(_req: Request, { params }: RouteContext) {
       return NextResponse.json({ error: "Invalid notification id." }, { status: 400 });
     }
 
+    const body = (await req.json().catch(() => null)) as { isRead?: unknown } | null;
+    const shouldRead = body?.isRead !== false;
     const now = new Date();
     const notification = await InAppNotification.findOneAndUpdate(
       { _id: id, recipientUserId: access.user.id },
       {
         $set: {
-          isRead: true,
-          readAt: now,
+          isRead: shouldRead,
+          readAt: shouldRead ? now : null,
         },
       },
-      { new: true },
+      { returnDocument: "after" },
     ).exec();
 
     if (!notification) {

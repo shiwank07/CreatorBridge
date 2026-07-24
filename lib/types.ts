@@ -12,10 +12,11 @@ export type VerificationStatus =
   | "needs_review";
 export type StatsVerificationStatus = "unverified" | "pending" | "verified" | "needs_review" | "rejected";
 export type BrandVerificationStatus = "unverified" | "pending" | "verified" | "rejected";
-export type CreatorVerificationPlatform = "youtube" | "instagram" | "twitch" | "other";
+export type CreatorVerificationPlatform = "youtube" | "instagram" | "twitch" | "x" | "other";
 export type CollaborationStatus =
   | "NEW"
   | "PENDING_CREATOR_RESPONSE"
+  | "NEGOTIATING"
   | "ACCEPTED"
   | "DECLINED"
   | "IN_PROGRESS"
@@ -27,6 +28,7 @@ export type CollaborationStatus =
 export type CollaborationTimelineEvent =
   | "CREATED"
   | "VIEWED"
+  | "COUNTERED"
   | "ACCEPTED"
   | "DECLINED"
   | "IN_PROGRESS"
@@ -177,6 +179,7 @@ export type CollaborationTimelineEntryData = {
 
 export type BrandInquiryData = {
   id: string;
+  collaborationNumber?: string;
   companyName: string;
   contactName: string;
   email: string;
@@ -185,6 +188,10 @@ export type BrandInquiryData = {
   creatorContactEmail?: string;
   website?: string;
   campaignGoal: string;
+  campaignTitle?: string;
+  campaignType?: string;
+  deadline?: string;
+  attachments?: string[];
   deliverables: string[];
   targetNiches: string[];
   targetPlatforms: string[];
@@ -216,11 +223,19 @@ export type BrandInquiryData = {
     issueReportedAt?: string;
   };
   paymentStatus?: PaymentStatus;
+  creatorStatus?: string;
+  brandStatus?: string;
+  currentStage?: string;
+  negotiationPrice?: number;
+  revisionCount?: number;
+  maxRevisions?: number;
+  notes?: string;
   paymentNote?: string;
   paymentScreenshotUrl?: string;
   paymentUpdatedAt?: string;
   creatorPaymentDetails?: CreatorPaymentDetailsData;
   createdAt?: string;
+  chatUnreadCount?: number;
 };
 
 export type InAppNotificationData = {
@@ -229,6 +244,8 @@ export type InAppNotificationData = {
   title: string;
   message: string;
   href: string;
+  type?: string;
+  entityType?: string;
   isRead: boolean;
   readAt: string | null;
   createdAt?: string;

@@ -1,6 +1,7 @@
 export const COLLABORATION_STATUSES = [
   "NEW",
   "PENDING_CREATOR_RESPONSE",
+  "NEGOTIATING",
   "ACCEPTED",
   "DECLINED",
   "IN_PROGRESS",
@@ -44,6 +45,7 @@ export type BrandInquiryStatus = CollaborationStatus | LegacyInquiryStatus;
 export const COLLABORATION_STATUS_LABELS: Record<CollaborationStatus, string> = {
   NEW: "New",
   PENDING_CREATOR_RESPONSE: "Pending Creator Response",
+  NEGOTIATING: "Negotiating",
   ACCEPTED: "Accepted",
   DECLINED: "Declined",
   IN_PROGRESS: "In Progress",
@@ -57,6 +59,7 @@ export const COLLABORATION_STATUS_LABELS: Record<CollaborationStatus, string> = 
 const ACTIVE_HISTORY_STATUSES: CollaborationStatus[] = [
   "NEW",
   "PENDING_CREATOR_RESPONSE",
+  "NEGOTIATING",
   "ACCEPTED",
   "IN_PROGRESS",
   "PROOF_SUBMITTED",
@@ -71,6 +74,7 @@ export type CollaborationHistoryBucket = "active" | "completed" | "declined";
 export type CollaborationTimelineEvent =
   | "CREATED"
   | "VIEWED"
+  | "COUNTERED"
   | "ACCEPTED"
   | "DECLINED"
   | "IN_PROGRESS"
@@ -83,6 +87,7 @@ export type CollaborationTimelineEvent =
 export const COLLABORATION_TIMELINE_EVENT_LABELS: Record<CollaborationTimelineEvent, string> = {
   CREATED: "Created",
   VIEWED: "Viewed",
+  COUNTERED: "Counter Offer",
   ACCEPTED: "Accepted",
   DECLINED: "Declined",
   IN_PROGRESS: "In Progress",
@@ -107,6 +112,11 @@ export const COLLABORATION_TIMELINE_STEPS: {
     statuses: ["PENDING_CREATOR_RESPONSE"],
     label: "Pending Response",
     description: "Creator needs to accept or decline",
+  },
+  {
+    statuses: ["NEGOTIATING"],
+    label: "Negotiating",
+    description: "A counter offer is waiting for a response",
   },
   {
     statuses: ["ACCEPTED"],
@@ -153,13 +163,14 @@ export function normalizeCollaborationStatus(status?: string): CollaborationStat
   }
 
   if (status === "new") return "NEW";
-  if (status === "offer_sent" || status === "counter_sent" || status === "viewed" || status === "reviewed" || status === "contacted" || status === "sent_to_creator") {
+  if (status === "offer_sent" || status === "viewed" || status === "reviewed" || status === "contacted" || status === "sent_to_creator") {
     return "PENDING_CREATOR_RESPONSE";
   }
+  if (status === "counter_sent" || status === "counter_requested") return "NEGOTIATING";
   if (status === "offer_accepted" || status === "interested" || status === "creator_interested" || status === "contact_shared") return "ACCEPTED";
   if (status === "work_started") return "IN_PROGRESS";
   if (status === "proof_submitted") return "PROOF_SUBMITTED";
-  if (status === "changes_requested" || status === "counter_requested") return "REVISION_REQUESTED";
+  if (status === "changes_requested") return "REVISION_REQUESTED";
   if (status === "approved") return "APPROVED";
   if (status === "completed" || status === "closed") return "COMPLETED";
   if (status === "offer_declined" || status === "creator_declined" || status === "rejected") return "DECLINED";
@@ -201,6 +212,15 @@ export function collaborationTimelineEventLabel(event?: string) {
 
 export function appendCollaborationTimeline(
   collaboration: {
+    firstViewedAt?: Date | null;
+    firstCreatorResponseAt?: Date | null;
+    acceptedAt?: Date | null;
+    rejectedAt?: Date | null;
+    cancelledAt?: Date | null;
+    workStartedAt?: Date | null;
+    proofSubmittedAt?: Date | null;
+    completedAt?: Date | null;
+    lastMeaningfulActivityAt?: Date | null;
     statusHistory?: {
       event?: string;
       status?: string;
@@ -217,14 +237,35 @@ export function appendCollaborationTimeline(
     createdAt?: Date;
   },
 ) {
+  const occurredAt = input.createdAt ?? new Date();
   collaboration.statusHistory = collaboration.statusHistory ?? [];
   collaboration.statusHistory.push({
     event: input.event,
     status: normalizeCollaborationStatus(input.status),
     actor: input.actor ?? "system",
     note: input.note ?? "",
-    createdAt: input.createdAt ?? new Date(),
+    createdAt: occurredAt,
   });
+
+  // Lifecycle timestamps are immutable facts. Later status changes must not erase
+  // an earlier acceptance, rejection, response, or completion event.
+  const firstFieldByEvent: Partial<Record<CollaborationTimelineEvent, keyof typeof collaboration>> = {
+    VIEWED: "firstViewedAt",
+    ACCEPTED: "acceptedAt",
+    DECLINED: "rejectedAt",
+    CANCELLED: "cancelledAt",
+    IN_PROGRESS: "workStartedAt",
+    PROOF_SUBMITTED: "proofSubmittedAt",
+    COMPLETED: "completedAt",
+  };
+  const eventField = firstFieldByEvent[input.event];
+  if (eventField && !collaboration[eventField]) {
+    (collaboration[eventField] as Date | null | undefined) = occurredAt;
+  }
+  if (input.actor === "creator" && ["COUNTERED", "ACCEPTED", "DECLINED"].includes(input.event) && !collaboration.firstCreatorResponseAt) {
+    collaboration.firstCreatorResponseAt = occurredAt;
+  }
+  collaboration.lastMeaningfulActivityAt = occurredAt;
 }
 
 export function hasCollaborationTimelineEvent(

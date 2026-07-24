@@ -112,6 +112,25 @@ export function NotificationList({ notifications, compact = false }: Notificatio
     }
   }
 
+  async function toggleReadState(notification: InAppNotificationData) {
+    const isRead = !notification.isRead;
+    const readAt = isRead ? new Date().toISOString() : null;
+    const previous = items;
+    setItems((current) => current.map((item) => item.id === notification.id ? { ...item, isRead, readAt } : item));
+    const response = await fetch(`/api/notifications/${notification.id}/read`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ isRead }),
+    });
+    if (!response.ok) {
+      setItems(previous);
+      return;
+    }
+    const data = (await response.json()) as { notification: InAppNotificationData; unreadCount: number };
+    setItems((current) => current.map((item) => item.id === data.notification.id ? data.notification : item));
+    emitNotificationsUpdated({ notificationId: data.notification.id, unreadCount: data.unreadCount, readAt: data.notification.readAt ?? undefined });
+  }
+
   if (!items.length) {
     return <NotificationEmptyState />;
   }
@@ -126,23 +145,26 @@ export function NotificationList({ notifications, compact = false }: Notificatio
           const isUnread = !notification.isRead;
 
           return (
-            <motion.a
+            <motion.div
               key={notification.id}
-              href={notificationHref(notification)}
               layout
               initial={{ opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -6 }}
               whileHover={{ y: -2 }}
               transition={{ duration: 0.18, ease: "easeOut" }}
-              onClick={(event) => void handleNotificationClick(event, notification)}
               className={cn(
-                "focus-ring relative flex items-start gap-3 overflow-hidden rounded-[8px] border p-4 text-left transition-colors",
+                "relative overflow-hidden rounded-[8px] border text-left transition-colors",
                 isUnread
                   ? "border-violet-300/20 bg-white/[0.075] shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]"
                   : "border-white/10 bg-white/[0.035] hover:border-cyan-300/30 hover:bg-cyan-300/10",
               )}
             >
+              <a
+                href={notificationHref(notification)}
+                onClick={(event) => void handleNotificationClick(event, notification)}
+                className="focus-ring flex min-w-0 items-start gap-3 p-4"
+              >
               <AnimatePresence>
                 {isUnread ? (
                   <motion.span
@@ -188,7 +210,13 @@ export function NotificationList({ notifications, compact = false }: Notificatio
                   <ExternalLink size={14} className="mt-1 shrink-0 text-[var(--text-muted)]" />
                 </span>
               </span>
-            </motion.a>
+              </a>
+              {!compact ? (
+                <button type="button" onClick={() => void toggleReadState(notification)} className="focus-ring absolute bottom-3 right-3 rounded-[8px] border border-white/10 bg-[#0b0f18] px-2.5 py-1.5 text-xs font-semibold text-cyan-100">
+                  {isUnread ? "Mark read" : "Mark unread"}
+                </button>
+              ) : null}
+            </motion.div>
           );
         })}
       </AnimatePresence>

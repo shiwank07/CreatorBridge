@@ -165,11 +165,12 @@ export function NotificationIndicator({ initialNotifications, initialUnreadCount
   const [notifications, setNotifications] = useState(initialNotifications);
   const [unreadCount, setUnreadCount] = useState(initialUnreadCount);
   const [isFetching, setIsFetching] = useState(false);
+  const [fetchError, setFetchError] = useState("");
   const [isMarkingAll, setIsMarkingAll] = useState(false);
   const [canUsePortal, setCanUsePortal] = useState(false);
   const router = useRouter();
   const panelId = useId();
-  const badgeLabel = unreadCount > 9 ? "9+" : String(unreadCount);
+  const badgeLabel = unreadCount > 99 ? "99+" : String(unreadCount);
 
   useEffect(() => {
     setCanUsePortal(true);
@@ -181,15 +182,21 @@ export function NotificationIndicator({ initialNotifications, initialUnreadCount
     setIsFetching(true);
 
     try {
-      const response = await fetch("/api/notifications?limit=12", {
+      const response = await fetch("/api/notifications?limit=10", {
         cache: "no-store",
       });
 
-      if (!response.ok) return;
+      if (!response.ok) {
+        setFetchError("Could not refresh notifications.");
+        return;
+      }
 
       const data = (await response.json()) as NotificationsResponse;
       setNotifications(data.notifications);
       setUnreadCount(data.unreadCount);
+      setFetchError("");
+    } catch {
+      setFetchError("Could not refresh notifications.");
     } finally {
       setIsFetching(false);
     }
@@ -206,8 +213,8 @@ export function NotificationIndicator({ initialNotifications, initialUnreadCount
     void refreshNotifications();
 
     const intervalId = window.setInterval(() => {
-      void refreshNotifications();
-    }, 45_000);
+      if (document.visibilityState === "visible") void refreshNotifications();
+    }, 30_000);
 
     function handleVisibilityChange() {
       if (document.visibilityState === "visible") {
@@ -465,7 +472,15 @@ export function NotificationIndicator({ initialNotifications, initialUnreadCount
                 </div>
               </div>
 
-              {notifications.length ? (
+              {fetchError && !notifications.length ? (
+                <div role="alert" className="m-4 rounded-[8px] border border-rose-300/20 bg-rose-400/10 p-4 text-sm text-rose-100">
+                  {fetchError}
+                </div>
+              ) : isFetching && !notifications.length ? (
+                <div aria-label="Loading notifications" className="grid gap-2 p-3">
+                  {[1, 2, 3].map((item) => <div key={item} className="h-20 animate-pulse rounded-[8px] bg-white/[0.06]" />)}
+                </div>
+              ) : notifications.length ? (
                 <div className="min-h-0 flex-1 overflow-y-auto px-3 py-3">
                   <div className="grid gap-2">
                     <AnimatePresence initial={false}>

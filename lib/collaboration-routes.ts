@@ -1,9 +1,11 @@
 const collaborationEvents = new Set([
   "collaboration_request",
   "new_collaboration",
+  "offer_viewed",
   "brand_response",
   "counter_requested",
   "counter_sent",
+  "counter_offer",
   "creator_accepted",
   "creator_declined",
   "proof_submitted",

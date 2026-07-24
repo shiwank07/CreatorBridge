@@ -137,6 +137,11 @@ export function CollaborationBoard({ columns, mode }: CollaborationBoardProps) {
                           {collaborationStatusLabel(collaboration.status)}
                         </Badge>
                       </div>
+                      {collaboration.chatUnreadCount ? (
+                        <span className="mt-3 inline-flex rounded-full border border-violet-300/30 bg-violet-400/15 px-2.5 py-1 text-xs font-semibold text-violet-100">
+                          {collaboration.chatUnreadCount} unread
+                        </span>
+                      ) : null}
 
                       <p className="mt-3 line-clamp-2 text-sm leading-6 text-[var(--text-secondary)]">{collaboration.campaignGoal}</p>
 

@@ -1,401 +1,152 @@
 "use client";
 
-import { useState } from "react";
-import Link from "next/link";
-import { BadgeCheck, ExternalLink, Loader2, XCircle } from "lucide-react";
+import { useCallback, useEffect, useState } from "react";
+import { BadgeCheck, ExternalLink, Loader2, Search, XCircle } from "lucide-react";
 
 import { Badge } from "@/components/shared/badge";
-import { AdminPagination, useAdminPagination } from "@/components/admin/admin-pagination";
-import { formatNumber } from "@/lib/format";
-import { platformDisplayName } from "@/lib/platforms";
-import { type CreatorVerificationData } from "@/lib/types";
-import { normalizeCreatorVerificationStatus, verificationBadgeLabel } from "@/lib/verification";
 
-type VerificationTableProps = {
-  creators: CreatorVerificationData[];
+type ReviewStatus = "pending" | "approved" | "rejected";
+type ReviewRow = {
+  id: string;
+  name: string;
+  username: string;
+  email: string;
+  platform: string;
+  customPlatformName?: string;
+  profileUrl: string;
+  verificationCode: string;
+  creatorNote?: string;
+  status: ReviewStatus;
+  adminNote?: string;
+  submittedAt: string;
+  reviewedAt?: string;
 };
 
-type VerificationAction = "approve" | "reject";
+export function VerificationTable() {
+  const [rows, setRows] = useState<ReviewRow[]>([]);
+  const [status, setStatus] = useState<ReviewStatus>("pending");
+  const [query, setQuery] = useState("");
+  const [search, setSearch] = useState("");
+  const [page, setPage] = useState(1);
+  const [total, setTotal] = useState(0);
+  const [notes, setNotes] = useState<Record<string, string>>({});
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState("");
+  const [message, setMessage] = useState<{ tone: "error" | "success"; text: string } | null>(null);
 
-function statusLabel(status: CreatorVerificationData["verificationStatus"]) {
-  return verificationBadgeLabel(status);
-}
-
-function submittedPlatformLabel(creator: CreatorVerificationData) {
-  return platformDisplayName(creator.verificationPlatform, creator.customPlatformName) || creator.youtubeHandle || creator.verificationProfileUrl || creator.youtubeUrl;
-}
-
-export function VerificationTable({ creators }: VerificationTableProps) {
-  const [rows, setRows] = useState(creators);
-  const pagination = useAdminPagination(rows);
-  const [savingKey, setSavingKey] = useState("");
-  const [error, setError] = useState("");
-  const [success, setSuccess] = useState("");
-  const [notes, setNotes] = useState<Record<string, string>>(() =>
-    Object.fromEntries(creators.map((creator) => [creator.username, creator.verificationNote ?? ""])),
-  );
-  const [verifiedCounts, setVerifiedCounts] = useState<Record<string, string>>(() =>
-    Object.fromEntries(
-      creators.map((creator) => [
-        creator.username,
-        String(creator.verifiedSubscribers || creator.claimedSubscribers || 0),
-      ]),
-    ),
-  );
-  const [verifiedAverageViews, setVerifiedAverageViews] = useState<Record<string, string>>(() =>
-    Object.fromEntries(
-      creators.map((creator) => [
-        creator.username,
-        String(creator.verifiedAverageViews || creator.claimedAverageViews || 0),
-      ]),
-    ),
-  );
-  const [verifiedEngagementRates, setVerifiedEngagementRates] = useState<Record<string, string>>(() =>
-    Object.fromEntries(
-      creators.map((creator) => [
-        creator.username,
-        String(creator.verifiedEngagementRate || creator.claimedEngagementRate || 0),
-      ]),
-    ),
-  );
-
-  async function updateVerification(creator: CreatorVerificationData, action: VerificationAction) {
-    setError("");
-    setSuccess("");
-    setSavingKey(`${creator.username}:${action}`);
-
-    const body: {
-      username: string;
-      action: VerificationAction;
-      note: string;
-      verifiedSubscribers?: number;
-      verifiedAverageViews?: number;
-      verifiedEngagementRate?: number;
-    } = {
-      username: creator.username,
-      action,
-      note: notes[creator.username] ?? "",
-    };
-
-    if (action === "approve") {
-      body.verifiedSubscribers = Number(verifiedCounts[creator.username] || creator.claimedSubscribers || 0);
-      body.verifiedAverageViews = Number(verifiedAverageViews[creator.username] || creator.claimedAverageViews || 0);
-      body.verifiedEngagementRate = Number(verifiedEngagementRates[creator.username] || creator.claimedEngagementRate || 0);
+  const load = useCallback(async () => {
+    setLoading(true);
+    setMessage(null);
+    try {
+      const params = new URLSearchParams({ status, q: search, page: String(page), pageSize: "20" });
+      const response = await fetch(`/api/admin/verifications?${params}`, { cache: "no-store" });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || "Could not load verification requests.");
+      setRows(result.rows);
+      setTotal(result.total);
+      setNotes(Object.fromEntries(result.rows.map((row: ReviewRow) => [row.id, row.adminNote ?? ""])));
+    } catch (error) {
+      setMessage({ tone: "error", text: error instanceof Error ? error.message : "Could not load verification requests." });
+    } finally {
+      setLoading(false);
     }
+  }, [page, search, status]);
 
+  useEffect(() => { void load(); }, [load]);
+
+  async function review(row: ReviewRow, action: "approve" | "reject") {
+    setSaving(`${row.id}:${action}`);
+    setMessage(null);
     try {
       const response = await fetch("/api/admin/verifications", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
+        body: JSON.stringify({ requestId: row.id, action, note: notes[row.id] ?? "" }),
       });
-      const result = (await response.json().catch(() => ({}))) as { error?: string };
-
-      if (!response.ok) {
-        setError(result.error ?? "Could not update verification.");
-        return;
-      }
-
-      setRows((current) => current.filter((row) => row.username !== creator.username));
-      setSuccess(`${creator.name} was ${action === "approve" ? "approved" : "rejected"} successfully.`);
-    } catch {
-      setError("Could not reach the server. Please try again.");
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || "Could not review verification.");
+      setMessage({ tone: "success", text: `${row.name} was ${action === "approve" ? "approved" : "rejected"}.` });
+      await load();
+    } catch (error) {
+      setMessage({ tone: "error", text: error instanceof Error ? error.message : "Could not review verification." });
     } finally {
-      setSavingKey("");
+      setSaving("");
     }
   }
 
+  const pages = Math.max(1, Math.ceil(total / 20));
   return (
-    <div className="bridge-card overflow-hidden">
-      {error ? (
-        <div role="alert" className="border-b border-red-900 bg-red-950/40 px-4 py-3 text-sm text-red-200">
-          {error}
+    <section className="space-y-4" aria-label="Creator verification requests">
+      <div className="bridge-card flex flex-col gap-3 p-4 lg:flex-row lg:items-end lg:justify-between">
+        <div className="flex flex-wrap gap-2" role="group" aria-label="Filter by status">
+          {(["pending", "approved", "rejected"] as const).map((value) => (
+            <button key={value} type="button" onClick={() => { setStatus(value); setPage(1); }} className={status === value ? "bridge-button-primary px-4 py-2 text-sm" : "bridge-button-secondary px-4 py-2 text-sm"}>
+              {value[0].toUpperCase() + value.slice(1)}
+            </button>
+          ))}
         </div>
-      ) : null}
-      {success ? (
-        <div role="status" className="border-b border-emerald-800 bg-emerald-950/40 px-4 py-3 text-sm text-emerald-100">
-          {success}
-        </div>
-      ) : null}
-      {rows.length === 0 ? (
-        <div className="border-b border-[var(--border)] px-4 py-6 text-sm text-[var(--text-secondary)]">
-          No creator verifications are waiting for review.
-        </div>
-      ) : null}
-      <div className="hidden overflow-x-auto md:block">
-        <table className="w-full min-w-[1120px] text-left text-sm">
-          <thead className="border-b border-[var(--border)] text-xs uppercase text-[var(--text-secondary)]">
-            <tr>
-              <th className="px-4 py-3">Creator</th>
-              <th className="px-4 py-3">Submitted Profile</th>
-              <th className="px-4 py-3">Claimed</th>
-              <th className="px-4 py-3">Verification</th>
-              <th className="px-4 py-3">Note</th>
-              <th className="px-4 py-3">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {pagination.pageItems.map((creator) => (
-              <tr key={creator.username} className="border-b border-[var(--border)] align-top last:border-b-0">
-                <td className="px-4 py-4">
-                  <p className="font-semibold text-[var(--text-primary)]">{creator.name}</p>
-                  <p className="text-xs text-[var(--text-secondary)]">@{creator.username}</p>
-                </td>
-                <td className="px-4 py-4">
-                  {creator.verificationProfileUrl || creator.youtubeUrl ? (
-                    <Link
-                      href={creator.verificationProfileUrl || creator.youtubeUrl || ""}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="focus-ring inline-flex max-w-[220px] items-center gap-2 rounded-[8px] border border-[var(--border)] px-3 py-2 text-xs font-semibold text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
-                    >
-                      <span className="truncate">{submittedPlatformLabel(creator)}</span>
-                      <ExternalLink size={14} />
-                    </Link>
-                  ) : null}
-                  {creator.verificationSubmittedNote ? (
-                    <p className="mt-3 max-w-xs text-xs leading-5 text-[var(--text-secondary)]">{creator.verificationSubmittedNote}</p>
-                  ) : null}
-                </td>
-                <td className="px-4 py-4">
-                  <p className="font-mono text-base font-bold text-[var(--text-primary)]">
-                    {formatNumber(creator.claimedSubscribers)}
-                  </p>
-                  <p className="mt-1 text-xs text-[var(--text-secondary)]">claimed subscribers</p>
-                  <p className="mt-3 font-mono text-base font-bold text-[var(--text-primary)]">
-                    {formatNumber(creator.claimedAverageViews)}
-                  </p>
-                  <p className="mt-1 text-xs text-[var(--text-secondary)]">claimed avg views</p>
-                  <p className="mt-3 font-mono text-base font-bold text-[var(--text-primary)]">
-                    {creator.claimedEngagementRate ? `${creator.claimedEngagementRate.toFixed(1)}%` : "0%"}
-                  </p>
-                  <p className="mt-1 text-xs text-[var(--text-secondary)]">claimed engagement</p>
-                </td>
-                <td className="px-4 py-4">
-                  <div className="space-y-3">
-                    <Badge tone={normalizeCreatorVerificationStatus(creator.verificationStatus) === "pending" ? "yellow" : "neutral"}>
-                      {statusLabel(creator.verificationStatus)}
-                    </Badge>
-                    {creator.statsVerificationStatus === "needs_review" ? <Badge tone="yellow">Stats Need Review</Badge> : null}
-                    <div>
-                      <p className="text-xs font-semibold uppercase text-[var(--text-secondary)]">Code</p>
-                      <p className="mt-1 font-mono text-sm font-bold text-[var(--text-primary)]">
-                        {creator.verificationCode || "No code"}
-                      </p>
-                    </div>
-                    <label className="block">
-                      <span className="bridge-label">Verified subscribers</span>
-                      <input
-                        type="number"
-                        min={0}
-                        value={verifiedCounts[creator.username] ?? ""}
-                        onChange={(event) =>
-                          setVerifiedCounts((current) => ({ ...current, [creator.username]: event.target.value }))
-                        }
-                        className="bridge-input mt-2 w-40"
-                      />
-                    </label>
-                    <label className="block">
-                      <span className="bridge-label">Verified avg views</span>
-                      <input
-                        type="number"
-                        min={0}
-                        value={verifiedAverageViews[creator.username] ?? ""}
-                        onChange={(event) =>
-                          setVerifiedAverageViews((current) => ({ ...current, [creator.username]: event.target.value }))
-                        }
-                        className="bridge-input mt-2 w-40"
-                      />
-                    </label>
-                    <label className="block">
-                      <span className="bridge-label">Verified engagement %</span>
-                      <input
-                        type="number"
-                        min={0}
-                        max={100}
-                        step="0.1"
-                        value={verifiedEngagementRates[creator.username] ?? ""}
-                        onChange={(event) =>
-                          setVerifiedEngagementRates((current) => ({ ...current, [creator.username]: event.target.value }))
-                        }
-                        className="bridge-input mt-2 w-40"
-                      />
-                    </label>
-                  </div>
-                </td>
-                <td className="px-4 py-4">
-                  <textarea
-                    aria-label={`Review note for ${creator.name}`}
-                    value={notes[creator.username] ?? ""}
-                    onChange={(event) => setNotes((current) => ({ ...current, [creator.username]: event.target.value }))}
-                    className="bridge-input min-h-24 w-64"
-                    placeholder="Optional admin note"
-                  />
-                </td>
-                <td className="px-4 py-4">
-                  <div className="flex flex-col gap-2">
-                    {normalizeCreatorVerificationStatus(creator.verificationStatus) !== "verified" ? (
-                      <button
-                        type="button"
-                        onClick={() => updateVerification(creator, "approve")}
-                        disabled={savingKey.startsWith(`${creator.username}:`)}
-                        className="bridge-button-primary px-3 py-2 text-xs"
-                      >
-                        {savingKey === `${creator.username}:approve` ? <Loader2 size={14} className="animate-spin" /> : <BadgeCheck size={14} />}
-                        Approve Verification
-                      </button>
-                    ) : (
-                      <button type="button" disabled className="bridge-action-button justify-center border-emerald-800 text-emerald-200">
-                        <BadgeCheck size={14} />
-                        Verified
-                      </button>
-                    )}
-                    {creator.verificationStatus !== "rejected" ? (
-                      <button
-                        type="button"
-                        onClick={() => updateVerification(creator, "reject")}
-                        disabled={savingKey.startsWith(`${creator.username}:`)}
-                        className="bridge-action-button justify-center border-red-900 text-red-200"
-                      >
-                        {savingKey === `${creator.username}:reject` ? <Loader2 size={14} className="animate-spin" /> : <XCircle size={14} />}
-                        Reject
-                      </button>
-                    ) : null}
-                  </div>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        <form onSubmit={(event) => { event.preventDefault(); setSearch(query.trim()); setPage(1); }} className="flex w-full gap-2 lg:max-w-md">
+          <label className="min-w-0 flex-1">
+            <span className="sr-only">Search creator verifications</span>
+            <input value={query} onChange={(event) => setQuery(event.target.value)} className="bridge-input" placeholder="Name, username, email, platform" />
+          </label>
+          <button type="submit" className="bridge-button-secondary px-4" aria-label="Search"><Search size={17} /></button>
+        </form>
       </div>
 
-      <div className="divide-y divide-[var(--border)] md:hidden">
-        {pagination.pageItems.map((creator) => (
-          <article key={creator.username} className="p-4">
-            <div className="flex items-start justify-between gap-3">
-              <div className="min-w-0">
-                <h2 className="truncate font-semibold text-[var(--text-primary)]">{creator.name}</h2>
-                <p className="text-xs text-[var(--text-secondary)]">@{creator.username}</p>
+      {message ? <div role={message.tone === "error" ? "alert" : "status"} className={`rounded-[8px] border px-4 py-3 text-sm ${message.tone === "error" ? "border-red-900 bg-red-950/40 text-red-200" : "border-emerald-800 bg-emerald-950/40 text-emerald-100"}`}>{message.text}</div> : null}
+
+      {loading ? (
+        <div className="bridge-card flex min-h-40 items-center justify-center gap-2 text-sm text-[var(--text-secondary)]"><Loader2 className="animate-spin" size={18} /> Loading requests…</div>
+      ) : rows.length === 0 ? (
+        <div className="bridge-card p-8 text-center text-sm text-[var(--text-secondary)]">No {status} creator verification requests found.</div>
+      ) : (
+        <div className="grid gap-4">
+          {rows.map((row) => (
+            <article key={row.id} className="bridge-card overflow-hidden p-4 sm:p-5">
+              <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
+                <div className="min-w-0">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <h2 className="font-display text-xl font-bold">{row.name}</h2>
+                    <Badge tone={row.status === "approved" ? "green" : row.status === "pending" ? "yellow" : "neutral"}>{row.status}</Badge>
+                  </div>
+                  <p className="mt-1 text-sm text-[var(--text-secondary)]">@{row.username} · {row.email}</p>
+                  <p className="mt-3 text-xs uppercase text-[var(--text-muted)]">{row.platform === "other" ? row.customPlatformName : row.platform} · Submitted {new Date(row.submittedAt).toLocaleString()}</p>
+                </div>
+                <a href={row.profileUrl} target="_blank" rel="noopener noreferrer" className="bridge-button-secondary max-w-full px-4 py-2 text-sm">
+                  <span className="truncate">Open submitted profile</span><ExternalLink size={15} />
+                </a>
               </div>
-              <Badge tone={normalizeCreatorVerificationStatus(creator.verificationStatus) === "pending" ? "yellow" : "neutral"}>
-                {statusLabel(creator.verificationStatus)}
-              </Badge>
-              {creator.statsVerificationStatus === "needs_review" ? <Badge tone="yellow">Stats Need Review</Badge> : null}
-            </div>
-            {creator.verificationProfileUrl || creator.youtubeUrl ? (
-              <Link
-                href={creator.verificationProfileUrl || creator.youtubeUrl || ""}
-                target="_blank"
-                rel="noreferrer"
-                className="mt-4 inline-flex max-w-full items-center gap-2 rounded-[8px] border border-[var(--border)] px-3 py-2 text-xs font-semibold text-[var(--text-secondary)]"
-              >
-                <span className="truncate">{submittedPlatformLabel(creator)}</span>
-                <ExternalLink size={14} />
-              </Link>
-            ) : null}
-            {creator.verificationSubmittedNote ? (
-              <p className="mt-3 text-sm leading-6 text-[var(--text-secondary)]">{creator.verificationSubmittedNote}</p>
-            ) : null}
-            <div className="mt-4 grid gap-3">
-              <div>
-                <p className="text-xs font-semibold uppercase text-[var(--text-secondary)]">Claimed subscribers</p>
-                <p className="mt-1 font-mono text-base font-bold text-[var(--text-primary)]">
-                  {formatNumber(creator.claimedSubscribers)}
-                </p>
-                <p className="mt-3 text-xs font-semibold uppercase text-[var(--text-secondary)]">Claimed avg views</p>
-                <p className="mt-1 font-mono text-base font-bold text-[var(--text-primary)]">
-                  {formatNumber(creator.claimedAverageViews)}
-                </p>
-                <p className="mt-3 text-xs font-semibold uppercase text-[var(--text-secondary)]">Claimed engagement</p>
-                <p className="mt-1 font-mono text-base font-bold text-[var(--text-primary)]">
-                  {creator.claimedEngagementRate ? `${creator.claimedEngagementRate.toFixed(1)}%` : "0%"}
-                </p>
+              <div className="mt-4 grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(260px,380px)]">
+                <dl className="grid gap-3 rounded-[8px] border border-white/10 bg-black/20 p-4 text-sm sm:grid-cols-2">
+                  <div><dt className="bridge-label">Verification code</dt><dd className="mt-1 break-all font-mono font-bold">{row.verificationCode}</dd></div>
+                  <div><dt className="bridge-label">Profile URL</dt><dd className="mt-1 break-all text-cyan-100">{row.profileUrl}</dd></div>
+                  <div className="sm:col-span-2"><dt className="bridge-label">Creator note</dt><dd className="mt-1 text-[var(--text-secondary)]">{row.creatorNote || "No note provided."}</dd></div>
+                  {row.reviewedAt ? <div className="sm:col-span-2"><dt className="bridge-label">Reviewed</dt><dd className="mt-1">{new Date(row.reviewedAt).toLocaleString()}</dd></div> : null}
+                </dl>
+                <div>
+                  <label><span className="bridge-label">Admin review note{row.status === "pending" ? " (required for rejection)" : ""}</span>
+                    <textarea value={notes[row.id] ?? ""} onChange={(event) => setNotes((current) => ({ ...current, [row.id]: event.target.value }))} disabled={row.status !== "pending"} maxLength={500} className="bridge-input mt-2 min-h-24" />
+                  </label>
+                  {row.status === "pending" ? <div className="mt-3 flex flex-col gap-2 sm:flex-row">
+                    <button onClick={() => review(row, "approve")} disabled={Boolean(saving)} className="bridge-button-primary flex-1 px-3 py-2 text-sm">{saving === `${row.id}:approve` ? <Loader2 className="animate-spin" size={15} /> : <BadgeCheck size={15} />}Approve</button>
+                    <button onClick={() => review(row, "reject")} disabled={Boolean(saving)} className="bridge-action-button flex-1 justify-center border-red-900 text-red-200">{saving === `${row.id}:reject` ? <Loader2 className="animate-spin" size={15} /> : <XCircle size={15} />}Reject</button>
+                  </div> : null}
+                </div>
               </div>
-              <label className="block">
-                <span className="bridge-label">Verified subscribers</span>
-                <input
-                  type="number"
-                  min={0}
-                  value={verifiedCounts[creator.username] ?? ""}
-                  onChange={(event) =>
-                    setVerifiedCounts((current) => ({ ...current, [creator.username]: event.target.value }))
-                  }
-                  className="bridge-input mt-2 w-full"
-                />
-              </label>
-              <label className="block">
-                <span className="bridge-label">Verified avg views</span>
-                <input
-                  type="number"
-                  min={0}
-                  value={verifiedAverageViews[creator.username] ?? ""}
-                  onChange={(event) =>
-                    setVerifiedAverageViews((current) => ({ ...current, [creator.username]: event.target.value }))
-                  }
-                  className="bridge-input mt-2 w-full"
-                />
-              </label>
-              <label className="block">
-                <span className="bridge-label">Verified engagement %</span>
-                <input
-                  type="number"
-                  min={0}
-                  max={100}
-                  step="0.1"
-                  value={verifiedEngagementRates[creator.username] ?? ""}
-                  onChange={(event) =>
-                    setVerifiedEngagementRates((current) => ({ ...current, [creator.username]: event.target.value }))
-                  }
-                  className="bridge-input mt-2 w-full"
-                />
-              </label>
-              <textarea
-                aria-label={`Review note for ${creator.name}`}
-                value={notes[creator.username] ?? ""}
-                onChange={(event) => setNotes((current) => ({ ...current, [creator.username]: event.target.value }))}
-                className="bridge-input min-h-24 w-full"
-                placeholder="Optional admin note"
-              />
-              <div className="flex flex-wrap gap-2">
-                {normalizeCreatorVerificationStatus(creator.verificationStatus) !== "verified" ? (
-                  <button
-                    type="button"
-                    onClick={() => updateVerification(creator, "approve")}
-                    disabled={savingKey.startsWith(`${creator.username}:`)}
-                    className="bridge-button-primary px-3 py-2 text-xs"
-                  >
-                    {savingKey === `${creator.username}:approve` ? <Loader2 size={14} className="animate-spin" /> : <BadgeCheck size={14} />}
-                    Approve Verification
-                  </button>
-                ) : (
-                  <button type="button" disabled className="bridge-action-button border-emerald-800 text-emerald-200">
-                    <BadgeCheck size={14} />
-                    Verified
-                  </button>
-                )}
-                {creator.verificationStatus !== "rejected" ? (
-                  <button
-                    type="button"
-                    onClick={() => updateVerification(creator, "reject")}
-                    disabled={savingKey.startsWith(`${creator.username}:`)}
-                    className="bridge-action-button border-red-900 text-red-200"
-                  >
-                    {savingKey === `${creator.username}:reject` ? <Loader2 size={14} className="animate-spin" /> : <XCircle size={14} />}
-                    Reject
-                  </button>
-                ) : null}
-              </div>
-            </div>
-          </article>
-        ))}
+            </article>
+          ))}
+        </div>
+      )}
+
+      <div className="flex items-center justify-between gap-3 text-sm">
+        <span className="text-[var(--text-secondary)]">{total} request{total === 1 ? "" : "s"}</span>
+        <div className="flex items-center gap-2">
+          <button type="button" disabled={page <= 1} onClick={() => setPage((value) => value - 1)} className="bridge-button-secondary px-3 py-2 text-xs">Previous</button>
+          <span>Page {page} of {pages}</span>
+          <button type="button" disabled={page >= pages} onClick={() => setPage((value) => value + 1)} className="bridge-button-secondary px-3 py-2 text-xs">Next</button>
+        </div>
       </div>
-      <AdminPagination
-        page={pagination.page}
-        pageCount={pagination.pageCount}
-        pageSize={pagination.pageSize}
-        total={pagination.total}
-        onPageChange={pagination.setPage}
-      />
-    </div>
+    </section>
   );
 }

@@ -19,12 +19,14 @@ import {
 } from "lucide-react";
 
 import { CollaborationDetailActions } from "@/components/collaborations/collaboration-detail-actions";
+import { CollaborationChat } from "@/components/collaborations/collaboration-chat";
 import { CollaborationTimeline } from "@/components/collaborations/collaboration-timeline";
 import { Badge } from "@/components/shared/badge";
 import { InitialsAvatar } from "@/components/shared/initials-avatar";
 import { Navbar } from "@/components/shared/navbar";
 import { TrustPassportCard } from "@/components/verification/trust-passport-card";
 import { collaborationStatusLabel } from "@/lib/collaborations";
+import { isChatEligible } from "@/lib/collaboration-chat";
 import { getCurrentAppUser, getCurrentClerkUserId } from "@/lib/current-user";
 import { formatINR } from "@/lib/format";
 import { platformDisplayName } from "@/lib/platforms";
@@ -113,12 +115,15 @@ export default async function CollaborationDetailsPage({ params }: Collaboration
 
   const dashboardHref = user.role === "brand" ? "/dashboard/brand#campaigns" : "/dashboard/creator#collaborations";
   const attachments = [
+    ...(collaboration.attachments ?? []).map((href, index) => ({ label: `Campaign attachment ${index + 1}`, href })),
     collaboration.website ? { label: "Brand website", href: collaboration.website } : null,
     collaboration.deliveryProof?.videoUrl ? { label: "Delivery video", href: collaboration.deliveryProof.videoUrl } : null,
     collaboration.deliveryProof?.referenceLink ? { label: "Reference link", href: collaboration.deliveryProof.referenceLink } : null,
     collaboration.deliveryProof?.screenshotUrl ? { label: "Screenshot", href: collaboration.deliveryProof.screenshotUrl } : null,
   ].filter(Boolean) as { label: string; href: string }[];
   const targetPlatforms = collaboration.targetPlatforms.map((platform) => platformDisplayName(platform, collaboration.customPlatformName));
+  const chatAvailable = isChatEligible(collaboration.status);
+  const title = collaboration.campaignTitle || campaignTitle(collaboration.campaignGoal, collaboration.companyName);
 
   return (
     <>
@@ -135,13 +140,14 @@ export default async function CollaborationDetailsPage({ params }: Collaboration
             <div className="min-w-0 max-w-3xl flex-1">
               <p className="bridge-eyebrow">Collaboration Details</p>
               <h1 className="mt-3 break-words font-display text-3xl font-black leading-tight [overflow-wrap:break-word] [word-break:normal] sm:text-4xl">
-                {campaignTitle(collaboration.campaignGoal, collaboration.companyName)}
+                {collaboration.campaignTitle || campaignTitle(collaboration.campaignGoal, collaboration.companyName)}
               </h1>
               <div className="mt-4 flex flex-wrap gap-2">
                 <Badge tone={collaboration.status === "DECLINED" || collaboration.status === "CANCELLED" ? "neutral" : "green"}>{collaborationStatusLabel(collaboration.status)}</Badge>
                 <Badge tone={verificationTone(collaboration.brandVerificationStatus)}>{verificationLabel(collaboration.brandVerificationStatus)}</Badge>
                 <Badge tone={creatorVerificationTone(collaboration.creatorVerificationStatus)}>{verificationBadgeLabel(collaboration.creatorVerificationStatus)}</Badge>
                 {collaboration.creatorUsername ? <Badge tone="neutral">@{collaboration.creatorUsername}</Badge> : null}
+                {collaboration.collaborationNumber ? <Badge tone="neutral">{collaboration.collaborationNumber}</Badge> : null}
               </div>
             </div>
             <div className="grid w-full max-w-full min-w-0 gap-3 lg:w-80">
@@ -180,9 +186,16 @@ export default async function CollaborationDetailsPage({ params }: Collaboration
           </div>
         </section>
 
+        <nav aria-label="Collaboration sections" className="mt-4 flex max-w-full gap-2 overflow-x-auto rounded-[8px] border border-white/10 bg-white/[0.035] p-2">
+          <Link href="#timeline" className="bridge-button-secondary shrink-0 px-4">Timeline</Link>
+          <Link href="#deliverables" className="bridge-button-secondary shrink-0 px-4">Deliverables</Link>
+          {chatAvailable ? <Link href="#chat" className="bridge-button-secondary shrink-0 px-4">Chat</Link> : null}
+          <Link href="#history" className="bridge-button-secondary shrink-0 px-4">History</Link>
+        </nav>
+
         <section className="mt-6 grid min-w-0 max-w-full gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(260px,320px)] xl:grid-cols-[minmax(0,1fr)_340px]">
           <div className="grid min-w-0 gap-4">
-            <section className="min-w-0 rounded-[8px] border border-white/10 bg-white/[0.04] p-5">
+            <section id="deliverables" className="scroll-mt-24 min-w-0 rounded-[8px] border border-white/10 bg-white/[0.04] p-5">
               <div className="flex items-center justify-between gap-3">
                 <div className="min-w-0">
                   <p className="bridge-eyebrow">Campaign Brief</p>
@@ -192,7 +205,8 @@ export default async function CollaborationDetailsPage({ params }: Collaboration
               </div>
 
               <div className="mt-5 grid gap-4 md:grid-cols-2">
-                <DetailBlock label="Campaign title" value={campaignTitle(collaboration.campaignGoal, collaboration.companyName)} Icon={BadgeCheck} />
+                <DetailBlock label="Campaign title" value={collaboration.campaignTitle || campaignTitle(collaboration.campaignGoal, collaboration.companyName)} Icon={BadgeCheck} />
+                <DetailBlock label="Campaign type" value={collaboration.campaignType || "Sponsorship"} Icon={Layers3} />
                 <DetailBlock
                   label="Brand details"
                   value={
@@ -238,6 +252,8 @@ export default async function CollaborationDetailsPage({ params }: Collaboration
                 <DetailBlock label="Current status" value={collaborationStatusLabel(collaboration.status)} Icon={ShieldCheck} />
                 <DetailBlock label="Offer amount" value={offerAmountLabel(collaboration.currentOfferAmount)} Icon={CircleDollarSign} />
                 <DetailBlock label="Timeline" value={collaboration.timeline} Icon={CalendarDays} />
+                <DetailBlock label="Deadline" value={formatDate(collaboration.deadline)} Icon={CalendarDays} />
+                <DetailBlock label="Revisions" value={`${collaboration.revisionCount ?? 0} of ${collaboration.maxRevisions ?? 2} used`} Icon={Layers3} />
                 <DetailBlock label="Date received" value={formatDate(collaboration.createdAt)} Icon={CalendarDays} />
                 <DetailBlock
                   label="Deliverables"
@@ -305,10 +321,12 @@ export default async function CollaborationDetailsPage({ params }: Collaboration
               </div>
             </section>
 
-            <section className="min-w-0 rounded-[8px] border border-white/10 bg-white/[0.04] p-5">
+            <section id="timeline" className="scroll-mt-24 min-w-0 rounded-[8px] border border-white/10 bg-white/[0.04] p-5">
               <p className="bridge-eyebrow">Progress</p>
               <h2 className="mt-2 font-display text-2xl font-bold">Collaboration timeline</h2>
-              <CollaborationTimeline status={collaboration.status} history={collaboration.statusHistory} className="mt-5" />
+              <div id="history" className="scroll-mt-24">
+                <CollaborationTimeline status={collaboration.status} history={collaboration.statusHistory} className="mt-5" />
+              </div>
             </section>
           </div>
 
@@ -339,6 +357,18 @@ export default async function CollaborationDetailsPage({ params }: Collaboration
             />
           </div>
         </section>
+
+        {chatAvailable ? (
+          <div className="mt-6">
+            <CollaborationChat
+              collaborationId={collaboration.id}
+              campaignTitle={title}
+              status={collaborationStatusLabel(collaboration.status)}
+              deadline={formatDate(collaboration.deadline)}
+              budget={offerAmountLabel(collaboration.currentOfferAmount)}
+            />
+          </div>
+        ) : null}
       </main>
     </>
   );

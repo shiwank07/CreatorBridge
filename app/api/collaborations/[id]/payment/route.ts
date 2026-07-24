@@ -34,8 +34,7 @@ async function ownsAsBrand(collaboration: PaymentCollaborationDocument | null, u
   return (
     collaboration.createdByClerkId === user.clerkId ||
     idsMatch(collaboration.brandUserId, user._id) ||
-    idsMatch(collaboration.brandProfileId, brandProfile?._id) ||
-    (brandProfile?.contactEmail ? collaboration.email === brandProfile.contactEmail : false)
+    idsMatch(collaboration.brandProfileId, brandProfile?._id)
   );
 }
 

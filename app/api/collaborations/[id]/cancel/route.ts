@@ -8,6 +8,7 @@ import { connectDB, hasMongoUri } from "@/lib/db";
 import { BrandInquiry } from "@/lib/models/BrandInquiry";
 import { BrandProfile } from "@/lib/models/BrandProfile";
 import { User } from "@/lib/models/User";
+import { notificationService } from "@/lib/notifications/notification-service";
 
 function idsMatch(value: unknown, id: unknown) {
   return Boolean(value && id && value.toString() === id.toString());
@@ -40,8 +41,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     const ownsCollaboration =
       collaboration.createdByClerkId === user.clerkId ||
       idsMatch(collaboration.brandUserId, user._id) ||
-      idsMatch(collaboration.brandProfileId, brandProfile?._id) ||
-      (brandProfile?.contactEmail ? collaboration.email === brandProfile.contactEmail : false);
+      idsMatch(collaboration.brandProfileId, brandProfile?._id);
 
     if (!ownsCollaboration) {
       return NextResponse.json({ error: "You can only cancel your own collaboration requests." }, { status: 403 });
@@ -58,6 +58,9 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     const now = new Date();
     collaboration.set({
       status: "CANCELLED",
+      currentStage: "Cancelled",
+      brandStatus: "cancelled",
+      creatorStatus: "cancelled",
       closedAt: now,
       creatorResponseNote: note || "Brand cancelled before creator acceptance.",
     });
@@ -69,6 +72,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
       createdAt: now,
     });
     await collaboration.save();
+    await notificationService.notifyCollaborationCancelled({ collaboration });
 
     return NextResponse.json({ ok: true, status: collaboration.status });
   } catch (error) {

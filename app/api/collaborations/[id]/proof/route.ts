@@ -98,6 +98,9 @@ export async function POST(req: Request, { params }: RouteContext) {
 
     collaboration.set({
       status: "PROOF_SUBMITTED",
+      currentStage: "Submitted",
+      creatorStatus: "submitted",
+      brandStatus: "review_required",
       deliveryProof: {
         ...plainProof(collaboration.deliveryProof),
         ...parsed.data,

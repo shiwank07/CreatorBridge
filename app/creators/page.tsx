@@ -11,8 +11,7 @@ import { authHref } from "@/lib/auth-redirect";
 import { getCurrentAppUser } from "@/lib/current-user";
 import { formatNumber } from "@/lib/format";
 import { platformDisplayName } from "@/lib/platforms";
-import { getCreators } from "@/lib/queries/creators";
-import { type CreatorCardData } from "@/lib/types";
+import { getCreatorDiscoveryPage, getSavedCreatorUsernames } from "@/lib/queries/creators";
 import { getPublicSubscriberCount } from "@/lib/verification";
 
 export const dynamic = "force-dynamic";
@@ -49,27 +48,6 @@ function priceRangeLabel(value?: string) {
   return value ? labels[value] : "";
 }
 
-function matchesSubscriberRange(creator: CreatorCardData, range?: string) {
-  if (!range) return true;
-
-  const subscribers = getPublicSubscriberCount(creator);
-  if (range === "under-100k") return subscribers < 100000;
-  if (range === "100k-500k") return subscribers >= 100000 && subscribers < 500000;
-  if (range === "500k-1m") return subscribers >= 500000 && subscribers < 1000000;
-  if (range === "1m-plus") return subscribers >= 1000000;
-  return true;
-}
-
-function matchesPriceRange(creator: CreatorCardData, range?: string) {
-  if (!range) return true;
-
-  const price = creator.sponsorshipRate ?? 0;
-  if (range === "under-50k") return price > 0 && price < 50000;
-  if (range === "50k-100k") return price >= 50000 && price < 100000;
-  if (range === "100k-plus") return price >= 100000;
-  return true;
-}
-
 export default async function CreatorsPage({ searchParams }: { searchParams: CreatorSearchParams }) {
   const params = await searchParams;
   const viewer = await getCurrentAppUser();
@@ -78,17 +56,22 @@ export default async function CreatorsPage({ searchParams }: { searchParams: Cre
     search: readParam(params.q),
     niche: readParam(params.niche),
     platform: readParam(params.platform),
+    verification: readParam(params.verification) as "verified" | "unverified" | undefined,
+    availability: readParam(params.availability) as "open" | "closed" | undefined,
+    language: readParam(params.language),
     subscriberRange: readParam(params.subs),
+    viewsRange: readParam(params.views),
     priceRange: readParam(params.price),
+    engagementRange: readParam(params.engagement),
     country: readParam(params.country),
     sort: readParam(params.sort) ?? "featured",
-    openToDeals: readParam(params.open) === "true",
+    page: Math.max(Number.parseInt(readParam(params.page) ?? "1", 10) || 1, 1),
+    pageSize: 20,
   };
 
-  const creators = (await getCreators({ ...filters, limit: 100 })).filter(
-    (creator) => matchesSubscriberRange(creator, filters.subscriberRange) && matchesPriceRange(creator, filters.priceRange),
-  );
-  const visibleCreators = creators.slice(0, 24);
+  const discovery = await getCreatorDiscoveryPage(filters);
+  const creators = discovery.creators;
+  const savedUsernames = viewerRole === "brand" ? await getSavedCreatorUsernames(viewer?.id) : new Set<string>();
   const verifiedCreators = creators.filter((creator) => creator.isVerified).length;
   const totalReach = creators.reduce((sum, creator) => sum + getPublicSubscriberCount(creator), 0);
   const activeFilters = [
@@ -98,9 +81,17 @@ export default async function CreatorsPage({ searchParams }: { searchParams: Cre
     filters.subscriberRange ? subscriberRangeLabel(filters.subscriberRange) : "",
     filters.priceRange ? priceRangeLabel(filters.priceRange) : "",
     filters.country ? `Country: ${filters.country}` : "",
-    filters.openToDeals ? "Open to deals" : "",
     filters.sort && filters.sort !== "featured" ? `Sort: ${filters.sort.replace("-", " ")}` : "",
   ].filter(Boolean);
+  const pageHref = (page: number) => {
+    const next = new URLSearchParams();
+    for (const [key, value] of Object.entries(params)) {
+      const normalized = Array.isArray(value) ? value[0] : value;
+      if (normalized && key !== "page") next.set(key, normalized);
+    }
+    next.set("page", String(page));
+    return `/creators?${next}`;
+  };
 
   return (
     <>
@@ -140,6 +131,7 @@ export default async function CreatorsPage({ searchParams }: { searchParams: Cre
                       <Rocket size={17} />
                     </Link>
                   ) : null}
+                  {viewerRole === "brand" ? <Link href="/dashboard/brand/saved-creators" className="bridge-button-secondary w-full sm:w-auto">Saved Creators</Link> : null}
                 </div>
               </div>
 
@@ -153,7 +145,7 @@ export default async function CreatorsPage({ searchParams }: { searchParams: Cre
                 </div>
                 <div className="mt-5 space-y-3">
                   {[
-                    { label: "Verified creator graph", value: `${verifiedCreators}/${creators.length}`, icon: BadgeCheck },
+                    { label: "Verified on this page", value: `${verifiedCreators}/${creators.length}`, icon: BadgeCheck },
                     { label: "Visible audience reach", value: formatNumber(totalReach), icon: Zap },
                     { label: "Brand-safe requests", value: "Manual review", icon: Building2 },
                   ].map(({ label, value, icon: Icon }) => (
@@ -186,7 +178,7 @@ export default async function CreatorsPage({ searchParams }: { searchParams: Cre
             </div>
             <div className="creator-result-pill">
               <span className="font-mono text-xl font-bold text-white">
-                {creators.length}
+                {discovery.total}
               </span>
               creator{creators.length === 1 ? "" : "s"} found
             </div>
@@ -205,10 +197,10 @@ export default async function CreatorsPage({ searchParams }: { searchParams: Cre
             </div>
           ) : null}
 
-          {visibleCreators.length > 0 ? (
-            <section className="mt-6 grid gap-5 md:grid-cols-2 xl:grid-cols-3">
-              {visibleCreators.map((creator) => (
-                <CreatorCard key={creator.id} creator={creator} viewerRole={viewerRole} />
+          {creators.length > 0 ? (
+            <section className="mt-6 grid gap-5 md:grid-cols-2 xl:grid-cols-4" data-testid="creator-grid">
+              {creators.map((creator) => (
+                <CreatorCard key={creator.id} creator={creator} viewerRole={viewerRole} initialSaved={savedUsernames.has(creator.username)} />
               ))}
             </section>
           ) : (
@@ -222,12 +214,22 @@ export default async function CreatorsPage({ searchParams }: { searchParams: Cre
             </div>
           )}
 
+          {discovery.total > 0 ? (
+            <nav aria-label="Creator pagination" className="mt-8 flex flex-wrap items-center justify-between gap-3 rounded-[8px] border border-white/10 bg-white/[0.035] p-4">
+              <p className="text-sm text-[var(--text-secondary)]">Page {discovery.page} of {discovery.totalPages} · {discovery.total} total results</p>
+              <div className="flex gap-2">
+                {discovery.page > 1 ? <Link href={pageHref(discovery.page - 1)} className="bridge-button-secondary px-4 py-2 text-sm">Previous</Link> : <button disabled className="bridge-button-secondary px-4 py-2 text-sm">Previous</button>}
+                {discovery.page < discovery.totalPages ? <Link href={pageHref(discovery.page + 1)} className="bridge-button-secondary px-4 py-2 text-sm">Next</Link> : <button disabled className="bridge-button-secondary px-4 py-2 text-sm">Next</button>}
+              </div>
+            </nav>
+          ) : null}
+
           {creators.length > 0 ? (
             <aside className="mt-14 border-t border-white/10 pt-8" aria-label="Current marketplace statistics">
               <p className="bridge-eyebrow">Current marketplace signals</p>
               <div className="mt-5 grid gap-3 sm:grid-cols-3">
                 {[
-                  { label: "Matching creators", value: String(creators.length), detail: "live results for this search", icon: Sparkles },
+                  { label: "Matching creators", value: String(discovery.total), detail: "server-filtered results", icon: Sparkles },
                   { label: "Verified creators", value: String(verifiedCreators), detail: "approved platform ownership", icon: BadgeCheck },
                   { label: "Visible audience reach", value: formatNumber(totalReach), detail: "combined public subscriber count", icon: Zap },
                 ].map(({ label, value, detail, icon: Icon }) => (

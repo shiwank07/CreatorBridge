@@ -6,7 +6,9 @@ import { handleRouteError, parseJsonBody } from "@/lib/api-errors";
 import { hasClerkKeys } from "@/lib/clerk-config";
 import { connectDB, hasMongoUri } from "@/lib/db";
 import { CreatorProfile } from "@/lib/models/CreatorProfile";
+import { CreatorVerificationRequest } from "@/lib/models/CreatorVerificationRequest";
 import { User } from "@/lib/models/User";
+import { notificationService } from "@/lib/notifications/notification-service";
 import { createVerificationCode, verificationCodeExpiry } from "@/lib/verification-helpers";
 
 async function generateUniqueCreatorCode() {
@@ -21,9 +23,12 @@ async function generateUniqueCreatorCode() {
 
 const creatorVerificationSubmitSchema = z
   .object({
-    platform: z.enum(["youtube", "instagram", "twitch", "other"]),
+    platform: z.enum(["youtube", "instagram", "twitch", "x", "other"]),
     customPlatformName: z.string().trim().max(80).optional().default(""),
-    profileUrl: z.string().trim().url("Enter a valid public profile URL.").max(500),
+    profileUrl: z.string().trim().url("Enter a valid public profile URL.").max(500).refine((value) => {
+      const protocol = new URL(value).protocol;
+      return protocol === "http:" || protocol === "https:";
+    }, "Profile URL must use http or https."),
     note: z.string().trim().max(500).optional().default(""),
   })
   .superRefine((value, context) => {
@@ -69,7 +74,10 @@ export async function POST(req: Request) {
     const profile = await CreatorProfile.findOne({ userId: user._id });
     if (!profile) return NextResponse.json({ error: "Creator profile not found." }, { status: 404 });
     if (profile.verificationStatus === "verified" || profile.verificationStatus === "ownership_verified") {
-      return NextResponse.json({ ok: true, status: profile.verificationStatus });
+      return NextResponse.json({ error: "This creator is already verified." }, { status: 409 });
+    }
+    if (await CreatorVerificationRequest.exists({ creatorId: profile._id, status: "pending" })) {
+      return NextResponse.json({ error: "A verification request is already pending review." }, { status: 409 });
     }
 
     const now = new Date();
@@ -77,6 +85,26 @@ export async function POST(req: Request) {
       profile.verificationCode
         ? profile.verificationCode
         : await generateUniqueCreatorCode();
+
+    let request;
+    try {
+      request = await CreatorVerificationRequest.create({
+        creatorId: profile._id,
+        clerkUserId: userId,
+        platform: parsed.data.platform,
+        customPlatformName: parsed.data.customPlatformName,
+        profileUrl: parsed.data.profileUrl,
+        verificationCode,
+        creatorNote: parsed.data.note,
+        status: "pending",
+        submittedAt: now,
+      });
+    } catch (error) {
+      if (typeof error === "object" && error && "code" in error && error.code === 11000) {
+        return NextResponse.json({ error: "A verification request is already pending review." }, { status: 409 });
+      }
+      throw error;
+    }
 
     await CreatorProfile.updateOne(
       { _id: profile._id },
@@ -98,7 +126,13 @@ export async function POST(req: Request) {
       },
     );
 
-    return NextResponse.json({ ok: true, status: "pending", verificationCode });
+    await notificationService.notifyVerificationSubmitted({
+      user,
+      platform: parsed.data.platform === "other" ? parsed.data.customPlatformName : parsed.data.platform,
+      profileUrl: parsed.data.profileUrl,
+    });
+
+    return NextResponse.json({ ok: true, requestId: request._id.toString(), status: "pending", verificationCode }, { status: 201 });
   } catch (error) {
     return handleRouteError(error, "Creator verification submission failed", "Could not submit verification.");
   }

@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { Camera, ExternalLink, Globe2, Languages, MapPin, Radio, Send, ShieldCheck, Tags, TvMinimalPlay } from "lucide-react";
 
 import { CreatorProfileHeader } from "@/components/creators/creator-profile-header";
+import { SaveCreatorButton } from "@/components/creators/save-creator-button";
 import { StatBox } from "@/components/creators/stat-box";
 import { WorkingHistoryCard } from "@/components/collaborations/working-history-card";
 import { Badge } from "@/components/shared/badge";
@@ -17,7 +18,7 @@ import { getCurrentAppUser } from "@/lib/current-user";
 import { platformDisplayName } from "@/lib/platforms";
 import { calculateCreatorProfileCompletion } from "@/lib/profile-completion";
 import { getCreatorCollaborationHistorySummary } from "@/lib/queries/collaborations";
-import { creatorMetaDescription, getCreatorByUsername } from "@/lib/queries/creators";
+import { creatorMetaDescription, getCreatorByUsername, getSavedCreatorUsernames } from "@/lib/queries/creators";
 import {
   getPublicAverageViews,
   getPublicEngagementRate,
@@ -91,6 +92,7 @@ export default async function CreatorProfilePage({ params }: { params: CreatorPr
     getCreatorCollaborationHistorySummary(creator.username),
   ]);
   const viewerRole = viewer?.onboardingComplete && (viewer.role === "creator" || viewer.role === "brand") ? viewer.role : undefined;
+  const savedUsernames = viewerRole === "brand" ? await getSavedCreatorUsernames(viewer?.id) : new Set<string>();
   const isOwner = viewerRole === "creator" && viewer?.username === creator.username;
   const statsVerified = hasVerifiedStats(creator);
   const statsStatus = normalizeStatsVerificationStatus(creator.statsVerificationStatus);
@@ -269,10 +271,13 @@ export default async function CreatorProfilePage({ params }: { params: CreatorPr
               </p>
             ) : null}
             {viewerRole === "brand" && canStart ? (
-              <Link href={`/campaign-inquiry?creator=${creator.username}`} className="bridge-button-primary mt-5 w-full">
-                <Send size={17} />
-                Start Collaboration
-              </Link>
+              <>
+                <SaveCreatorButton username={creator.username} initialSaved={savedUsernames.has(creator.username)} className="bridge-button-secondary mt-5 px-4" />
+                <Link href={`/campaign-inquiry?creator=${creator.username}`} className="bridge-button-primary mt-3 w-full">
+                  <Send size={17} />
+                  Start Collaboration
+                </Link>
+              </>
             ) : isOwner ? (
               <>
                 <Link href="/dashboard/creator/edit" className="bridge-button-secondary mt-5 w-full">

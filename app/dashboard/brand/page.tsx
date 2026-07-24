@@ -35,6 +35,7 @@ import { calculateBrandProfileCompletion } from "@/lib/profile-completion";
 import { getBrandCollaborationDashboard, groupCollaborationsByStatus } from "@/lib/queries/collaborations";
 import { getBrandByUsername } from "@/lib/queries/brands";
 import { getCurrentUserNotificationSummary } from "@/lib/queries/notifications";
+import { getCurrentUserChatUnreadCount } from "@/lib/queries/chat";
 import { averageResponseTimeLabel, countDisputes } from "@/lib/trust-metrics";
 import { type BrandInquiryData, type BrandProfileData, type InAppNotificationData } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -356,15 +357,16 @@ export default async function BrandDashboardPage() {
   if (user?.onboardingComplete && user.role === "creator") redirect("/dashboard/creator");
   if (user?.onboardingComplete && user.role !== "brand") redirect("/dashboard");
 
-  const [dashboard, notificationSummary, brandProfile] = await Promise.all([
+  const [dashboard, notificationSummary, brandProfile, chatUnreadCount] = await Promise.all([
     getBrandCollaborationDashboard(),
     getCurrentUserNotificationSummary(5),
     user?.username ? getBrandByUsername(user.username) : Promise.resolve(null),
+    getCurrentUserChatUnreadCount(),
   ]);
 
   const collaborations = dashboard.collaborations;
   const sentCollaborations = collaborations;
-  const waitingForCreator = groupCollaborationsByStatus(collaborations, ["NEW", "PENDING_CREATOR_RESPONSE"]);
+  const waitingForCreator = groupCollaborationsByStatus(collaborations, ["NEW", "PENDING_CREATOR_RESPONSE", "NEGOTIATING"]);
   const inProgress = groupCollaborationsByStatus(collaborations, ["ACCEPTED", "IN_PROGRESS", "PROOF_SUBMITTED", "REVISION_REQUESTED", "APPROVED"]);
   const proofReview = groupCollaborationsByStatus(collaborations, ["PROOF_SUBMITTED", "REVISION_REQUESTED", "APPROVED"]);
   const completed = groupCollaborationsByStatus(collaborations, ["COMPLETED"]);
@@ -417,7 +419,7 @@ export default async function BrandDashboardPage() {
           <DashboardMetricCard label="Waiting" value={waitingForCreator.length} detail="Briefs waiting for creator responses." Icon={UsersRound} tone="cyan" delay="stat-delay-1" href="#waiting-for-creator" />
           <DashboardMetricCard label="In Progress" value={inProgress.length} detail="Campaigns with accepted creators in motion." Icon={Layers3} tone="violet" delay="stat-delay-2" href="#active-campaigns" />
           <DashboardMetricCard label="Proof Review" value={proofReview.length} detail="Delivery proof and approvals needing attention." Icon={FileCheck2} tone="emerald" delay="stat-delay-3" href="#proof-review" />
-          <DashboardMetricCard label="Unread" value={notificationSummary.unreadCount} detail="Notification signals from campaigns and verification." Icon={Sparkles} tone="amber" delay="stat-delay-4" href="#notifications" />
+          <DashboardMetricCard label="Unread" value={notificationSummary.unreadCount + chatUnreadCount} detail={`${chatUnreadCount} unread chat message${chatUnreadCount === 1 ? "" : "s"} plus campaign notifications.`} Icon={Sparkles} tone="amber" delay="stat-delay-4" href="#notifications" />
         </section>
 
         {!dashboard.user ? (

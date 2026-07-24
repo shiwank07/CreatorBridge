@@ -5,6 +5,7 @@ import { handleRouteError } from "@/lib/api-errors";
 import { hasClerkKeys } from "@/lib/clerk-config";
 import { connectDB, hasMongoUri } from "@/lib/db";
 import { CreatorProfile } from "@/lib/models/CreatorProfile";
+import { CreatorVerificationRequest } from "@/lib/models/CreatorVerificationRequest";
 import { User } from "@/lib/models/User";
 import { createVerificationCode, verificationCodeExpiry } from "@/lib/verification-helpers";
 
@@ -50,6 +51,11 @@ export async function GET() {
     if (!profile) return NextResponse.json({ error: "Creator profile not found." }, { status: 404 });
 
     const verificationCode = await ensureVerificationCode(profile._id.toString(), profile.verificationCode);
+    const latestRequest = await CreatorVerificationRequest.findOne({ creatorId: profile._id })
+      .sort({ submittedAt: -1, createdAt: -1 })
+      .select("platform customPlatformName profileUrl creatorNote status adminNote submittedAt reviewedAt")
+      .lean()
+      .exec();
 
     return NextResponse.json({
       ok: true,
@@ -72,6 +78,19 @@ export async function GET() {
       claimedEngagementRate: profile.claimedEngagementRate,
       statsVerificationStatus: profile.statsVerificationStatus,
       verifiedAt: profile.verifiedAt?.toISOString(),
+      request: latestRequest
+        ? {
+            id: latestRequest._id.toString(),
+            platform: latestRequest.platform,
+            customPlatformName: latestRequest.customPlatformName,
+            profileUrl: latestRequest.profileUrl,
+            creatorNote: latestRequest.creatorNote,
+            status: latestRequest.status,
+            adminNote: latestRequest.adminNote,
+            submittedAt: latestRequest.submittedAt?.toISOString(),
+            reviewedAt: latestRequest.reviewedAt?.toISOString(),
+          }
+        : null,
     });
   } catch (error) {
     return handleRouteError(error, "Creator verification status failed", "Could not load verification status.");

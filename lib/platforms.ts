@@ -2,6 +2,7 @@ import { PLATFORMS } from "@/lib/constants";
 
 const EXTRA_PLATFORM_LABELS: Record<string, string> = {
   twitch: "Twitch",
+  x: "X",
   other: "Other",
 };
 

@@ -1,5 +1,6 @@
 import { createElement, type ReactElement } from "react";
 import mongoose from "mongoose";
+import { createHash } from "node:crypto";
 
 import CreatorAcceptedEmail from "@/emails/creator-accepted";
 import CreatorDeclinedEmail from "@/emails/creator-declined";
@@ -10,26 +11,36 @@ import NewCollaborationEmail from "@/emails/new-collaboration";
 import ProofSubmittedEmail from "@/emails/proof-submitted";
 import VerificationApprovedEmail from "@/emails/verification-approved";
 import VerificationRejectedEmail from "@/emails/verification-rejected";
+import VerificationSubmittedEmail from "@/emails/verification-submitted";
 import { collaborationDetailsHref } from "@/lib/collaboration-routes";
 import { sendEmail } from "@/lib/email/email-service";
 import { InAppNotification } from "@/lib/models/InAppNotification";
 import { EmailNotification, type EmailNotificationStatus } from "@/lib/models/EmailNotification";
 import { User } from "@/lib/models/User";
+import { notificationEntityForEvent, safeNotificationActionUrl } from "@/lib/notifications/notification-safety";
 
 export type NotificationEvent =
   | "collaboration_request"
   | "new_collaboration"
+  | "offer_viewed"
   | "brand_response"
   | "counter_requested"
   | "counter_sent"
+  | "counter_offer"
+  | "counter_accepted"
+  | "counter_rejected"
+  | "collaboration_cancelled"
+  | "campaign_ready"
   | "creator_accepted"
   | "creator_declined"
   | "proof_submitted"
   | "delivery_approved"
   | "delivery_changes_requested"
   | "collaboration_completed"
+  | "verification_submitted"
   | "verification_approved"
   | "verification_rejected"
+  | "chat_message"
   | "featured_creator"
   | "admin_notice"
   | "system_update";
@@ -40,6 +51,8 @@ type NotificationUser = {
   email?: string | null;
   name?: string | null;
   username?: string | null;
+  clerkId?: string | null;
+  role?: string | null;
 };
 
 type DeliveryProofLike = {
@@ -49,6 +62,7 @@ type DeliveryProofLike = {
   notes?: string;
   screenshotUrl?: string;
   referenceLink?: string;
+  submittedAt?: Date | null;
 };
 
 type CollaborationLike = {
@@ -64,6 +78,7 @@ type CollaborationLike = {
   brandUserId?: unknown;
   createdByClerkId?: string;
   deliveryProof?: DeliveryProofLike | null;
+  revisionCount?: number;
 };
 
 type SendNotificationInput = {
@@ -88,6 +103,10 @@ type InAppNotificationInput = {
   title: string;
   message: string;
   href: string;
+  entityType?: "collaboration" | "verification" | "message" | "creator" | "brand" | "system";
+  entityId?: string;
+  deduplicationKey?: string;
+  metadata?: Record<string, unknown>;
 };
 
 type VerificationNotificationInput = {
@@ -181,57 +200,86 @@ async function resolveCreatorUser(collaboration: CollaborationLike, provided?: N
   if (provided?.email) return provided;
 
   if (collaboration.creatorUserId) {
-    const user = await User.findById(collaboration.creatorUserId).select("email name username").exec();
+    const user = await User.findById(collaboration.creatorUserId).select("email name username clerkId role").exec();
     if (user?.email) return user;
   }
 
   const username = trimText(collaboration.creatorUsername);
   if (!username) return null;
 
-  return User.findOne({ username, role: "creator" }).select("email name username").exec();
+  return User.findOne({ username, role: "creator" }).select("email name username clerkId role").exec();
 }
 
 async function resolveBrandUser(collaboration: CollaborationLike, provided?: NotificationUser | null) {
   if (provided?.email) return provided;
 
   if (collaboration.brandUserId) {
-    const user = await User.findById(collaboration.brandUserId).select("email name username").exec();
+    const user = await User.findById(collaboration.brandUserId).select("email name username clerkId role").exec();
     if (user?.email) return user;
   }
 
   if (collaboration.createdByClerkId) {
-    const user = await User.findOne({ clerkId: collaboration.createdByClerkId }).select("email name username").exec();
+    const user = await User.findOne({ clerkId: collaboration.createdByClerkId }).select("email name username clerkId role").exec();
     if (user?.email) return user;
   }
 
   const email = normalizeRecipient(collaboration.email);
   if (!email) return null;
 
-  return User.findOne({ email }).select("email name username").exec();
+  return User.findOne({ email }).select("email name username clerkId role").exec();
 }
 
-async function createInAppNotification({ recipientUserId, actorUserId, event, title, message, href }: InAppNotificationInput) {
+async function createInAppNotification(input: InAppNotificationInput) {
+  const { recipientUserId, actorUserId, event, title, message } = input;
   const recipientId = toObjectId(recipientUserId);
   const actorId = toObjectId(actorUserId);
   if (!recipientId) return;
+  const [recipient, actor] = await Promise.all([
+    User.findById(recipientId).select("clerkId role").lean(),
+    actorId ? User.findById(actorId).select("clerkId").lean() : Promise.resolve(null),
+  ]);
+  if (!recipient || !["creator", "brand", "admin"].includes(recipient.role)) return;
+  const href = safeNotificationActionUrl(input.href);
+  const entityType = input.entityType ?? notificationEntityForEvent(event);
+  const entityId = input.entityId ?? href.match(/\/(?:collaborations|verification)\/([^/?#]+)/)?.[1] ?? "";
+  const deduplicationKey =
+    input.deduplicationKey ??
+    `notification:${createHash("sha256").update([recipient.clerkId, event, href, title, message].join("|")).digest("hex")}`;
 
   try {
-    await InAppNotification.create({
-      recipientUserId: recipientId,
-      actorUserId: actorId,
-      event,
-      title,
-      message,
-      href,
-      isRead: false,
-      readAt: null,
-    });
+    const result = await InAppNotification.updateOne(
+      { deduplicationKey },
+      {
+        $setOnInsert: {
+          recipientUserId: recipientId,
+          recipientClerkUserId: recipient.clerkId,
+          recipientRole: recipient.role,
+          actorUserId: actorId,
+          actorClerkUserId: actor?.clerkId ?? "",
+          event,
+          type: event,
+          entityType,
+          entityId,
+          title,
+          message,
+          href,
+          actionUrl: href,
+          deduplicationKey,
+          metadata: input.metadata ?? {},
+          isRead: false,
+          readAt: null,
+        },
+      },
+      { upsert: true },
+    );
+    return result.upsertedCount === 1;
   } catch (error) {
     console.error("[notifications] Could not store in-app notification.", {
       event,
       recipientUserId: String(recipientId),
       error: errorMessage(error),
     });
+    return false;
   }
 }
 
@@ -343,6 +391,188 @@ async function safeNotify(event: NotificationEvent, work: () => Promise<void>) {
 }
 
 export const notificationService = {
+  async notifyCounterDecision({
+    collaboration,
+    accepted,
+  }: {
+    collaboration: CollaborationLike;
+    accepted: boolean;
+  }) {
+    const event: NotificationEvent = accepted ? "counter_accepted" : "counter_rejected";
+    await safeNotify(event, async () => {
+      const [creator, brand] = await Promise.all([resolveCreatorUser(collaboration), resolveBrandUser(collaboration)]);
+      const companyName = trimText(collaboration.companyName, "The brand");
+      await createInAppNotification({
+        recipientUserId: userObjectId(creator),
+        actorUserId: userObjectId(brand),
+        event,
+        title: accepted ? "Counter offer accepted" : "Counter offer rejected",
+        message: accepted
+          ? `${companyName} accepted your counter offer. The collaboration is ready to begin.`
+          : `${companyName} declined your counter offer.`,
+        href: collaborationHref(collaboration),
+        deduplicationKey: `collaboration:${collaborationId(collaboration)}:${event}`,
+      });
+    });
+  },
+
+  async notifyCollaborationCancelled({ collaboration }: { collaboration: CollaborationLike }) {
+    const event: NotificationEvent = "collaboration_cancelled";
+    await safeNotify(event, async () => {
+      const [creator, brand] = await Promise.all([resolveCreatorUser(collaboration), resolveBrandUser(collaboration)]);
+      await createInAppNotification({
+        recipientUserId: userObjectId(creator),
+        actorUserId: userObjectId(brand),
+        event,
+        title: "Collaboration cancelled",
+        message: `${trimText(collaboration.companyName, "The brand")} cancelled the collaboration request.`,
+        href: collaborationHref(collaboration),
+        deduplicationKey: `collaboration:${collaborationId(collaboration)}:cancelled`,
+      });
+    });
+  },
+
+  async notifyCampaignReady({ collaboration }: { collaboration: CollaborationLike }) {
+    const event: NotificationEvent = "campaign_ready";
+    await safeNotify(event, async () => {
+      const [creator, brand] = await Promise.all([resolveCreatorUser(collaboration), resolveBrandUser(collaboration)]);
+      await createInAppNotification({
+        recipientUserId: userObjectId(brand),
+        actorUserId: userObjectId(creator),
+        event,
+        title: "Campaign work started",
+        message: `${userDisplayName(creator, "The creator")} marked the campaign as in progress.`,
+        href: collaborationHref(collaboration),
+        deduplicationKey: `collaboration:${collaborationId(collaboration)}:campaign-ready`,
+      });
+    });
+  },
+
+  async notifyChatMessage({
+    collaboration,
+    messageId,
+    senderUserId,
+    recipientUserId,
+    preview,
+  }: {
+    collaboration: CollaborationLike;
+    messageId: unknown;
+    senderUserId: unknown;
+    recipientUserId: unknown;
+    preview: string;
+  }) {
+    const event: NotificationEvent = "chat_message";
+    await safeNotify(event, async () => {
+      const [sender, recipient] = await Promise.all([
+        User.findById(senderUserId).select("_id name username clerkId role").lean(),
+        User.findById(recipientUserId).select("_id name username clerkId role").lean(),
+      ]);
+      if (!sender || !recipient) return;
+      const id = collaborationId(collaboration);
+      await createInAppNotification({
+        recipientUserId: recipient._id,
+        actorUserId: sender._id,
+        event,
+        title: `New message from ${userDisplayName(sender, "your collaboration partner")}`,
+        message: truncate(trimText(preview, "Sent a collaboration message."), 160),
+        href: `${collaborationDetailsHref(id || null)}#chat`,
+        entityType: "message",
+        entityId: String(messageId),
+        deduplicationKey: `message:${String(messageId)}:recipient:${String(recipient._id)}`,
+        metadata: { collaborationId: id },
+      });
+    });
+  },
+
+  async notifyOfferViewed({ collaboration }: { collaboration: CollaborationLike }) {
+    const event: NotificationEvent = "offer_viewed";
+    await safeNotify(event, async () => {
+      const [creator, brand] = await Promise.all([resolveCreatorUser(collaboration), resolveBrandUser(collaboration)]);
+      await createInAppNotification({
+        recipientUserId: userObjectId(brand),
+        actorUserId: userObjectId(creator),
+        event,
+        title: "Collaboration offer viewed",
+        message: `${userDisplayName(creator, "The creator")} viewed your collaboration offer.`,
+        href: collaborationHref(collaboration),
+      });
+    });
+  },
+
+  async notifyCounterOffer({
+    collaboration,
+    actor,
+    amount,
+    note,
+  }: {
+    collaboration: CollaborationLike;
+    actor: "brand" | "creator";
+    amount: number;
+    note?: string;
+  }) {
+    const event: NotificationEvent = "counter_offer";
+    await safeNotify(event, async () => {
+      const [creator, brand] = await Promise.all([resolveCreatorUser(collaboration), resolveBrandUser(collaboration)]);
+      const recipient = actor === "creator" ? brand : creator;
+      const actorUser = actor === "creator" ? creator : brand;
+      await createInAppNotification({
+        recipientUserId: userObjectId(recipient),
+        actorUserId: userObjectId(actorUser),
+        event,
+        title: "New counter offer",
+        message: `${userDisplayName(actorUser, actor)} proposed INR ${amount.toLocaleString("en-IN")}.${trimText(note) ? ` ${trimText(note)}` : ""}`,
+        href: collaborationHref(collaboration),
+      });
+    });
+  },
+
+  async notifyVerificationSubmitted({
+    user,
+    platform,
+    profileUrl,
+  }: {
+    user: NotificationUser;
+    platform: string;
+    profileUrl: string;
+  }) {
+    const event: NotificationEvent = "verification_submitted";
+    await safeNotify(event, async () => {
+      const created = await createInAppNotification({
+        recipientUserId: userObjectId(user),
+        event,
+        title: "Verification request submitted",
+        message: "Your creator verification request is queued for admin review.",
+        href: "/dashboard/verification",
+      });
+
+      const admins = await User.find({ role: "admin", accountStatus: "active" }).select("_id").exec();
+      await Promise.all(
+        admins.map((admin) =>
+          createInAppNotification({
+            recipientUserId: admin._id,
+            actorUserId: userObjectId(user),
+            event,
+            title: "New creator verification request",
+            message: `${userDisplayName(user, "A creator")} submitted a ${platform} profile for review.`,
+            href: "/admin/verification",
+          }),
+        ),
+      );
+
+      if (created) await sendAndRecord({
+        recipient: user.email,
+        event,
+        subject: "Your creator verification request is in review",
+        react: createElement(VerificationSubmittedEmail, {
+          name: userDisplayName(user),
+          platform,
+          profileUrl,
+          verificationUrl: appUrl("/dashboard/verification"),
+        }),
+      });
+    });
+  },
+
   async notifyNewCollaboration({
     collaboration,
     creatorUser,
@@ -362,7 +592,7 @@ export const notificationService = {
         ...emailConfigLogSnapshot(),
       });
 
-      await createInAppNotification({
+      const created = await createInAppNotification({
         recipientUserId: userObjectId(creator),
         actorUserId: userObjectId(brand),
         event,
@@ -371,7 +601,7 @@ export const notificationService = {
         href,
       });
 
-      await sendAndRecord({
+      if (created) await sendAndRecord({
         recipient: creator?.email,
         event,
         subject: `New collaboration request from ${companyName}`,
@@ -404,7 +634,7 @@ export const notificationService = {
       const creatorName = userDisplayName(creator, trimText(collaboration.creatorUsername, "The creator"));
       const href = collaborationHref(collaboration);
 
-      await createInAppNotification({
+      const created = await createInAppNotification({
         recipientUserId: userObjectId(brand),
         actorUserId: userObjectId(creator),
         event,
@@ -413,7 +643,7 @@ export const notificationService = {
         href,
       });
 
-      await sendAndRecord({
+      if (created) await sendAndRecord({
         recipient: collaboration.email,
         event,
         subject: `${creatorName} accepted your collaboration request`,
@@ -445,7 +675,7 @@ export const notificationService = {
       const creatorName = userDisplayName(creator, trimText(collaboration.creatorUsername, "The creator"));
       const href = collaborationHref(collaboration);
 
-      await createInAppNotification({
+      const created = await createInAppNotification({
         recipientUserId: userObjectId(brand),
         actorUserId: userObjectId(creator),
         event,
@@ -454,7 +684,7 @@ export const notificationService = {
         href,
       });
 
-      await sendAndRecord({
+      if (created) await sendAndRecord({
         recipient: collaboration.email,
         event,
         subject: `${creatorName} declined your collaboration request`,
@@ -479,16 +709,17 @@ export const notificationService = {
       const creatorName = userDisplayName(creator, trimText(collaboration.creatorUsername, "The creator"));
       const href = collaborationHref(collaboration);
 
-      await createInAppNotification({
+      const created = await createInAppNotification({
         recipientUserId: userObjectId(brand),
         actorUserId: userObjectId(creator),
         event,
         title: "Proof submitted",
         message: `${creatorName} submitted delivery proof for ${companyName}.`,
         href,
+        deduplicationKey: `collaboration:${collaborationId(collaboration)}:proof:${proof?.submittedAt?.toISOString?.() ?? "initial"}`,
       });
 
-      await sendAndRecord({
+      if (created) await sendAndRecord({
         recipient: collaboration.email,
         event,
         subject: `${creatorName} submitted delivery proof`,
@@ -512,7 +743,7 @@ export const notificationService = {
       const companyName = trimText(collaboration.companyName, "The brand");
       const href = collaborationHref(collaboration);
 
-      await createInAppNotification({
+      const created = await createInAppNotification({
         recipientUserId: userObjectId(creator),
         actorUserId: userObjectId(brand),
         event,
@@ -521,7 +752,7 @@ export const notificationService = {
         href,
       });
 
-      await sendAndRecord({
+      if (created) await sendAndRecord({
         recipient: creator?.email,
         event,
         subject: `${companyName} approved your delivery`,
@@ -543,16 +774,17 @@ export const notificationService = {
       const companyName = trimText(collaboration.companyName, "The brand");
       const href = collaborationHref(collaboration);
 
-      await createInAppNotification({
+      const created = await createInAppNotification({
         recipientUserId: userObjectId(creator),
         actorUserId: userObjectId(brand),
         event,
         title: "Changes requested",
         message: `${companyName} requested changes to your delivery proof.${trimText(note) ? ` ${trimText(note)}` : ""}`,
         href,
+        deduplicationKey: `collaboration:${collaborationId(collaboration)}:revision:${collaboration.revisionCount ?? 0}`,
       });
 
-      await sendAndRecord({
+      if (created) await sendAndRecord({
         recipient: creator?.email,
         event,
         subject: `${companyName} requested revisions`,
@@ -574,7 +806,7 @@ export const notificationService = {
       const companyName = trimText(collaboration.companyName, "The brand");
       const href = collaborationHref(collaboration);
 
-      await createInAppNotification({
+      const created = await createInAppNotification({
         recipientUserId: userObjectId(creator),
         actorUserId: userObjectId(brand),
         event,
@@ -583,7 +815,7 @@ export const notificationService = {
         href,
       });
 
-      await sendAndRecord({
+      if (created) await sendAndRecord({
         recipient: creator?.email,
         event,
         subject: `${companyName} completed the collaboration`,
@@ -600,15 +832,15 @@ export const notificationService = {
   async notifyVerificationApproved({ user, accountType, note, statusLabel }: VerificationNotificationInput) {
     const event: NotificationEvent = "verification_approved";
     await safeNotify(event, async () => {
-      await createInAppNotification({
+      const created = await createInAppNotification({
         recipientUserId: userObjectId(user),
         event,
         title: "Verification approved",
         message: `Your ${accountType} verification was approved.`,
-        href: accountType === "creator" ? "/dashboard/creator" : "/dashboard/brand",
+        href: accountType === "creator" ? "/dashboard/verification" : "/dashboard/brand",
       });
 
-      await sendAndRecord({
+      if (created) await sendAndRecord({
         recipient: user.email,
         event,
         subject: `Your ${accountType} verification was approved`,
@@ -626,15 +858,15 @@ export const notificationService = {
   async notifyVerificationRejected({ user, accountType, note }: Omit<VerificationNotificationInput, "statusLabel">) {
     const event: NotificationEvent = "verification_rejected";
     await safeNotify(event, async () => {
-      await createInAppNotification({
+      const created = await createInAppNotification({
         recipientUserId: userObjectId(user),
         event,
         title: "Verification rejected",
-        message: `Your ${accountType} verification was not approved.${trimText(note) ? ` ${trimText(note)}` : ""}`,
-        href: accountType === "creator" ? "/dashboard/creator" : "/dashboard/brand",
+        message: `Your ${accountType} verification needs review. Open the verification page for details.`,
+        href: accountType === "creator" ? "/dashboard/verification" : "/dashboard/brand",
       });
 
-      await sendAndRecord({
+      if (created) await sendAndRecord({
         recipient: user.email,
         event,
         subject: `Your ${accountType} verification needs review`,

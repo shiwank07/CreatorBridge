@@ -3,6 +3,7 @@ import {
   Bell,
   Handshake,
   Mail,
+  MessageSquareText,
   Megaphone,
   Star,
   TriangleAlert,
@@ -19,6 +20,13 @@ type NotificationVisual = {
 };
 
 const notificationVisuals: Record<string, NotificationVisual> = {
+  chat_message: {
+    label: "Chat message",
+    Icon: MessageSquareText,
+    shellClassName: "border-violet-300/25 bg-violet-400/10 text-violet-100",
+    iconClassName: "text-violet-100",
+    accentClassName: "bg-violet-400",
+  },
   collaboration_request: {
     label: "Collaboration request",
     Icon: Handshake,

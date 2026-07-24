@@ -12,7 +12,7 @@ export type VerificationStatus =
   | "stats_verified"
   | "needs_review";
 export type StatsVerificationStatus = "unverified" | "pending" | "verified" | "needs_review" | "rejected";
-export type CreatorVerificationPlatform = "youtube" | "instagram" | "twitch" | "other";
+export type CreatorVerificationPlatform = "youtube" | "instagram" | "twitch" | "x" | "other";
 
 export interface ICreatorProfile extends Document {
   userId: mongoose.Types.ObjectId;
@@ -107,7 +107,7 @@ const CreatorProfileSchema = new Schema<ICreatorProfile>(
     claimedEngagementRate: { type: Number, default: 0, min: 0 },
     verifiedEngagementRate: { type: Number, default: 0, min: 0 },
     verificationCode: { type: String, default: "" },
-    verificationPlatform: { type: String, enum: ["youtube", "instagram", "twitch", "other"], default: "youtube" },
+    verificationPlatform: { type: String, enum: ["youtube", "instagram", "twitch", "x", "other"], default: "youtube" },
     customPlatformName: { type: String, trim: true, maxlength: 80, default: "" },
     verificationProfileUrl: { type: String, trim: true, default: "" },
     verificationSubmittedNote: { type: String, trim: true, maxlength: 500, default: "" },
@@ -159,6 +159,15 @@ CreatorProfileSchema.index(
     partialFilterExpression: { verificationCode: { $type: "string", $ne: "" } },
   },
 );
+CreatorProfileSchema.index({ verificationStatus: 1, availabilityStatus: 1, createdAt: -1 });
+CreatorProfileSchema.index({ country: 1, languages: 1 });
+CreatorProfileSchema.index({ niche: 1, availabilityStatus: 1 });
+CreatorProfileSchema.index({ verificationPlatform: 1 });
+CreatorProfileSchema.index({ claimedSubscribers: 1 });
+CreatorProfileSchema.index({ claimedAverageViews: 1 });
+CreatorProfileSchema.index({ claimedEngagementRate: 1 });
+CreatorProfileSchema.index({ sponsorshipRate: 1 });
+CreatorProfileSchema.index({ bio: "text", niche: "text", country: "text", languages: "text", verificationPlatform: "text" });
 
 export const CreatorProfile =
   (mongoose.models.CreatorProfile as Model<ICreatorProfile> | undefined) ??

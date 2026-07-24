@@ -13,8 +13,10 @@ import {
 import { connectDB, hasMongoUri } from "@/lib/db";
 import { BrandInquiry } from "@/lib/models/BrandInquiry";
 import { BrandProfile } from "@/lib/models/BrandProfile";
+import { Conversation } from "@/lib/models/Conversation";
 import { CreatorProfile } from "@/lib/models/CreatorProfile";
 import { User } from "@/lib/models/User";
+import { notificationService } from "@/lib/notifications/notification-service";
 import { hasClerkKeys } from "@/lib/clerk-config";
 import {
   type BrandInquiryData,
@@ -45,6 +47,7 @@ type StatusHistoryDocument = {
 
 type CollaborationDocument = {
   _id: { toString(): string };
+  collaborationNumber?: string;
   brandUserId?: { toString(): string } | null;
   brandProfileId?: { toString(): string } | null;
   creatorUserId?: { toString(): string } | null;
@@ -54,6 +57,10 @@ type CollaborationDocument = {
   email: string;
   website?: string;
   campaignGoal: string;
+  campaignTitle?: string;
+  campaignType?: string;
+  deadline?: Date | null;
+  attachments?: string[];
   deliverables?: string[];
   targetNiches?: string[];
   targetPlatforms?: string[];
@@ -75,6 +82,13 @@ type CollaborationDocument = {
   paymentScreenshotUrl?: string;
   paymentUpdatedAt?: Date | null;
   paymentUpdatedBy?: "brand" | "creator" | "admin" | "system";
+  creatorStatus?: string;
+  brandStatus?: string;
+  currentStage?: string;
+  negotiationPrice?: number;
+  revisionCount?: number;
+  maxRevisions?: number;
+  notes?: string;
   status: BrandInquiryStatus;
   statusHistory?: StatusHistoryDocument[];
   deliveryProof?: {
@@ -123,6 +137,7 @@ export type CollaborationHistorySummaryData = {
 const ACTIVE_HISTORY_QUERY_STATUSES: BrandInquiryStatus[] = [
   "NEW",
   "PENDING_CREATOR_RESPONSE",
+  "NEGOTIATING",
   "ACCEPTED",
   "IN_PROGRESS",
   "PROOF_SUBMITTED",
@@ -184,12 +199,17 @@ function mapCollaboration(doc: CollaborationDocument): BrandInquiryData {
 
   return {
     id: doc._id.toString(),
+    collaborationNumber: doc.collaborationNumber,
     companyName: doc.companyName,
     contactName: doc.contactName,
     email: contactEmailRevealed ? doc.email : "",
     contactEmailRevealed,
     website: doc.website,
     campaignGoal: doc.campaignGoal,
+    campaignTitle: doc.campaignTitle,
+    campaignType: doc.campaignType,
+    deadline: doc.deadline?.toISOString(),
+    attachments: doc.attachments ?? [],
     deliverables: doc.deliverables ?? [],
     targetNiches: doc.targetNiches ?? [],
     targetPlatforms: doc.targetPlatforms ?? [],
@@ -226,6 +246,13 @@ function mapCollaboration(doc: CollaborationDocument): BrandInquiryData {
     paymentNote: doc.paymentNote,
     paymentScreenshotUrl: doc.paymentScreenshotUrl,
     paymentUpdatedAt: doc.paymentUpdatedAt?.toISOString(),
+    creatorStatus: doc.creatorStatus,
+    brandStatus: doc.brandStatus,
+    currentStage: doc.currentStage,
+    negotiationPrice: doc.negotiationPrice,
+    revisionCount: doc.revisionCount ?? 0,
+    maxRevisions: doc.maxRevisions ?? 2,
+    notes: doc.notes,
     createdAt: doc.createdAt?.toISOString(),
   };
 }
@@ -243,7 +270,7 @@ async function getBrandVerificationStatus(collaboration: CollaborationDocument):
 }> {
   const profile = collaboration.brandProfileId
     ? await BrandProfile.findById(collaboration.brandProfileId).select("userId verificationStatus verificationNote phoneNumber phoneVerified").exec()
-    : await BrandProfile.findOne({ contactEmail: collaboration.email }).select("userId verificationStatus verificationNote phoneNumber phoneVerified").exec();
+    : null;
 
   if (profile) {
     const brandUser = collaboration.brandUserId
@@ -368,6 +395,10 @@ export async function getCreatorCollaborationDashboard(): Promise<CollaborationD
 
   const docs = await BrandInquiry.find({ $or: filters }).sort({ updatedAt: -1, createdAt: -1 }).limit(100).exec();
 
+  const unreadRows = await Conversation.find({ creatorId: user._id, collaborationId: { $in: docs.map((doc) => doc._id) } })
+    .select("collaborationId unreadForCreator")
+    .lean();
+  const unreadByCollaboration = new Map(unreadRows.map((row) => [String(row.collaborationId), row.unreadForCreator]));
   return {
     user: {
       id: user._id.toString(),
@@ -375,7 +406,10 @@ export async function getCreatorCollaborationDashboard(): Promise<CollaborationD
       name: user.name,
       role: user.role,
     },
-    collaborations: docs.map((doc) => mapCollaboration(doc as unknown as CollaborationDocument)),
+    collaborations: docs.map((doc) => ({
+      ...mapCollaboration(doc as unknown as CollaborationDocument),
+      chatUnreadCount: unreadByCollaboration.get(String(doc._id)) ?? 0,
+    })),
   };
 }
 
@@ -388,11 +422,14 @@ export async function getBrandCollaborationDashboard(): Promise<CollaborationDas
 
   if (brandProfile) {
     filters.push({ brandProfileId: brandProfile._id });
-    filters.push({ email: brandProfile.contactEmail });
   }
 
   const docs = await BrandInquiry.find({ $or: filters }).sort({ updatedAt: -1, createdAt: -1 }).limit(100).exec();
 
+  const unreadRows = await Conversation.find({ brandId: user._id, collaborationId: { $in: docs.map((doc) => doc._id) } })
+    .select("collaborationId unreadForBrand")
+    .lean();
+  const unreadByCollaboration = new Map(unreadRows.map((row) => [String(row.collaborationId), row.unreadForBrand]));
   return {
     user: {
       id: user._id.toString(),
@@ -400,7 +437,10 @@ export async function getBrandCollaborationDashboard(): Promise<CollaborationDas
       name: user.name,
       role: user.role,
     },
-    collaborations: docs.map((doc) => mapCollaboration(doc as unknown as CollaborationDocument)),
+    collaborations: docs.map((doc) => ({
+      ...mapCollaboration(doc as unknown as CollaborationDocument),
+      chatUnreadCount: unreadByCollaboration.get(String(doc._id)) ?? 0,
+    })),
   };
 }
 
@@ -452,8 +492,7 @@ export async function getCurrentUserCollaborationDetails(id: string): Promise<Co
     canView =
       doc.createdByClerkId === user.clerkId ||
       idsMatch(doc.brandUserId, user._id) ||
-      idsMatch(doc.brandProfileId, brandProfile?._id) ||
-      (brandProfile?.contactEmail ? doc.email === brandProfile.contactEmail : false);
+      idsMatch(doc.brandProfileId, brandProfile?._id);
   }
 
   if (!canView) return null;
@@ -466,6 +505,7 @@ export async function getCurrentUserCollaborationDetails(id: string): Promise<Co
       note: `${user.role === "creator" ? "Creator" : "Brand"} viewed the collaboration.`,
     });
     await collaboration.save();
+    if (user.role === "creator") await notificationService.notifyOfferViewed({ collaboration });
   }
 
   const updatedDoc = collaboration as unknown as CollaborationDocument;

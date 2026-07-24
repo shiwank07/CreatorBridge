@@ -7,6 +7,8 @@ import { formatNumber } from "@/lib/format";
 import { type CreatorCardData, type CreatorPaymentDetailsData, type StatsVerificationStatus, type VerificationStatus } from "@/lib/types";
 import { getPublicAverageViews, getPublicSubscriberCount, isCreatorVerifiedStatus } from "@/lib/verification";
 import { generateUsername } from "@/lib/slug";
+import { SavedCreator } from "@/lib/models/SavedCreator";
+import type { PipelineStage } from "mongoose";
 
 export type CreatorFilters = {
   search?: string;
@@ -16,6 +18,26 @@ export type CreatorFilters = {
   openToDeals?: boolean;
   sort?: string;
   limit?: number;
+};
+
+export type CreatorDiscoveryFilters = CreatorFilters & {
+  verification?: "verified" | "unverified";
+  availability?: "open" | "closed";
+  language?: string;
+  subscriberRange?: string;
+  viewsRange?: string;
+  priceRange?: string;
+  engagementRange?: string;
+  page?: number;
+  pageSize?: number;
+};
+
+export type CreatorDiscoveryPage = {
+  creators: CreatorCardData[];
+  total: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
 };
 
 type CreatorDocumentWithUser = {
@@ -41,7 +63,7 @@ type CreatorDocumentWithUser = {
   statsVerificationStatus?: StatsVerificationStatus;
   verificationStatus?: VerificationStatus;
   verificationCode?: string;
-  verificationPlatform?: "youtube" | "instagram" | "twitch" | "other";
+  verificationPlatform?: "youtube" | "instagram" | "twitch" | "x" | "other";
   customPlatformName?: string;
   verificationProfileUrl?: string;
   verificationSubmittedNote?: string;
@@ -290,7 +312,7 @@ function mapCreator(doc: CreatorDocumentWithUser, options?: { includePrivatePaym
   } as CreatorCardData;
 
   const creator: CreatorCardData = {
-    id: doc._id.toString(),
+    id: user.username,
     username: user.username,
     name: user.name,
     avatar: user.avatar,
@@ -373,6 +395,9 @@ function filterDemoCreators(filters: CreatorFilters) {
   if (filters.platform === "instagram") {
     result = result.filter((creator) => Boolean(creator.instagramUrl));
   }
+  if (filters.platform === "twitch" || filters.platform === "x") {
+    result = result.filter((creator) => creator.verificationPlatform === filters.platform && Boolean(creator.verificationProfileUrl));
+  }
 
   if (filters.platform === "podcast") {
     result = result.filter((creator) => Boolean(creator.podcastUrl));
@@ -415,6 +440,11 @@ function sortCreators(creators: CreatorCardData[], sort?: string) {
   if (sort === "newest") {
     return result.sort((a, b) => new Date(b.createdAt ?? 0).getTime() - new Date(a.createdAt ?? 0).getTime());
   }
+  if (sort === "oldest") return result.sort((a, b) => new Date(a.createdAt ?? 0).getTime() - new Date(b.createdAt ?? 0).getTime());
+  if (sort === "subscribers-low") return result.sort((a, b) => (a.subscribers ?? 0) - (b.subscribers ?? 0));
+  if (sort === "engagement-high") return result.sort((a, b) => (b.claimedEngagementRate ?? 0) - (a.claimedEngagementRate ?? 0));
+  if (sort === "alphabetical") return result.sort((a, b) => a.name.localeCompare(b.name));
+  if (sort === "alphabetical-desc") return result.sort((a, b) => b.name.localeCompare(a.name));
 
   return result.sort(
     (a, b) =>
@@ -422,6 +452,158 @@ function sortCreators(creators: CreatorCardData[], sort?: string) {
       Number(b.isVerified) - Number(a.isVerified) ||
       (b.subscribers ?? 0) - (a.subscribers ?? 0),
   );
+}
+
+function numericRange(field: string, value?: string): Record<string, unknown> | null {
+  const ranges: Record<string, [number?, number?]> = {
+    "under-10k": [undefined, 10_000],
+    "under-50k": [undefined, 50_000],
+    "under-100k": [undefined, 100_000],
+    "10k-50k": [10_000, 50_000],
+    "50k-100k": [50_000, 100_000],
+    "100k-500k": [100_000, 500_000],
+    "500k-1m": [500_000, 1_000_000],
+    "1m-plus": [1_000_000, undefined],
+    "100k-plus": [100_000, undefined],
+    "under-5": [undefined, 5],
+    "5-10": [5, 10],
+    "10-plus": [10, undefined],
+  };
+  const range = value ? ranges[value] : undefined;
+  if (!range) return null;
+  const condition: Record<string, number> = {};
+  if (range[0] !== undefined) condition.$gte = range[0];
+  if (range[1] !== undefined) condition.$lt = range[1];
+  return { [field]: condition };
+}
+
+function filterDemoDiscovery(filters: CreatorDiscoveryFilters): CreatorDiscoveryPage {
+  let creators = filterDemoCreators({ ...filters, limit: demoCreators.length });
+  if (filters.verification) creators = creators.filter((creator) => creator.isVerified === (filters.verification === "verified"));
+  if (filters.availability) creators = creators.filter((creator) => filters.availability === "open" ? creator.isOpenToDeals : !creator.isOpenToDeals);
+  if (filters.language) creators = creators.filter((creator) => creator.languages.some((language) => language.toLowerCase() === filters.language?.toLowerCase()));
+  const tests: [keyof CreatorDiscoveryFilters, (creator: CreatorCardData) => number][] = [
+    ["subscriberRange", (creator) => getPublicSubscriberCount(creator)],
+    ["viewsRange", (creator) => getPublicAverageViews(creator)],
+    ["priceRange", (creator) => creator.sponsorshipRate ?? 0],
+    ["engagementRange", (creator) => creator.verifiedEngagementRate || creator.claimedEngagementRate || 0],
+  ];
+  for (const [key, read] of tests) {
+    const query = numericRange("value", filters[key] as string | undefined)?.value as Record<string, number> | undefined;
+    if (query) creators = creators.filter((creator) => (query.$gte === undefined || read(creator) >= query.$gte) && (query.$lt === undefined || read(creator) < query.$lt));
+  }
+  creators = sortCreators(creators, filters.sort);
+  const pageSize = Math.min(Math.max(filters.pageSize ?? 20, 1), 50);
+  const total = creators.length;
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
+  const page = Math.min(Math.max(filters.page ?? 1, 1), totalPages);
+  return { creators: creators.slice((page - 1) * pageSize, page * pageSize), total, page, pageSize, totalPages };
+}
+
+export async function getCreatorDiscoveryPage(filters: CreatorDiscoveryFilters = {}): Promise<CreatorDiscoveryPage> {
+  if (!hasMongoUri()) return filterDemoDiscovery(filters);
+  try {
+    await connectDB();
+    const pageSize = Math.min(Math.max(filters.pageSize ?? 20, 1), 50);
+    const requestedPage = Math.max(filters.page ?? 1, 1);
+    const match: Record<string, unknown>[] = [];
+    const search = filters.search?.trim();
+    if (search) {
+      const [matchingUsers, matchingProfiles] = await Promise.all([
+        User.find({ $text: { $search: search }, role: "creator", onboardingComplete: true, accountStatus: "active" }).select("_id").limit(500).lean(),
+        CreatorProfile.find({ $text: { $search: search } }).select("_id").limit(500).lean(),
+      ]);
+      match.push({ $or: [{ userId: { $in: matchingUsers.map((user) => user._id) } }, { _id: { $in: matchingProfiles.map((profile) => profile._id) } }] });
+    }
+    if (filters.niche) match.push({ niche: filters.niche });
+    if (filters.country) match.push({ country: new RegExp(`^${escapeRegex(filters.country)}$`, "i") });
+    if (filters.language) match.push({ languages: new RegExp(`^${escapeRegex(filters.language)}$`, "i") });
+    if (filters.verification === "verified") match.push({ verificationStatus: { $in: ["verified", "ownership_verified"] } });
+    if (filters.verification === "unverified") match.push({ verificationStatus: { $nin: ["verified", "ownership_verified"] } });
+    if (filters.availability === "open" || filters.openToDeals) match.push({ availabilityStatus: { $in: ["open_to_deals", "limited_availability"] } });
+    if (filters.availability === "closed") match.push({ availabilityStatus: { $in: ["unavailable", "closed"] } });
+    if (filters.platform === "youtube") match.push({ youtubeUrl: { $ne: "" } });
+    if (filters.platform === "instagram") match.push({ instagramUrl: { $ne: "" } });
+    if (filters.platform === "twitch" || filters.platform === "x" || filters.platform === "other") match.push({ verificationPlatform: filters.platform, verificationProfileUrl: { $ne: "" } });
+    for (const condition of [
+      numericRange("publicSubscribers", filters.subscriberRange),
+      numericRange("publicAverageViews", filters.viewsRange),
+      numericRange("sponsorshipRate", filters.priceRange),
+      numericRange("publicEngagement", filters.engagementRange),
+    ]) if (condition) match.push(condition);
+
+    const sortMap: Record<string, Record<string, 1 | -1>> = {
+      newest: { createdAt: -1 },
+      oldest: { createdAt: 1 },
+      subscribers: { publicSubscribers: -1 },
+      "subscribers-low": { publicSubscribers: 1 },
+      "engagement-high": { publicEngagement: -1 },
+      "rate-low": { sponsorshipRate: 1 },
+      "rate-high": { sponsorshipRate: -1 },
+      alphabetical: { "user.name": 1 },
+      "alphabetical-desc": { "user.name": -1 },
+      featured: { "user.isFeatured": -1, publicSubscribers: -1 },
+    };
+    const pipeline: PipelineStage[] = [
+      { $lookup: { from: "users", localField: "userId", foreignField: "_id", as: "user" } },
+      { $unwind: "$user" },
+      { $match: { "user.role": "creator", "user.onboardingComplete": true, "user.accountStatus": "active" } },
+      { $addFields: {
+        publicSubscribers: { $cond: [{ $eq: ["$statsVerificationStatus", "verified"] }, { $ifNull: ["$verifiedSubscribers", 0] }, { $ifNull: ["$claimedSubscribers", { $ifNull: ["$subscribers", 0] }] }] },
+        publicAverageViews: { $cond: [{ $eq: ["$statsVerificationStatus", "verified"] }, { $ifNull: ["$verifiedAverageViews", 0] }, { $ifNull: ["$claimedAverageViews", { $ifNull: ["$avgViews", 0] }] }] },
+        publicEngagement: { $cond: [{ $eq: ["$statsVerificationStatus", "verified"] }, { $ifNull: ["$verifiedEngagementRate", 0] }, { $ifNull: ["$claimedEngagementRate", 0] }] },
+      } },
+      ...(match.length ? [{ $match: { $and: match } } as PipelineStage.Match] : []),
+      { $sort: sortMap[filters.sort ?? "featured"] ?? sortMap.featured },
+      { $project: {
+        userId: 1, bio: 1, niche: 1, country: 1, languages: 1, youtubeUrl: 1, youtubeHandle: 1,
+        instagramUrl: 1, podcastUrl: 1, subscribers: 1, claimedSubscribers: 1, verifiedSubscribers: 1,
+        claimedAverageViews: 1, verifiedAverageViews: 1, claimedEngagementRate: 1, verifiedEngagementRate: 1,
+        statsVerificationStatus: 1, verificationStatus: 1, verificationPlatform: 1, customPlatformName: 1,
+        verificationProfileUrl: 1, avgViews: 1, instagramFollowers: 1, sponsorshipRate: 1, rateType: 1,
+        pastBrands: 1, sampleWorkUrls: 1, isOpenToDeals: 1, availabilityStatus: 1, verifiedAt: 1,
+        lastVerifiedAt: 1, createdAt: 1, publicSubscribers: 1, publicAverageViews: 1, publicEngagement: 1,
+        "user._id": 1, "user.username": 1, "user.name": 1, "user.avatar": 1, "user.isFeatured": 1,
+        "user.isVerified": 1, "user.emailVerified": 1,
+      } },
+      { $facet: {
+        creators: [{ $skip: (requestedPage - 1) * pageSize }, { $limit: pageSize }],
+        count: [{ $count: "value" }],
+      } },
+    ];
+    const [result] = await CreatorProfile.aggregate(pipeline);
+    const total = result?.count?.[0]?.value ?? 0;
+    const totalPages = Math.max(1, Math.ceil(total / pageSize));
+    const page = Math.min(requestedPage, totalPages);
+    if (page !== requestedPage && total > 0) return getCreatorDiscoveryPage({ ...filters, page });
+    const creators = (result?.creators ?? []).map((doc: CreatorDocumentWithUser & { user: CreatorDocumentWithUser["userId"] }) =>
+      mapCreator({ ...doc, userId: doc.user }) as CreatorCardData,
+    );
+    return { creators, total, page, pageSize, totalPages };
+  } catch {
+    return filterDemoDiscovery(filters);
+  }
+}
+
+export async function getSavedCreatorUsernames(brandUserId?: string): Promise<Set<string>> {
+  if (!brandUserId || !hasMongoUri()) return new Set();
+  await connectDB();
+  const saved = await SavedCreator.find({ brandUserId }).populate({ path: "creatorUserId", select: "username" }).lean();
+  return new Set(saved.map((entry) => (entry.creatorUserId as unknown as { username?: string })?.username).filter((value): value is string => Boolean(value)));
+}
+
+export async function getSavedCreatorsForBrand(brandUserId: string): Promise<CreatorCardData[]> {
+  if (!hasMongoUri()) return [];
+  await connectDB();
+  const saved = await SavedCreator.find({ brandUserId }).sort({ createdAt: -1 }).select("creatorUserId").lean();
+  const order = new Map(saved.map((entry, index) => [entry.creatorUserId.toString(), index]));
+  const profiles = await CreatorProfile.find({ userId: { $in: saved.map((entry) => entry.creatorUserId) } })
+    .populate({ path: "userId", match: { role: "creator", onboardingComplete: true, accountStatus: "active" } })
+    .exec();
+  return profiles
+    .filter((profile) => Boolean(profile.userId))
+    .sort((a, b) => (order.get(a.userId._id.toString()) ?? 0) - (order.get(b.userId._id.toString()) ?? 0))
+    .map((profile) => mapCreator(profile as unknown as CreatorDocumentWithUser) as CreatorCardData);
 }
 
 export async function getCreators(filters: CreatorFilters = {}): Promise<CreatorCardData[]> {

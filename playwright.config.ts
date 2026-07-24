@@ -7,6 +7,7 @@ dotenv.config({
 });
 
 const baseURL = process.env.BASE_URL ?? 'http://localhost:3000';
+const webServerPort = new URL(baseURL).port || '3000';
 
 export default defineConfig({
   testDir: './tests',
@@ -108,7 +109,7 @@ export default defineConfig({
   ],
 
   webServer: {
-    command: 'npm run dev',
+    command: `npm run dev -- --port ${webServerPort}`,
     url: baseURL,
     reuseExistingServer: !process.env.CI,
     timeout: 120_000,

@@ -9,6 +9,7 @@ import { formatINR } from "@/lib/format";
 import { BrandProfile } from "@/lib/models/BrandProfile";
 import { BrandInquiry } from "@/lib/models/BrandInquiry";
 import { CreatorProfile } from "@/lib/models/CreatorProfile";
+import { Counter } from "@/lib/models/Counter";
 import { User } from "@/lib/models/User";
 import { notificationService } from "@/lib/notifications/notification-service";
 import { brandInquirySchema } from "@/lib/validators/brand-inquiry";
@@ -73,14 +74,29 @@ export async function POST(req: Request) {
     }
 
     const now = new Date();
+    const sequence = await Counter.findOneAndUpdate(
+      { key: "collaboration" },
+      { $inc: { value: 1 } },
+      { upsert: true, new: true, setDefaultsOnInsert: true },
+    );
+    const collaborationNumber = `BRZ-${String(sequence.value).padStart(6, "0")}`;
     const budgetRange = parsed.data.budgetRange || formatINR(parsed.data.initialOfferAmount);
     const inquiryPayload: Record<string, unknown> = {
       ...parsed.data,
+      collaborationNumber,
       budgetRange,
       isNegotiable: false,
       currency: "INR",
       currentOfferAmount: parsed.data.initialOfferAmount,
+      negotiationPrice: parsed.data.initialOfferAmount,
+      creatorStatus: "pending",
+      brandStatus: "sent",
+      currentStage: "Sent",
+      revisionCount: 0,
+      maxRevisions: 2,
+      notes: parsed.data.message,
       status: "PENDING_CREATOR_RESPONSE",
+      lastMeaningfulActivityAt: now,
       statusHistory: [
         {
           event: "CREATED",

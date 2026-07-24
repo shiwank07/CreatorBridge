@@ -29,6 +29,8 @@ export const NICHES = [
 export const PLATFORMS = [
   { label: "YouTube", value: "youtube" },
   { label: "Instagram", value: "instagram" },
+  { label: "Twitch", value: "twitch" },
+  { label: "X", value: "x" },
   { label: "Podcast", value: "podcast" },
   { label: "Other", value: "other" },
 ] as const;

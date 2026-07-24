@@ -8,6 +8,7 @@ import { connectDB, hasMongoUri } from "@/lib/db";
 import { BrandInquiry } from "@/lib/models/BrandInquiry";
 import { CreatorProfile } from "@/lib/models/CreatorProfile";
 import { User } from "@/lib/models/User";
+import { notificationService } from "@/lib/notifications/notification-service";
 
 type RouteContext = {
   params: Promise<{ id: string }>;
@@ -48,7 +49,7 @@ export async function POST(_req: Request, { params }: RouteContext) {
     }
 
     const now = new Date();
-    collaboration.set({ status: "IN_PROGRESS" });
+    collaboration.set({ status: "IN_PROGRESS", currentStage: "Working", creatorStatus: "working", brandStatus: "active" });
     appendCollaborationTimeline(collaboration, {
       event: "IN_PROGRESS",
       status: "IN_PROGRESS",
@@ -57,6 +58,7 @@ export async function POST(_req: Request, { params }: RouteContext) {
       createdAt: now,
     });
     await collaboration.save();
+    await notificationService.notifyCampaignReady({ collaboration });
 
     return NextResponse.json({ ok: true, status: "IN_PROGRESS" });
   } catch (error) {

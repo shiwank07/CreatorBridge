@@ -24,6 +24,9 @@ export async function POST(req: Request, { params }: RouteContext) {
     if (!hasMongoUri()) {
       return NextResponse.json({ error: "MongoDB is not configured yet." }, { status: 503 });
     }
+    if (!hasClerkKeys()) {
+      return NextResponse.json({ error: "Authentication is not configured yet." }, { status: 503 });
+    }
 
     const { id } = await params;
     const body = await parseJsonBody(req);
@@ -32,33 +35,30 @@ export async function POST(req: Request, { params }: RouteContext) {
       return NextResponse.json({ error: parsed.error.issues[0]?.message ?? "Invalid creator response." }, { status: 400 });
     }
 
+    const { userId } = await auth();
+    if (!userId) return NextResponse.json({ error: "Sign in before responding to collaboration requests." }, { status: 401 });
+
     await connectDB();
-    const collaboration = await BrandInquiry.findById(id);
+    const [collaboration, user] = await Promise.all([
+      BrandInquiry.findById(id),
+      User.findOne({ clerkId: userId, role: "creator" }),
+    ]);
+    if (!user) return NextResponse.json({ error: "Creator account not found." }, { status: 403 });
     if (!collaboration) return NextResponse.json({ error: "Collaboration not found." }, { status: 404 });
+    const creatorUserForNotification = { email: user.email, name: user.name, username: user.username };
+    const creatorProfile = await CreatorProfile.findOne({ userId: user._id });
+    const ownsCollaboration =
+      idsMatch(collaboration.creatorUserId, user._id) ||
+      idsMatch(collaboration.creatorProfileId, creatorProfile?._id) ||
+      collaboration.creatorUsername === user.username;
 
-    let creatorUserForNotification: { email: string; name: string; username: string } | null = null;
-
-    if (hasClerkKeys()) {
-      const { userId } = await auth();
-      if (!userId) return NextResponse.json({ error: "Sign in before responding to collaboration requests." }, { status: 401 });
-
-      const user = await User.findOne({ clerkId: userId });
-      if (!user) return NextResponse.json({ error: "Creator account not found." }, { status: 404 });
-      creatorUserForNotification = { email: user.email, name: user.name, username: user.username };
-
-      const creatorProfile = await CreatorProfile.findOne({ userId: user._id });
-      const ownsCollaboration =
-        idsMatch(collaboration.creatorUserId, user._id) ||
-        idsMatch(collaboration.creatorProfileId, creatorProfile?._id) ||
-        collaboration.creatorUsername === user.username;
-
-      if (!ownsCollaboration) {
-        return NextResponse.json({ error: "You can only respond to your own collaboration requests." }, { status: 403 });
-      }
+    if (!ownsCollaboration) {
+      return NextResponse.json({ error: "You can only respond to your own collaboration requests." }, { status: 403 });
     }
 
     const currentStatus = normalizeCollaborationStatus(collaboration.status);
-    if (!["NEW", "PENDING_CREATOR_RESPONSE"].includes(currentStatus)) {
+    const lastOfferActor = collaboration.offerHistory?.at(-1)?.actor;
+    if (!["NEW", "PENDING_CREATOR_RESPONSE", "NEGOTIATING"].includes(currentStatus) || (currentStatus === "NEGOTIATING" && lastOfferActor !== "brand")) {
       return NextResponse.json({ error: "This collaboration offer is not waiting for a creator response." }, { status: 400 });
     }
 
@@ -72,6 +72,9 @@ export async function POST(req: Request, { params }: RouteContext) {
       const note = parsed.data.note || "Offer accepted by creator.";
       collaboration.set({
         status: "ACCEPTED",
+        currentStage: "Accepted",
+        creatorStatus: "accepted",
+        brandStatus: "accepted",
         creatorResponseAt: now,
         creatorResponseNote: note,
       });
@@ -96,6 +99,8 @@ export async function POST(req: Request, { params }: RouteContext) {
       const note = parsed.data.note || "Offer declined by creator.";
       collaboration.set({
         status: "DECLINED",
+        currentStage: "Rejected",
+        creatorStatus: "rejected",
         creatorResponseAt: now,
         creatorResponseNote: note,
         closedAt: now,
@@ -117,6 +122,35 @@ export async function POST(req: Request, { params }: RouteContext) {
       });
     }
 
+    if (action === "counter_offer") {
+      const amount = parsed.data.amount ?? 0;
+      collaboration.set({
+        status: "NEGOTIATING",
+        currentStage: "Negotiating",
+        negotiationPrice: amount,
+        currentOfferAmount: amount,
+        creatorStatus: "countered",
+        brandStatus: "response_required",
+        creatorResponseAt: now,
+        creatorResponseNote: parsed.data.note,
+      });
+      appendCollaborationTimeline(collaboration, {
+        event: "COUNTERED",
+        status: "NEGOTIATING",
+        actor: "creator",
+        note: parsed.data.note,
+        createdAt: now,
+      });
+      collaboration.offerHistory.push({
+        actor: "creator",
+        action: "counter_sent",
+        amount,
+        currency: "INR",
+        note: parsed.data.note,
+        createdAt: now,
+      });
+    }
+
     await collaboration.save();
 
     if (action === "accept_offer") {
@@ -125,6 +159,10 @@ export async function POST(req: Request, { params }: RouteContext) {
 
     if (action === "decline_offer") {
       await notificationService.notifyCreatorDeclined({ collaboration, creatorUser: creatorUserForNotification, note: parsed.data.note });
+    }
+
+    if (action === "counter_offer") {
+      await notificationService.notifyCounterOffer({ collaboration, actor: "creator", amount: parsed.data.amount ?? 0, note: parsed.data.note });
     }
 
     return NextResponse.json({ ok: true, status: collaboration.status });

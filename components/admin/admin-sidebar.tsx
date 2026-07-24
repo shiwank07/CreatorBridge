@@ -1,8 +1,9 @@
 import Link from "next/link";
-import { Building2, ClipboardList, Flag, LayoutDashboard, Mail, ShieldCheck, UserCog, Users } from "lucide-react";
+import { BarChart3, Building2, ClipboardList, Flag, LayoutDashboard, Mail, ShieldCheck, UserCog, Users } from "lucide-react";
 
 const links = [
   { href: "/admin", label: "Overview", icon: LayoutDashboard },
+  { href: "/admin/analytics", label: "Analytics", icon: BarChart3 },
   { href: "/admin/creators", label: "Creators", icon: Users },
   { href: "/admin/brands", label: "Brands", icon: Building2 },
   { href: "/admin/collaborations", label: "Collaborations", icon: ClipboardList },

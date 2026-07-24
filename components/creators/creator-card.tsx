@@ -3,6 +3,7 @@ import { BadgeCheck, Camera, Crown, Eye, Globe2, Languages, Radio, Send, Sparkle
 
 import { Badge } from "@/components/shared/badge";
 import { InitialsAvatar } from "@/components/shared/initials-avatar";
+import { SaveCreatorButton } from "@/components/creators/save-creator-button";
 import { canStartCreatorCollaboration, creatorAvailabilityLabel, creatorAvailabilityNotice, creatorAvailabilityTone } from "@/lib/availability";
 import { authHref } from "@/lib/auth-redirect";
 import { formatINR, formatNumber } from "@/lib/format";
@@ -19,6 +20,7 @@ import {
 type CreatorCardProps = {
   creator: CreatorCardData;
   viewerRole?: "creator" | "brand";
+  initialSaved?: boolean;
 };
 
 function coverClass(username: string) {
@@ -32,7 +34,7 @@ function coverClass(username: string) {
   return variants[index];
 }
 
-export function CreatorCard({ creator, viewerRole }: CreatorCardProps) {
+export function CreatorCard({ creator, viewerRole, initialSaved = false }: CreatorCardProps) {
   const normalizedVerification = normalizeCreatorVerificationStatus(creator.verificationStatus);
   const subscriberCount = getPublicSubscriberCount(creator);
   const averageViews = getPublicAverageViews(creator);
@@ -51,6 +53,7 @@ export function CreatorCard({ creator, viewerRole }: CreatorCardProps) {
     creator.podcastUrl ? { label: "Podcast", icon: Radio } : null,
     hasCustomPlatform ? { label: customPlatformLabel, icon: Globe2 } : null,
   ].filter(Boolean) as { label: string; icon: typeof TvMinimalPlay }[];
+  const primaryPlatform = platforms[0]?.label ?? (platformDisplayName(creator.verificationPlatform, creator.customPlatformName) || "Platform not listed");
 
   return (
     <article className="creator-premium-card group flex h-full flex-col overflow-hidden">
@@ -95,13 +98,14 @@ export function CreatorCard({ creator, viewerRole }: CreatorCardProps) {
           <div className="min-w-0 pb-2">
             <div className="flex min-w-0 items-center gap-2">
               <h3 className="truncate font-display text-xl font-bold text-white">{creator.name}</h3>
-              {creator.isVerified ? <BadgeCheck size={17} className="shrink-0 text-emerald-300" aria-label="Verified" /> : null}
+              {creator.isVerified ? <BadgeCheck size={17} className="shrink-0 text-emerald-300" aria-label="Verified Creator" /> : null}
             </div>
             <p className="mt-1 truncate text-sm text-[var(--text-secondary)]">@{creator.username}</p>
           </div>
         </div>
 
         <div className="mt-5 flex flex-wrap gap-2">
+          <Badge tone="neutral">{primaryPlatform}</Badge>
           {creator.niche.slice(0, 3).map((niche) => (
             <Badge key={niche} className="border-violet-300/20 bg-violet-400/10 text-violet-100">
               {niche}
@@ -143,7 +147,7 @@ export function CreatorCard({ creator, viewerRole }: CreatorCardProps) {
           </div>
         </div>
 
-        <div className={`mt-5 grid gap-2 ${viewerRole === "creator" ? "" : "sm:grid-cols-2"}`}>
+        <div className="mt-5 grid gap-2">
           <Link
             href={`/creators/${creator.username}`}
             className="bridge-button-primary px-4"
@@ -151,6 +155,7 @@ export function CreatorCard({ creator, viewerRole }: CreatorCardProps) {
             <Eye size={16} />
             View Profile
           </Link>
+          {viewerRole === "brand" ? <SaveCreatorButton username={creator.username} initialSaved={initialSaved} /> : null}
           {viewerRole === "creator" ? null : canStart ? (
             <Link
               href={viewerRole === "brand" ? `/campaign-inquiry?creator=${creator.username}` : authHref("/sign-in", `/campaign-inquiry?creator=${creator.username}`)}

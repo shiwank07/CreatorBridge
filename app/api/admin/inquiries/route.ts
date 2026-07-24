@@ -16,6 +16,7 @@ import { inquiryStatusSchema } from "@/lib/validators/brand-inquiry";
 const ADMIN_STATUS_EVENT_MAP: Record<CollaborationStatus, CollaborationTimelineEvent> = {
   NEW: "CREATED",
   PENDING_CREATOR_RESPONSE: "VIEWED",
+  NEGOTIATING: "COUNTERED",
   ACCEPTED: "ACCEPTED",
   DECLINED: "DECLINED",
   IN_PROGRESS: "IN_PROGRESS",

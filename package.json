@@ -15,6 +15,7 @@
     "typecheck": "tsc --noEmit",
     "check:wizard": "tsx scripts/check-brand-inquiry-wizard.ts",
     "db:check": "tsx scripts/check-db.ts",
+    "migrate:analytics": "tsx scripts/migrate-analytics.ts",
     "seed": "tsx scripts/seed.ts"
   },
   "dependencies": {

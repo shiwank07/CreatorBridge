@@ -464,6 +464,7 @@ export async function getAdminMetrics() {
   const activeStatuses: BrandInquiryStatus[] = [
     "NEW",
     "PENDING_CREATOR_RESPONSE",
+    "NEGOTIATING",
     "ACCEPTED",
     "IN_PROGRESS",
     "PROOF_SUBMITTED",

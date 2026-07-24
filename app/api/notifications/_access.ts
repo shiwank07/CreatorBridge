@@ -41,9 +41,9 @@ export async function resolveNotificationRequestUser(): Promise<NotificationRequ
     };
   }
 
-  if (user.role !== "brand" && user.role !== "creator") {
+  if (user.role !== "brand" && user.role !== "creator" && user.role !== "admin") {
     return {
-      response: NextResponse.json({ error: "Notifications are available for creator and brand accounts." }, { status: 403 }),
+      response: NextResponse.json({ error: "Notifications are available for creator, brand, and admin accounts." }, { status: 403 }),
     };
   }
 

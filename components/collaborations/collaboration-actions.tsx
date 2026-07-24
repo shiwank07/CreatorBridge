@@ -18,6 +18,7 @@ type ProofState = {
   timestampStart: string;
   timestampEnd: string;
   notes: string;
+  screenshotUrl: string;
   referenceLink: string;
 };
 
@@ -30,8 +31,9 @@ function canCreatorSubmitProof(status: BrandInquiryData["status"]) {
   return ["ACCEPTED", "IN_PROGRESS", "PROOF_SUBMITTED", "REVISION_REQUESTED"].includes(status);
 }
 
-function canCreatorRespond(status: BrandInquiryData["status"]) {
-  return ["NEW", "PENDING_CREATOR_RESPONSE"].includes(status);
+function canCreatorRespond(collaboration: BrandInquiryData) {
+  return ["NEW", "PENDING_CREATOR_RESPONSE"].includes(collaboration.status) ||
+    (collaboration.status === "NEGOTIATING" && collaboration.offerHistory.at(-1)?.actor === "brand");
 }
 
 function canBrandReviewProof(status: BrandInquiryData["status"]) {
@@ -114,6 +116,8 @@ export function CollaborationActions({ collaboration, mode }: CollaborationActio
   const [isSaving, setIsSaving] = useState(false);
   const [reviewNote, setReviewNote] = useState("");
   const [issueNote, setIssueNote] = useState("");
+  const [counterAmount, setCounterAmount] = useState(String(collaboration.currentOfferAmount ?? ""));
+  const [counterNote, setCounterNote] = useState("");
   const [paymentForm, setPaymentForm] = useState<PaymentState>({
     paymentNote: collaboration.paymentNote ?? "",
     paymentScreenshotUrl: collaboration.paymentScreenshotUrl ?? "",
@@ -123,6 +127,7 @@ export function CollaborationActions({ collaboration, mode }: CollaborationActio
     timestampStart: proof?.timestampStart ?? "",
     timestampEnd: proof?.timestampEnd ?? "",
     notes: proof?.notes ?? "",
+    screenshotUrl: proof?.screenshotUrl ?? "",
     referenceLink: proof?.referenceLink ?? proof?.screenshotUrl ?? "",
   });
 
@@ -176,11 +181,19 @@ export function CollaborationActions({ collaboration, mode }: CollaborationActio
     await request(`/api/collaborations/${collaboration.id}/review`, { action, note }, messages[action]);
   }
 
-  async function creatorResponse(action: "accept_offer" | "decline_offer") {
+  async function creatorResponse(action: "accept_offer" | "decline_offer" | "counter_offer") {
     await request(
       `/api/collaborations/${collaboration.id}/creator-response`,
-      { action },
-      action === "accept_offer" ? "Offer accepted. Contact details are now unlocked." : "Offer declined.",
+      { action, amount: action === "counter_offer" ? Number(counterAmount) : undefined, note: counterNote },
+      action === "accept_offer" ? "Offer accepted. Contact details are now unlocked." : action === "counter_offer" ? "Counter offer sent." : "Offer declined.",
+    );
+  }
+
+  async function brandResponse(action: "accept_counter" | "reject_counter" | "counter_offer") {
+    await request(
+      `/api/collaborations/${collaboration.id}/brand-response`,
+      { action, amount: action === "counter_offer" ? Number(counterAmount) : undefined, note: counterNote },
+      action === "accept_counter" ? "Counter offer accepted." : action === "counter_offer" ? "New offer sent." : "Counter offer rejected.",
     );
   }
 
@@ -258,7 +271,7 @@ export function CollaborationActions({ collaboration, mode }: CollaborationActio
   ) : null;
 
   if (mode === "creator") {
-    if (canCreatorRespond(collaboration.status)) {
+    if (canCreatorRespond(collaboration)) {
       return (
         <div className="mt-4 grid gap-3">
           <OfferSummary collaboration={collaboration} />
@@ -300,6 +313,19 @@ export function CollaborationActions({ collaboration, mode }: CollaborationActio
               Decline
             </button>
           </div>
+          <form onSubmit={(event) => { event.preventDefault(); void creatorResponse("counter_offer"); }} className="mt-3 grid gap-2">
+            <label>
+              <span className="text-xs font-semibold text-[var(--text-primary)]">Counter offer (INR)</span>
+              <input type="number" min={1} value={counterAmount} onChange={(event) => setCounterAmount(event.target.value)} className="bridge-input mt-1 px-3 py-2 text-xs" required />
+            </label>
+            <label>
+              <span className="text-xs font-semibold text-[var(--text-primary)]">Counter message</span>
+              <textarea value={counterNote} onChange={(event) => setCounterNote(event.target.value)} className="bridge-input mt-1 min-h-16 px-3 py-2 text-xs" required />
+            </label>
+            <button type="submit" disabled={isSaving} className="bridge-button-secondary w-full px-3 py-2 text-xs">
+              {isSaving ? <Loader2 size={14} className="animate-spin" /> : <RotateCcw size={14} />}Counter Offer
+            </button>
+          </form>
 
           <p className="mt-3 rounded-[8px] border border-white/10 bg-black/20 px-3 py-2 text-xs leading-5 text-[var(--text-secondary)]">
             Accept to unlock contact email and move the collaboration into active work, or decline to close the request.
@@ -368,6 +394,10 @@ export function CollaborationActions({ collaboration, mode }: CollaborationActio
 
         <form onSubmit={submitProof} aria-busy={isSaving} className="grid gap-3">
           <label>
+            <span className="text-xs font-semibold text-[var(--text-primary)]">Screenshot URL</span>
+            <input value={proofForm.screenshotUrl} onChange={(event) => setProofField("screenshotUrl", event.target.value)} className="bridge-input mt-1 px-3 py-2 text-xs" placeholder="Optional screenshot URL" />
+          </label>
+          <label>
             <span className="text-xs font-semibold text-[var(--text-primary)]">Video URL</span>
             <input
               value={proofForm.videoUrl}
@@ -431,6 +461,22 @@ export function CollaborationActions({ collaboration, mode }: CollaborationActio
   return (
     <div className="mt-4 grid gap-3">
       <OfferSummary collaboration={collaboration} />
+      {collaboration.status === "NEGOTIATING" && collaboration.offerHistory.at(-1)?.actor === "creator" ? (
+        <div className="rounded-[8px] border border-cyan-300/20 bg-cyan-300/10 p-3">
+          <p className="text-xs font-bold uppercase text-cyan-100">Creator counter offer</p>
+          <p className="mt-2 text-sm">{currentOfferLabel(collaboration)}</p>
+          {collaboration.offerHistory.at(-1)?.note ? <p className="mt-2 text-xs leading-5 text-[var(--text-secondary)]">{collaboration.offerHistory.at(-1)?.note}</p> : null}
+          <div className="mt-3 grid gap-2 sm:grid-cols-2">
+            <button type="button" onClick={() => brandResponse("accept_counter")} disabled={isSaving} className="bridge-button-primary px-3 py-2 text-xs"><Check size={14} />Accept Counter</button>
+            <button type="button" onClick={() => brandResponse("reject_counter")} disabled={isSaving || counterNote.trim().length < 2} className="bridge-button-secondary px-3 py-2 text-xs"><XCircle size={14} />Reject Counter</button>
+          </div>
+          <form onSubmit={(event) => { event.preventDefault(); void brandResponse("counter_offer"); }} className="mt-3 grid gap-2">
+            <input type="number" min={1} aria-label="New offer amount" value={counterAmount} onChange={(event) => setCounterAmount(event.target.value)} className="bridge-input px-3 py-2 text-xs" required />
+            <textarea aria-label="Negotiation message" value={counterNote} onChange={(event) => setCounterNote(event.target.value)} className="bridge-input min-h-16 px-3 py-2 text-xs" placeholder="Message or rejection reason" />
+            <button type="submit" disabled={isSaving} className="bridge-button-secondary px-3 py-2 text-xs"><RotateCcw size={14} />Submit Another Offer</button>
+          </form>
+        </div>
+      ) : null}
       {paymentPanel}
       {canBrandCancel(collaboration.status) ? (
         <div className="min-w-0 rounded-[8px] border border-red-900/60 bg-red-950/25 p-3 [overflow-wrap:break-word] [word-break:normal]">

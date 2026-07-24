@@ -13,7 +13,7 @@ export async function MarketingNavbar() {
   const isSignedIn = Boolean(userId);
   const canShowNotifications = Boolean(user?.onboardingComplete && (user.role === "creator" || user.role === "brand"));
   const notificationSummary = canShowNotifications
-    ? await getCurrentUserNotificationSummary(12)
+    ? await getCurrentUserNotificationSummary(10)
     : {
         notifications: [],
         unreadCount: 0,
@@ -23,11 +23,13 @@ export async function MarketingNavbar() {
     user?.role === "creator" && user.onboardingComplete
       ? [
           { label: "Collaborations", href: "/dashboard/creator#collaborations" },
+          { label: "Analytics", href: "/dashboard/creator/analytics" },
           { label: "My Profile", href: `/creators/${user.username}` },
         ]
       : user?.role === "brand" && user.onboardingComplete
         ? [
             { label: "Campaigns", href: "/dashboard/brand#campaigns" },
+            { label: "Analytics", href: "/dashboard/brand/analytics" },
           ]
         : isSignedIn
           ? [{ label: "Complete Onboarding", href: "/onboarding" }]

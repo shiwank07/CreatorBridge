@@ -84,8 +84,7 @@ export async function POST(req: Request, { params }: RouteContext) {
       const ownsCollaboration =
         collaboration.createdByClerkId === user.clerkId ||
         idsMatch(collaboration.brandUserId, user._id) ||
-        idsMatch(collaboration.brandProfileId, brandProfile?._id) ||
-        (brandProfile?.contactEmail ? collaboration.email === brandProfile.contactEmail : false);
+        idsMatch(collaboration.brandProfileId, brandProfile?._id);
 
       if (!ownsCollaboration) {
         return NextResponse.json({ error: "You can only review proof for your own collaborations." }, { status: 403 });
@@ -116,11 +115,15 @@ export async function POST(req: Request, { params }: RouteContext) {
     if (parsed.data.action === "approve_delivery") {
       collaboration.set({
         ...update,
-        status: "APPROVED",
+        status: "COMPLETED",
+        currentStage: "Completed",
+        brandStatus: "completed",
+        creatorStatus: "completed",
+        closedAt: now,
       });
       appendCollaborationTimeline(collaboration, {
-        event: "APPROVED",
-        status: "APPROVED",
+        event: "COMPLETED",
+        status: "COMPLETED",
         actor: "brand",
         note: parsed.data.note || "Brand approved the delivery proof.",
         createdAt: now,
@@ -128,9 +131,14 @@ export async function POST(req: Request, { params }: RouteContext) {
     }
 
     if (parsed.data.action === "request_changes") {
+      if (collaboration.revisionCount >= collaboration.maxRevisions) {
+        return NextResponse.json({ error: `The maximum of ${collaboration.maxRevisions} revisions has been reached.` }, { status: 409 });
+      }
       collaboration.set({
         ...update,
         status: "REVISION_REQUESTED",
+        currentStage: "Revision Requested",
+        revisionCount: collaboration.revisionCount + 1,
       });
       appendCollaborationTimeline(collaboration, {
         event: "REVISION_REQUESTED",
@@ -142,8 +150,13 @@ export async function POST(req: Request, { params }: RouteContext) {
     }
 
     if (parsed.data.action === "report_issue") {
+      if (collaboration.revisionCount >= collaboration.maxRevisions) {
+        return NextResponse.json({ error: `The maximum of ${collaboration.maxRevisions} revisions has been reached.` }, { status: 409 });
+      }
       collaboration.set({
         status: "REVISION_REQUESTED",
+        currentStage: "Revision Requested",
+        revisionCount: collaboration.revisionCount + 1,
         deliveryProof: {
           ...currentProof,
           reviewedAt: now,
@@ -164,7 +177,7 @@ export async function POST(req: Request, { params }: RouteContext) {
       });
     }
 
-    if (parsed.data.action === "mark_completed") {
+    if (parsed.data.action === "mark_completed" || parsed.data.action === "approve_delivery") {
       collaboration.set({
         ...update,
         status: "COMPLETED",
@@ -198,7 +211,10 @@ export async function POST(req: Request, { params }: RouteContext) {
     }
 
     if (parsed.data.action === "approve_delivery") {
-      await notificationService.notifyDeliveryApproved({ collaboration, note: parsed.data.note });
+      await Promise.all([
+        notificationService.notifyDeliveryApproved({ collaboration, note: parsed.data.note }),
+        notificationService.notifyCollaborationCompleted({ collaboration, note: parsed.data.note }),
+      ]);
     }
 
     if (parsed.data.action === "request_changes" || parsed.data.action === "report_issue") {

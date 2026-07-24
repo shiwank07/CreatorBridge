@@ -18,6 +18,7 @@ const platformOptions: { label: string; value: CreatorVerificationUiPlatform }[]
   { label: "YouTube", value: "youtube" },
   { label: "Instagram", value: "instagram" },
   { label: "Twitch", value: "twitch" },
+  { label: "X", value: "x" },
   { label: "Other", value: "other" },
 ];
 
@@ -212,6 +213,12 @@ export function CreatorVerificationCard({ creator }: CreatorVerificationCardProp
       {success ? (
         <div role="status" className="mt-4 rounded-[8px] border border-emerald-800 bg-emerald-950/40 px-3 py-2 text-sm text-emerald-100">
           {success}
+        </div>
+      ) : null}
+      {status === "rejected" && creator?.verificationRejectedReason ? (
+        <div role="status" className="mt-4 rounded-[8px] border border-red-900 bg-red-950/30 px-3 py-3 text-sm leading-6 text-red-100">
+          <p className="font-semibold">Admin review note</p>
+          <p className="mt-1">{creator.verificationRejectedReason}</p>
         </div>
       ) : null}
 

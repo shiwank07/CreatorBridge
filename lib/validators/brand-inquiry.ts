@@ -16,6 +16,10 @@ export const brandInquirySchema = z
       .transform((value) => value ?? "")
       .refine((value) => !value || /^https?:\/\/.+/i.test(value), "Use a full URL beginning with http or https."),
     campaignGoal: z.string().trim().min(20, "Tell us a little more about the campaign.").max(1000),
+    campaignTitle: z.string().trim().min(2, "Campaign title is required.").max(160),
+    campaignType: z.string().trim().min(2, "Campaign type is required.").max(80),
+    deadline: z.coerce.date().refine((value) => value.getTime() > Date.now(), "Deadline must be in the future."),
+    attachments: z.array(z.string().trim().url("Attachment must be a valid URL.").max(500)).max(5).optional().default([]),
     deliverables: z.array(z.string().trim().min(1)).min(1, "Choose at least one deliverable.").max(8),
     targetNiches: z.array(z.string().trim().min(1)).min(1, "Choose at least one niche.").max(6),
     targetPlatforms: z.array(z.string().trim().min(1)).min(1, "Choose at least one platform.").max(4),
@@ -64,8 +68,32 @@ export const inquiryStatusSchema = z.object({
 
 export const creatorResponseSchema = z
   .object({
-    action: z.enum(["accept_offer", "decline_offer", "interested", "decline"]),
+    action: z.enum(["accept_offer", "decline_offer", "counter_offer", "interested", "decline"]),
+    amount: z.coerce.number().int().positive().optional(),
     note: z.string().trim().max(1000).optional().default(""),
+  })
+  .refine((value) => value.action !== "counter_offer" || Boolean(value.amount), {
+    message: "Enter a positive counter-offer amount.",
+    path: ["amount"],
+  })
+  .refine((value) => value.action !== "counter_offer" || value.note.length >= 2, {
+    message: "Add a message with the counter offer.",
+    path: ["note"],
+  });
+
+export const brandNegotiationResponseSchema = z
+  .object({
+    action: z.enum(["accept_counter", "reject_counter", "counter_offer"]),
+    amount: z.coerce.number().int().positive().optional(),
+    note: z.string().trim().max(1000).optional().default(""),
+  })
+  .refine((value) => value.action !== "counter_offer" || Boolean(value.amount), {
+    message: "Enter a positive offer amount.",
+    path: ["amount"],
+  })
+  .refine((value) => value.action !== "reject_counter" || value.note.length >= 2, {
+    message: "Add a reason for rejecting the counter offer.",
+    path: ["note"],
   });
 
 export const deliveryProofSchema = z.object({

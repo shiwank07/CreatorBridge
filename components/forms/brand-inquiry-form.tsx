@@ -18,7 +18,11 @@ type InquiryState = {
   contactName: string;
   email: string;
   website: string;
+  campaignTitle: string;
+  campaignType: string;
   campaignGoal: string;
+  deadline: string;
+  attachmentsText: string;
   deliverables: string[];
   targetNiches: string[];
   targetPlatforms: string[];
@@ -99,7 +103,11 @@ export function BrandInquiryForm({ creatorUsername = "" }: BrandInquiryFormProps
     contactName: "",
     email: "",
     website: "",
+    campaignTitle: "",
+    campaignType: "Sponsored content",
     campaignGoal: "",
+    deadline: "",
+    attachmentsText: "",
     deliverables: ["Dedicated video"],
     targetNiches: creatorUsername ? [] : ["Tech"],
     targetPlatforms: ["youtube"],
@@ -163,8 +171,11 @@ export function BrandInquiryForm({ creatorUsername = "" }: BrandInquiryFormProps
       else if (!isValidEmail(form.email)) errors.email = "Enter a valid work email before continuing.";
 
       if (!isValidFullUrl(form.website)) errors.website = "Use a full website URL beginning with http or https.";
+      if (form.campaignTitle.trim().length < 2) errors.campaignTitle = "Campaign title is required.";
+      if (!form.campaignType.trim()) errors.campaignType = "Campaign type is required.";
 
       if (form.campaignGoal.trim().length < 20) errors.campaignGoal = "Add at least 20 characters about the campaign goal.";
+      if (!form.deadline || new Date(`${form.deadline}T23:59:59`).getTime() <= Date.now()) errors.deadline = "Choose a future deadline.";
 
       if (!/^[1-9]\d*$/.test(form.initialOfferAmount.trim())) errors.initialOfferAmount = "Enter an exact positive INR amount.";
 
@@ -238,6 +249,7 @@ export function BrandInquiryForm({ creatorUsername = "" }: BrandInquiryFormProps
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           ...form,
+          attachments: form.attachmentsText.split(/\r?\n/).map((value) => value.trim()).filter(Boolean),
           customPlatformName: customPlatformValue(form.targetPlatforms, form.customPlatformName),
           budgetRange: form.initialOfferAmount ? formatINR(Number(form.initialOfferAmount)) : "Exact offer not recorded",
           isNegotiable: false,
@@ -401,6 +413,23 @@ export function BrandInquiryForm({ creatorUsername = "" }: BrandInquiryFormProps
                     <FieldError message={fieldErrors.website} />
                   </label>
                   <label>
+                    <span className="bridge-label">Campaign title</span>
+                    <input value={form.campaignTitle} onChange={(event) => setField("campaignTitle", event.target.value)} className="bridge-input mt-2" placeholder="Summer product launch" required />
+                    <FieldError message={fieldErrors.campaignTitle} />
+                  </label>
+                  <label>
+                    <span className="bridge-label">Campaign type</span>
+                    <select value={form.campaignType} onChange={(event) => setField("campaignType", event.target.value)} className="bridge-input mt-2">
+                      <option>Sponsored content</option>
+                      <option>Product review</option>
+                      <option>Brand ambassador</option>
+                      <option>Event coverage</option>
+                      <option>Affiliate campaign</option>
+                      <option>Other</option>
+                    </select>
+                    <FieldError message={fieldErrors.campaignType} />
+                  </label>
+                  <label>
                     <span className="bridge-label">Offer amount (INR)</span>
                     <input
                       value={form.initialOfferAmount}
@@ -419,6 +448,11 @@ export function BrandInquiryForm({ creatorUsername = "" }: BrandInquiryFormProps
                     <span className="bridge-label">Timeline</span>
                     <input value={form.timeline} onChange={(event) => setField("timeline", event.target.value)} className="bridge-input mt-2" placeholder="2 weeks" required />
                     <FieldError message={fieldErrors.timeline} />
+                  </label>
+                  <label>
+                    <span className="bridge-label">Deadline</span>
+                    <input type="date" value={form.deadline} onChange={(event) => setField("deadline", event.target.value)} min={new Date(Date.now() + 86400000).toISOString().slice(0, 10)} className="bridge-input mt-2" required />
+                    <FieldError message={fieldErrors.deadline} />
                   </label>
                   <label className="lg:col-span-2">
                     <span className="bridge-label">Campaign goal</span>
@@ -521,27 +555,30 @@ export function BrandInquiryForm({ creatorUsername = "" }: BrandInquiryFormProps
               ) : null}
 
               {!success && stepIndex === 2 ? (
-                <label>
-                  <span className="bridge-label">Message to creator</span>
-                  <textarea
-                    value={form.message}
-                    onChange={(event) => setField("message", event.target.value)}
-                    className="bridge-input mt-2 min-h-64"
-                    placeholder="Add creator preferences, location, sample references, constraints, or context that would help evaluate the collaboration."
-                  />
-                </label>
+                <div className="grid gap-4">
+                  <label>
+                    <span className="bridge-label">Message to creator</span>
+                    <textarea value={form.message} onChange={(event) => setField("message", event.target.value)} className="bridge-input mt-2 min-h-40" placeholder="Add preferences, constraints, or context." />
+                  </label>
+                  <label>
+                    <span className="bridge-label">Attachment URLs optional</span>
+                    <textarea value={form.attachmentsText} onChange={(event) => setField("attachmentsText", event.target.value)} className="bridge-input mt-2 min-h-24" placeholder={"https://…\nOne URL per line, up to 5"} />
+                  </label>
+                </div>
               ) : null}
 
               {!success && stepIndex === 3 ? (
                 <div className="grid gap-4">
                   {[
                     ["Brand", `${form.companyName || "Company"} - ${form.contactName || "Contact"} (${form.email || "email not added"})`],
-                    ["Campaign", form.campaignGoal || "Campaign goal not added"],
+                    ["Campaign", `${form.campaignTitle || "Untitled"} · ${form.campaignType}`],
+                    ["Description", form.campaignGoal || "Campaign description not added"],
                     ["Deliverables", joinList(form.deliverables)],
                     ["Audience", joinList(form.targetNiches)],
                     ["Platforms", joinList(selectedPlatforms)],
                     ["Offer amount", form.initialOfferAmount ? formatINR(Number(form.initialOfferAmount)) : "Offer amount not added"],
                     ["Timeline", form.timeline || "Timeline not added"],
+                    ["Deadline", form.deadline || "Deadline not added"],
                     ["Message to creator", form.message || "No extra message added"],
                   ].map(([label, value]) => (
                     <div key={label} className="rounded-[8px] border border-white/10 bg-white/[0.035] p-4">
