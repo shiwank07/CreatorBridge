@@ -225,12 +225,14 @@ export function CollaborationActions({ collaboration, mode }: CollaborationActio
 
       <div className="mt-3 grid gap-2">
         <input
+          aria-label="Payment screenshot URL"
           value={paymentForm.paymentScreenshotUrl}
           onChange={(event) => setPaymentField("paymentScreenshotUrl", event.target.value)}
           className="bridge-input px-3 py-2 text-xs"
           placeholder="Optional payment screenshot URL"
         />
         <textarea
+          aria-label="Payment note"
           value={paymentForm.paymentNote}
           onChange={(event) => setPaymentField("paymentNote", event.target.value)}
           className="bridge-input min-h-16 px-3 py-2 text-xs"
@@ -538,6 +540,7 @@ export function CollaborationActions({ collaboration, mode }: CollaborationActio
                 className="grid gap-2"
               >
                 <textarea
+                  aria-label="Revision note"
                   value={reviewNote}
                   onChange={(event) => setReviewNote(event.target.value)}
                   className="bridge-input min-h-16 px-3 py-2 text-xs"
@@ -559,6 +562,7 @@ export function CollaborationActions({ collaboration, mode }: CollaborationActio
                 className="grid gap-2"
               >
                 <textarea
+                  aria-label="Issue report details"
                   value={issueNote}
                   onChange={(event) => setIssueNote(event.target.value)}
                   className="bridge-input min-h-16 px-3 py-2 text-xs"

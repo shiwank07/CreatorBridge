@@ -8,7 +8,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   await requireAdmin();
 
   return (
-    <main className="grid min-h-screen lg:grid-cols-[260px_1fr]">
+    <main className="grid min-h-screen grid-cols-[minmax(0,1fr)] lg:grid-cols-[260px_minmax(0,1fr)]">
       <AdminSidebar />
       <section className="min-w-0 px-4 py-6 sm:px-6 lg:px-8">
         <div className="mb-6 max-w-2xl">

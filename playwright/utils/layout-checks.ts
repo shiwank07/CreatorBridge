@@ -125,11 +125,29 @@ export async function assertElementsInsideViewport(
       const intersectsVerticalViewport = rect.bottom > 0 && rect.top < window.innerHeight;
       if (!visible || !intersectsVerticalViewport) return [];
 
+      // Judge the pixels that are actually exposed. A control in an intentional
+      // overflow scroller can have a larger layout rect while its painted area
+      // remains correctly clipped inside the viewport.
+      let visibleLeft = rect.left;
+      let visibleRight = rect.right;
+      let ancestor = element.parentElement;
+      while (ancestor) {
+        const ancestorStyle = window.getComputedStyle(ancestor);
+        if (/(auto|scroll|hidden|clip)/.test(ancestorStyle.overflowX)) {
+          const ancestorRect = ancestor.getBoundingClientRect();
+          visibleLeft = Math.max(visibleLeft, ancestorRect.left);
+          visibleRight = Math.min(visibleRight, ancestorRect.right);
+        }
+        ancestor = ancestor.parentElement;
+      }
+
+      if (visibleRight <= visibleLeft) return [];
+
       // Vertical clipping at the fold is normal for a scrolling document. For
       // controls intersecting the current viewport, flag horizontal escape.
       const isOutside =
-        rect.left < -allowedTolerance ||
-        rect.right > window.innerWidth + allowedTolerance;
+        visibleLeft < -allowedTolerance ||
+        visibleRight > window.innerWidth + allowedTolerance;
       if (!isOutside) return [];
 
       return [{
@@ -151,4 +169,67 @@ export async function assertElementsInsideViewport(
     .join('\n');
 
   expect(outside, `Elements outside viewport${report ? `:\n${report}` : ''}`).toEqual([]);
+}
+
+export async function assertChildrenInsideContainer(
+  page: Page,
+  containers: LocatorInput,
+  childSelector = 'a, button, input, select, textarea, [role="status"], [role="alert"]',
+  tolerance = 2,
+): Promise<void> {
+  const outside = await asLocator(page, containers).evaluateAll(
+    (containerNodes, { selector, allowedTolerance }) =>
+      containerNodes.flatMap((containerNode, containerIndex) => {
+        const container = containerNode as HTMLElement;
+        const containerRect = container.getBoundingClientRect();
+
+        return Array.from(container.querySelectorAll<HTMLElement>(selector)).flatMap(
+          (child, childIndex) => {
+            const style = getComputedStyle(child);
+            const rect = child.getBoundingClientRect();
+            const visible =
+              style.display !== 'none' &&
+              style.visibility !== 'hidden' &&
+              Number(style.opacity) > 0 &&
+              rect.width > 0 &&
+              rect.height > 0;
+            if (!visible) return [];
+
+            const escapes =
+              rect.left < containerRect.left - allowedTolerance ||
+              rect.right > containerRect.right + allowedTolerance ||
+              rect.top < containerRect.top - allowedTolerance ||
+              rect.bottom > containerRect.bottom + allowedTolerance;
+            if (!escapes) return [];
+
+            return [{
+              containerIndex,
+              childIndex,
+              text: (child.innerText || child.getAttribute('aria-label') || child.tagName)
+                .replace(/\s+/g, ' ')
+                .trim()
+                .slice(0, 120),
+              container: {
+                x: containerRect.x,
+                y: containerRect.y,
+                width: containerRect.width,
+                height: containerRect.height,
+              },
+              child: { x: rect.x, y: rect.y, width: rect.width, height: rect.height },
+            }];
+          },
+        );
+      }),
+    { selector: childSelector, allowedTolerance: tolerance },
+  );
+
+  const report = outside
+    .map(
+      (item) =>
+        `container[${item.containerIndex}] child[${item.childIndex}] ${JSON.stringify(item.text)} ` +
+        `child=${JSON.stringify(item.child)} container=${JSON.stringify(item.container)}`,
+    )
+    .join('\n');
+
+  expect(outside, `Children outside container${report ? `:\n${report}` : ''}`).toEqual([]);
 }

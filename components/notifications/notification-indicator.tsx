@@ -5,6 +5,7 @@ import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
 import { Bell, CheckCheck, X } from "lucide-react";
+import { useAuth } from "@clerk/nextjs";
 
 import { cn } from "@/lib/utils";
 import { notificationTargetHref } from "@/lib/collaboration-routes";
@@ -158,6 +159,7 @@ function DropdownNotification({ notification, onOpen }: DropdownNotificationProp
 }
 
 export function NotificationIndicator({ initialNotifications, initialUnreadCount }: NotificationIndicatorProps) {
+  const { isLoaded, isSignedIn } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
   const [canCloseFromOutside, setCanCloseFromOutside] = useState(false);
   const [notifications, setNotifications] = useState(initialNotifications);
@@ -174,6 +176,8 @@ export function NotificationIndicator({ initialNotifications, initialUnreadCount
   }, []);
 
   const refreshNotifications = useCallback(async () => {
+    if (!isLoaded || !isSignedIn) return;
+
     setIsFetching(true);
 
     try {
@@ -189,7 +193,7 @@ export function NotificationIndicator({ initialNotifications, initialUnreadCount
     } finally {
       setIsFetching(false);
     }
-  }, []);
+  }, [isLoaded, isSignedIn]);
 
   useEffect(() => {
     setNotifications(initialNotifications);
@@ -197,6 +201,8 @@ export function NotificationIndicator({ initialNotifications, initialUnreadCount
   }, [initialNotifications, initialUnreadCount]);
 
   useEffect(() => {
+    if (!isLoaded || !isSignedIn) return;
+
     void refreshNotifications();
 
     const intervalId = window.setInterval(() => {
@@ -215,10 +221,10 @@ export function NotificationIndicator({ initialNotifications, initialUnreadCount
       window.clearInterval(intervalId);
       document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
-  }, [refreshNotifications]);
+  }, [isLoaded, isSignedIn, refreshNotifications]);
 
   useEffect(() => {
-    if (!isOpen) return;
+    if (!isOpen || !isLoaded || !isSignedIn) return;
 
     void refreshNotifications();
     setCanCloseFromOutside(false);
@@ -240,7 +246,7 @@ export function NotificationIndicator({ initialNotifications, initialUnreadCount
       document.body.style.overflow = originalOverflow;
       document.removeEventListener("keydown", handleKeyDown);
     };
-  }, [isOpen, refreshNotifications]);
+  }, [isLoaded, isOpen, isSignedIn, refreshNotifications]);
 
   useEffect(() => {
     function handleNotificationsUpdated(event: Event) {

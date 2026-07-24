@@ -4,6 +4,8 @@ import { useState } from "react";
 import { BadgeCheck, Ban, Loader2, XCircle } from "lucide-react";
 
 import { Badge } from "@/components/shared/badge";
+import { AdminPagination, useAdminPagination } from "@/components/admin/admin-pagination";
+import { formatDate } from "@/lib/format-date";
 import { type AdminReportData } from "@/lib/types";
 
 type ReportTableProps = {
@@ -13,7 +15,7 @@ type ReportTableProps = {
 type ReportAction = "resolve" | "dismiss" | "suspend_user";
 
 function dateLabel(value?: string) {
-  return value ? new Date(value).toLocaleDateString() : "Unknown";
+  return formatDate(value);
 }
 
 function statusTone(status: AdminReportData["status"]) {
@@ -24,6 +26,7 @@ function statusTone(status: AdminReportData["status"]) {
 
 export function ReportTable({ reports }: ReportTableProps) {
   const [rows, setRows] = useState(reports);
+  const pagination = useAdminPagination(rows);
   const [savingKey, setSavingKey] = useState("");
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
@@ -120,7 +123,7 @@ export function ReportTable({ reports }: ReportTableProps) {
             </tr>
           </thead>
           <tbody>
-            {rows.map((report) => (
+            {pagination.pageItems.map((report) => (
               <tr key={report.id} className="border-b border-[var(--border)] align-top last:border-b-0">
                 <td className="px-4 py-4 text-[var(--text-secondary)]">
                   <p className="font-semibold text-[var(--text-primary)]">{report.reporter}</p>
@@ -141,7 +144,7 @@ export function ReportTable({ reports }: ReportTableProps) {
       </div>
 
       <div className="divide-y divide-[var(--border)] md:hidden">
-        {rows.map((report) => (
+        {pagination.pageItems.map((report) => (
           <article key={report.id} className="p-4">
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
@@ -157,6 +160,13 @@ export function ReportTable({ reports }: ReportTableProps) {
           </article>
         ))}
       </div>
+      <AdminPagination
+        page={pagination.page}
+        pageCount={pagination.pageCount}
+        pageSize={pagination.pageSize}
+        total={pagination.total}
+        onPageChange={pagination.setPage}
+      />
     </div>
   );
 }

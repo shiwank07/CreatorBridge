@@ -6,6 +6,7 @@ import { CollaborationTimeline } from "@/components/collaborations/collaboration
 import { Badge } from "@/components/shared/badge";
 import { collaborationStatusLabel } from "@/lib/collaborations";
 import { formatINR } from "@/lib/format";
+import { formatDateTime } from "@/lib/format-date";
 import { platformDisplayName } from "@/lib/platforms";
 import { getAdminInquiryById } from "@/lib/queries/admin";
 
@@ -14,7 +15,7 @@ export const dynamic = "force-dynamic";
 type AdminCollaborationParams = Promise<{ id: string }>;
 
 function dateLabel(value?: string) {
-  return value ? new Date(value).toLocaleString() : "Unknown";
+  return formatDateTime(value);
 }
 
 export default async function AdminCollaborationDetailsPage({ params }: { params: AdminCollaborationParams }) {

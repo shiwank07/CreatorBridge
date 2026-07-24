@@ -6,6 +6,7 @@ import { BadgeCheck, Ban, ExternalLink, EyeOff, Loader2, RotateCcw, XCircle } fr
 
 import { Badge } from "@/components/shared/badge";
 import { InitialsAvatar } from "@/components/shared/initials-avatar";
+import { AdminPagination, useAdminPagination } from "@/components/admin/admin-pagination";
 import { type AdminBrandData } from "@/lib/types";
 
 type BrandTableProps = {
@@ -48,6 +49,7 @@ export function BrandTable({ brands }: BrandTableProps) {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const filteredRows = useMemo(() => rows.filter((brand) => matchesFilter(brand, filter)), [rows, filter]);
+  const pagination = useAdminPagination(filteredRows);
 
   async function updateBrand(brand: AdminBrandData, action: BrandAction) {
     setError("");
@@ -204,7 +206,7 @@ export function BrandTable({ brands }: BrandTableProps) {
               </tr>
             </thead>
             <tbody>
-              {filteredRows.map((brand) => (
+              {pagination.pageItems.map((brand) => (
                 <tr key={brand.userId} className="border-b border-[var(--border)] align-top last:border-b-0">
                   <td className="px-4 py-4">
                     <Logo brand={brand} />
@@ -230,7 +232,7 @@ export function BrandTable({ brands }: BrandTableProps) {
         </div>
 
         <div className="divide-y divide-[var(--border)] md:hidden">
-          {filteredRows.map((brand) => (
+          {pagination.pageItems.map((brand) => (
             <article key={brand.userId} className="p-4">
               <div className="flex items-start gap-3">
                 <Logo brand={brand} />
@@ -250,6 +252,13 @@ export function BrandTable({ brands }: BrandTableProps) {
             </article>
           ))}
         </div>
+        <AdminPagination
+          page={pagination.page}
+          pageCount={pagination.pageCount}
+          pageSize={pagination.pageSize}
+          total={pagination.total}
+          onPageChange={pagination.setPage}
+        />
       </div>
     </div>
   );

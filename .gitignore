@@ -8,7 +8,7 @@ coverage/
 !.env.local.example
 .env.playwright
 playwright-report/
-
+playwright/screenshots/
 
 *.log
 tsconfig.tsbuildinfo
@@ -21,3 +21,4 @@ testsprite_tests\tmp\config.json
 /blob-report/
 /playwright/.cache/
 /playwright/.auth/
+

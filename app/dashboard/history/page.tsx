@@ -20,6 +20,13 @@ export const metadata = {
 
 type AccountType = "creator" | "brand";
 type HistoryBucket = "active" | "completed" | "declined";
+type HistorySort = "newest" | "oldest";
+type HistorySearchParams = Promise<Record<string, string | string[] | undefined>>;
+const HISTORY_PAGE_SIZE = 10;
+
+function readParam(value: string | string[] | undefined) {
+  return Array.isArray(value) ? value[0] ?? "" : value ?? "";
+}
 
 function formatDate(value?: string) {
   if (!value) return "Recently";
@@ -139,7 +146,9 @@ function HistorySection({
       {collaborations.length ? (
         <div className="grid gap-4">
           {collaborations.map((collaboration) => (
-            <CollaborationCard key={collaboration.id} collaboration={collaboration} accountType={accountType} />
+            <div key={collaboration.id} data-testid="history-record">
+              <CollaborationCard collaboration={collaboration} accountType={accountType} />
+            </div>
           ))}
         </div>
       ) : (
@@ -151,7 +160,11 @@ function HistorySection({
   );
 }
 
-export default async function CollaborationHistoryPage() {
+export default async function CollaborationHistoryPage({
+  searchParams,
+}: {
+  searchParams: HistorySearchParams;
+}) {
   const clerkUserId = await getCurrentClerkUserId();
   const user = await getCurrentAppUser();
   if (!clerkUserId) redirect("/sign-in");
@@ -165,6 +178,43 @@ export default async function CollaborationHistoryPage() {
   const dashboard = accountType === "brand" ? await getBrandCollaborationDashboard() : await getCreatorCollaborationDashboard();
   const groups = bucketCollaborations(dashboard.collaborations);
   const hasAnyCollaborations = dashboard.collaborations.length > 0;
+  const params = await searchParams;
+  const query = readParam(params.q).trim().toLowerCase();
+  const requestedStatus = readParam(params.status);
+  const status: HistoryBucket | "all" =
+    requestedStatus === "active" || requestedStatus === "completed" || requestedStatus === "declined"
+      ? requestedStatus
+      : "all";
+  const sort: HistorySort = readParam(params.sort) === "oldest" ? "oldest" : "newest";
+  const requestedPage = Number.parseInt(readParam(params.page), 10);
+  const filteredCollaborations = dashboard.collaborations
+    .filter((collaboration) => status === "all" || collaborationHistoryBucket(collaboration.status) === status)
+    .filter((collaboration) => {
+      if (!query) return true;
+      return [
+        partnerName(collaboration, accountType),
+        collaboration.companyName,
+        collaboration.creatorUsername,
+        collaboration.campaignGoal,
+        collaborationStatusLabel(collaboration.status),
+      ].some((value) => value?.toLowerCase().includes(query));
+    })
+    .sort((first, second) => {
+      const firstTime = new Date(first.createdAt ?? 0).getTime();
+      const secondTime = new Date(second.createdAt ?? 0).getTime();
+      return sort === "oldest" ? firstTime - secondTime : secondTime - firstTime;
+    });
+  const pageCount = Math.max(1, Math.ceil(filteredCollaborations.length / HISTORY_PAGE_SIZE));
+  const page = Math.min(Math.max(Number.isFinite(requestedPage) ? requestedPage : 1, 1), pageCount);
+  const pageItems = filteredCollaborations.slice((page - 1) * HISTORY_PAGE_SIZE, page * HISTORY_PAGE_SIZE);
+  const pageHref = (targetPage: number) => {
+    const next = new URLSearchParams();
+    if (query) next.set("q", query);
+    if (status !== "all") next.set("status", status);
+    if (sort !== "newest") next.set("sort", sort);
+    next.set("page", String(targetPage));
+    return `/dashboard/history?${next.toString()}`;
+  };
 
   return (
     <>
@@ -196,6 +246,35 @@ export default async function CollaborationHistoryPage() {
           <StatCard label="Declined/cancelled collaborations" value={groups.declined.length} Icon={XCircle} tone="neutral" />
         </div>
 
+        <form className="mb-8 grid gap-3 rounded-[8px] border border-white/10 bg-white/[0.035] p-4 md:grid-cols-[minmax(0,1fr)_180px_180px_auto]">
+          <label className="min-w-0">
+            <span className="bridge-label">Search history</span>
+            <input
+              name="q"
+              defaultValue={readParam(params.q)}
+              className="bridge-input mt-2"
+              placeholder="Brand, creator, campaign, or status"
+            />
+          </label>
+          <label>
+            <span className="bridge-label">Status</span>
+            <select name="status" defaultValue={status} className="bridge-input mt-2">
+              <option value="all">All statuses</option>
+              <option value="active">Active</option>
+              <option value="completed">Completed</option>
+              <option value="declined">Declined/cancelled</option>
+            </select>
+          </label>
+          <label>
+            <span className="bridge-label">Sort</span>
+            <select name="sort" defaultValue={sort} className="bridge-input mt-2">
+              <option value="newest">Newest first</option>
+              <option value="oldest">Oldest first</option>
+            </select>
+          </label>
+          <button type="submit" className="bridge-button-primary self-end">Apply</button>
+        </form>
+
         {!hasAnyCollaborations ? (
           <section className="mb-8 rounded-[8px] border border-dashed border-white/10 bg-white/[0.025] p-6 text-center">
             <CircleDollarSign size={24} className="mx-auto text-cyan-200" />
@@ -206,25 +285,22 @@ export default async function CollaborationHistoryPage() {
           </section>
         ) : null}
 
-        <div className="grid gap-8">
+        <div className="grid gap-5">
           <HistorySection
-            title="Active collaborations"
-            description="Offers, accepted work, proof review, and other in-progress collaborations."
-            collaborations={groups.active}
+            title={status === "all" ? "All collaborations" : `${status[0].toUpperCase()}${status.slice(1)} collaborations`}
+            description={`Showing ${pageItems.length} of ${filteredCollaborations.length} matching records.`}
+            collaborations={pageItems}
             accountType={accountType}
           />
-          <HistorySection
-            title="Completed collaborations"
-            description="Collaborations that have been completed or closed."
-            collaborations={groups.completed}
-            accountType={accountType}
-          />
-          <HistorySection
-            title="Declined/cancelled collaborations"
-            description="Offers that ended without moving forward."
-            collaborations={groups.declined}
-            accountType={accountType}
-          />
+          {pageCount > 1 ? (
+            <nav aria-label="History pagination" className="flex flex-wrap items-center justify-between gap-3 rounded-[8px] border border-white/10 bg-white/[0.035] p-3">
+              <p className="text-sm text-[var(--text-secondary)]">Page {page} of {pageCount}</p>
+              <div className="flex gap-2">
+                {page > 1 ? <Link href={pageHref(page - 1)} className="bridge-button-secondary px-4 py-2 text-sm">Previous</Link> : null}
+                {page < pageCount ? <Link href={pageHref(page + 1)} className="bridge-button-secondary px-4 py-2 text-sm">Next</Link> : null}
+              </div>
+            </nav>
+          ) : null}
         </div>
       </main>
     </>

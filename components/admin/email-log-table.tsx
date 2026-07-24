@@ -4,6 +4,8 @@ import { useState } from "react";
 import { Loader2, RotateCcw } from "lucide-react";
 
 import { Badge } from "@/components/shared/badge";
+import { AdminPagination, useAdminPagination } from "@/components/admin/admin-pagination";
+import { formatDateTime } from "@/lib/format-date";
 import { type AdminEmailLogData } from "@/lib/types";
 
 type EmailLogTableProps = {
@@ -11,7 +13,7 @@ type EmailLogTableProps = {
 };
 
 function dateLabel(value?: string) {
-  return value ? new Date(value).toLocaleString() : "Unknown";
+  return formatDateTime(value);
 }
 
 function statusTone(status: AdminEmailLogData["status"]) {
@@ -22,6 +24,7 @@ function statusTone(status: AdminEmailLogData["status"]) {
 
 export function EmailLogTable({ logs }: EmailLogTableProps) {
   const [rows, setRows] = useState(logs);
+  const pagination = useAdminPagination(rows);
   const [savingId, setSavingId] = useState("");
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
@@ -105,7 +108,7 @@ export function EmailLogTable({ logs }: EmailLogTableProps) {
             </tr>
           </thead>
           <tbody>
-            {rows.map((log) => (
+            {pagination.pageItems.map((log) => (
               <tr key={log.id} className="border-b border-[var(--border)] align-top last:border-b-0">
                 <td className="px-4 py-4 break-all text-[var(--text-secondary)]">{log.recipient}</td>
                 <td className="px-4 py-4 text-[var(--text-primary)]">{log.event.replaceAll("_", " ")}</td>
@@ -124,7 +127,7 @@ export function EmailLogTable({ logs }: EmailLogTableProps) {
       </div>
 
       <div className="divide-y divide-[var(--border)] md:hidden">
-        {rows.map((log) => (
+        {pagination.pageItems.map((log) => (
           <article key={log.id} className="p-4">
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
@@ -141,6 +144,13 @@ export function EmailLogTable({ logs }: EmailLogTableProps) {
           </article>
         ))}
       </div>
+      <AdminPagination
+        page={pagination.page}
+        pageCount={pagination.pageCount}
+        pageSize={pagination.pageSize}
+        total={pagination.total}
+        onPageChange={pagination.setPage}
+      />
     </div>
   );
 }

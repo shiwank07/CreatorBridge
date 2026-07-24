@@ -5,6 +5,8 @@ import Link from "next/link";
 import { BadgeCheck, ExternalLink, Loader2, XCircle } from "lucide-react";
 
 import { Badge } from "@/components/shared/badge";
+import { AdminPagination, useAdminPagination } from "@/components/admin/admin-pagination";
+import { formatDate } from "@/lib/format-date";
 import { type BrandVerificationData } from "@/lib/types";
 
 type BrandVerificationTableProps = {
@@ -25,6 +27,7 @@ function methodLabel(method: BrandVerificationData["verificationMethod"]) {
 
 export function BrandVerificationTable({ brands }: BrandVerificationTableProps) {
   const [rows, setRows] = useState(brands);
+  const pagination = useAdminPagination(rows);
   const [savingKey, setSavingKey] = useState("");
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
@@ -93,7 +96,7 @@ export function BrandVerificationTable({ brands }: BrandVerificationTableProps) 
             </tr>
           </thead>
           <tbody>
-            {rows.map((brand) => (
+            {pagination.pageItems.map((brand) => (
               <tr key={brand.username} className="border-b border-[var(--border)] align-top last:border-b-0">
                 <td className="px-4 py-4">
                   <p className="font-semibold text-[var(--text-primary)]">{brand.companyName}</p>
@@ -125,12 +128,13 @@ export function BrandVerificationTable({ brands }: BrandVerificationTableProps) 
                   <Badge tone="yellow">Pending</Badge>
                   {brand.verificationSubmittedAt ? (
                     <p className="mt-3 text-xs text-[var(--text-secondary)]">
-                      Submitted {new Date(brand.verificationSubmittedAt).toLocaleDateString()}
+                      Submitted {formatDate(brand.verificationSubmittedAt)}
                     </p>
                   ) : null}
                 </td>
                 <td className="px-4 py-4">
                   <textarea
+                    aria-label={`Review note for ${brand.companyName}`}
                     value={notes[brand.username] ?? ""}
                     onChange={(event) => setNotes((current) => ({ ...current, [brand.username]: event.target.value }))}
                     className="bridge-input min-h-24 w-64"
@@ -175,7 +179,7 @@ export function BrandVerificationTable({ brands }: BrandVerificationTableProps) 
       </div>
 
       <div className="divide-y divide-[var(--border)] md:hidden">
-        {rows.map((brand) => (
+        {pagination.pageItems.map((brand) => (
           <article key={brand.username} className="p-4">
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
@@ -199,6 +203,7 @@ export function BrandVerificationTable({ brands }: BrandVerificationTableProps) 
               {brand.companyRegistrationText ? <p className="leading-5">{brand.companyRegistrationText}</p> : null}
             </div>
             <textarea
+              aria-label={`Review note for ${brand.companyName}`}
               value={notes[brand.username] ?? ""}
               onChange={(event) => setNotes((current) => ({ ...current, [brand.username]: event.target.value }))}
               className="bridge-input mt-4 min-h-24 w-full"
@@ -236,6 +241,13 @@ export function BrandVerificationTable({ brands }: BrandVerificationTableProps) 
           </article>
         ))}
       </div>
+      <AdminPagination
+        page={pagination.page}
+        pageCount={pagination.pageCount}
+        pageSize={pagination.pageSize}
+        total={pagination.total}
+        onPageChange={pagination.setPage}
+      />
     </div>
   );
 }

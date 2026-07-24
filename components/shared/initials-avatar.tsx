@@ -1,4 +1,7 @@
+"use client";
+
 import Image from "next/image";
+import { useEffect, useState } from "react";
 
 import { cn } from "@/lib/utils";
 
@@ -30,6 +33,12 @@ export function InitialsAvatar({
   textClassName,
 }: InitialsAvatarProps) {
   const initials = getInitials(name, username);
+  const [imageFailed, setImageFailed] = useState(false);
+  const showImage = Boolean(imageUrl && !imageFailed);
+
+  useEffect(() => {
+    setImageFailed(false);
+  }, [imageUrl]);
 
   return (
     <span
@@ -39,13 +48,14 @@ export function InitialsAvatar({
       )}
       aria-label={alt ?? `${name ?? username ?? "Branzzo"} avatar`}
     >
-      {imageUrl ? (
+      {showImage ? (
         <Image
-          src={imageUrl}
+          src={imageUrl!}
           alt={alt ?? `${name ?? username ?? "Branzzo"} avatar`}
           fill
           sizes={sizes}
           className="object-cover"
+          onError={() => setImageFailed(true)}
         />
       ) : (
         <>

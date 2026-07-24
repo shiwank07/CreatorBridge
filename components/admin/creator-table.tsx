@@ -6,6 +6,8 @@ import { BadgeCheck, Ban, ExternalLink, EyeOff, Loader2, RotateCcw, XCircle } fr
 
 import { Badge } from "@/components/shared/badge";
 import { InitialsAvatar } from "@/components/shared/initials-avatar";
+import { AdminPagination, useAdminPagination } from "@/components/admin/admin-pagination";
+import { formatDate } from "@/lib/format-date";
 import { type AdminCreatorData } from "@/lib/types";
 
 type CreatorTableProps = {
@@ -23,7 +25,7 @@ const filters: { value: CreatorFilter; label: string }[] = [
 ];
 
 function dateLabel(value?: string) {
-  return value ? new Date(value).toLocaleDateString() : "Unknown";
+  return formatDate(value);
 }
 
 function verificationTone(status: AdminCreatorData["verificationStatus"]) {
@@ -56,6 +58,7 @@ export function CreatorTable({ creators }: CreatorTableProps) {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const filteredRows = useMemo(() => rows.filter((creator) => matchesFilter(creator, filter)), [rows, filter]);
+  const pagination = useAdminPagination(filteredRows);
 
   async function updateCreator(creator: AdminCreatorData, action: CreatorAction) {
     setError("");
@@ -219,7 +222,7 @@ export function CreatorTable({ creators }: CreatorTableProps) {
               </tr>
             </thead>
             <tbody>
-              {filteredRows.map((creator) => (
+              {pagination.pageItems.map((creator) => (
                 <tr key={creator.userId} className="border-b border-[var(--border)] align-top last:border-b-0">
                   <td className="px-4 py-4">
                     <Avatar creator={creator} />
@@ -244,7 +247,7 @@ export function CreatorTable({ creators }: CreatorTableProps) {
         </div>
 
         <div className="divide-y divide-[var(--border)] md:hidden">
-          {filteredRows.map((creator) => (
+          {pagination.pageItems.map((creator) => (
             <article key={creator.userId} className="p-4">
               <div className="flex items-start gap-3">
                 <Avatar creator={creator} />
@@ -265,6 +268,13 @@ export function CreatorTable({ creators }: CreatorTableProps) {
             </article>
           ))}
         </div>
+        <AdminPagination
+          page={pagination.page}
+          pageCount={pagination.pageCount}
+          pageSize={pagination.pageSize}
+          total={pagination.total}
+          onPageChange={pagination.setPage}
+        />
       </div>
     </div>
   );

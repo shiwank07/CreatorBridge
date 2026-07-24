@@ -5,6 +5,7 @@ import Link from "next/link";
 import { BadgeCheck, ExternalLink, Loader2, XCircle } from "lucide-react";
 
 import { Badge } from "@/components/shared/badge";
+import { AdminPagination, useAdminPagination } from "@/components/admin/admin-pagination";
 import { formatNumber } from "@/lib/format";
 import { platformDisplayName } from "@/lib/platforms";
 import { type CreatorVerificationData } from "@/lib/types";
@@ -26,6 +27,7 @@ function submittedPlatformLabel(creator: CreatorVerificationData) {
 
 export function VerificationTable({ creators }: VerificationTableProps) {
   const [rows, setRows] = useState(creators);
+  const pagination = useAdminPagination(rows);
   const [savingKey, setSavingKey] = useState("");
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
@@ -133,7 +135,7 @@ export function VerificationTable({ creators }: VerificationTableProps) {
             </tr>
           </thead>
           <tbody>
-            {rows.map((creator) => (
+            {pagination.pageItems.map((creator) => (
               <tr key={creator.username} className="border-b border-[var(--border)] align-top last:border-b-0">
                 <td className="px-4 py-4">
                   <p className="font-semibold text-[var(--text-primary)]">{creator.name}</p>
@@ -223,6 +225,7 @@ export function VerificationTable({ creators }: VerificationTableProps) {
                 </td>
                 <td className="px-4 py-4">
                   <textarea
+                    aria-label={`Review note for ${creator.name}`}
                     value={notes[creator.username] ?? ""}
                     onChange={(event) => setNotes((current) => ({ ...current, [creator.username]: event.target.value }))}
                     className="bridge-input min-h-24 w-64"
@@ -267,7 +270,7 @@ export function VerificationTable({ creators }: VerificationTableProps) {
       </div>
 
       <div className="divide-y divide-[var(--border)] md:hidden">
-        {rows.map((creator) => (
+        {pagination.pageItems.map((creator) => (
           <article key={creator.username} className="p-4">
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
@@ -347,6 +350,7 @@ export function VerificationTable({ creators }: VerificationTableProps) {
                 />
               </label>
               <textarea
+                aria-label={`Review note for ${creator.name}`}
                 value={notes[creator.username] ?? ""}
                 onChange={(event) => setNotes((current) => ({ ...current, [creator.username]: event.target.value }))}
                 className="bridge-input min-h-24 w-full"
@@ -385,6 +389,13 @@ export function VerificationTable({ creators }: VerificationTableProps) {
           </article>
         ))}
       </div>
+      <AdminPagination
+        page={pagination.page}
+        pageCount={pagination.pageCount}
+        pageSize={pagination.pageSize}
+        total={pagination.total}
+        onPageChange={pagination.setPage}
+      />
     </div>
   );
 }

@@ -6,6 +6,8 @@ import { Ban, ExternalLink, EyeOff, Loader2, RotateCcw } from "lucide-react";
 
 import { Badge } from "@/components/shared/badge";
 import { InitialsAvatar } from "@/components/shared/initials-avatar";
+import { AdminPagination, useAdminPagination } from "@/components/admin/admin-pagination";
+import { formatDate } from "@/lib/format-date";
 import { type AdminUserData } from "@/lib/types";
 
 type UserTableProps = {
@@ -25,7 +27,7 @@ const filters: { value: UserFilter; label: string }[] = [
 ];
 
 function dateLabel(value?: string) {
-  return value ? new Date(value).toLocaleDateString() : "Unknown";
+  return formatDate(value);
 }
 
 function verificationTone(status: AdminUserData["verificationStatus"]) {
@@ -62,6 +64,7 @@ export function UserTable({ users }: UserTableProps) {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const filteredRows = useMemo(() => rows.filter((user) => matchesFilter(user, filter)), [rows, filter]);
+  const pagination = useAdminPagination(filteredRows);
 
   async function updateUser(user: AdminUserData, action: UserAction) {
     setError("");
@@ -206,7 +209,7 @@ export function UserTable({ users }: UserTableProps) {
               </tr>
             </thead>
             <tbody>
-              {filteredRows.map((user) => (
+              {pagination.pageItems.map((user) => (
                 <tr key={user.userId} className="border-b border-[var(--border)] align-top last:border-b-0">
                   <td className="px-4 py-4">
                     <div className="flex items-center gap-3">
@@ -238,7 +241,7 @@ export function UserTable({ users }: UserTableProps) {
         </div>
 
         <div className="divide-y divide-[var(--border)] md:hidden">
-          {filteredRows.map((user) => (
+          {pagination.pageItems.map((user) => (
             <article key={user.userId} className="p-4">
               <div className="flex items-start gap-3">
                 <Avatar user={user} />
@@ -259,6 +262,13 @@ export function UserTable({ users }: UserTableProps) {
             </article>
           ))}
         </div>
+        <AdminPagination
+          page={pagination.page}
+          pageCount={pagination.pageCount}
+          pageSize={pagination.pageSize}
+          total={pagination.total}
+          onPageChange={pagination.setPage}
+        />
       </div>
     </div>
   );
