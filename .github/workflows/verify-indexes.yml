@@ -1,0 +1,67 @@
+name: Verify or Apply Analytics Indexes
+
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: Verify only or create missing indexes
+        required: true
+        default: verify
+        type: choice
+        options:
+          - verify
+          - apply
+      confirmation:
+        description: For apply mode, enter APPLY indexes
+        required: false
+        type: string
+
+concurrency:
+  group: production-index-maintenance
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  indexes:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment: production
+    env:
+      MONGODB_URI: ${{ secrets.MONGODB_URI }}
+      MONGODB_DB_NAME: ${{ vars.MONGODB_DB_NAME }}
+      REQUESTED_MODE: ${{ inputs.mode }}
+      APPLY_CONFIRMATION: ${{ inputs.confirmation }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - name: Validate request
+        shell: bash
+        run: |
+          test -n "$MONGODB_URI"
+          if [ "$REQUESTED_MODE" = "apply" ] && [ "$APPLY_CONFIRMATION" != "APPLY indexes" ]; then
+            echo "Apply mode requires the exact confirmation: APPLY indexes"
+            exit 1
+          fi
+      - name: Verify indexes
+        if: inputs.mode == 'verify'
+        run: npm run indexes:analytics | tee index-report.json
+      - name: Apply missing indexes
+        if: inputs.mode == 'apply'
+        run: npm run indexes:analytics:apply | tee index-report.json
+      - name: Capture explain plans
+        run: npm run explain:analytics | tee explain-plan.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: analytics-index-report-${{ github.run_id }}
+          path: |
+            index-report.json
+            explain-plan.json
+          if-no-files-found: ignore
+          retention-days: 14

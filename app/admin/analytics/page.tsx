@@ -29,21 +29,21 @@ export default async function AdminAnalyticsPage({ searchParams }: { searchParam
       <section className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <AnalyticsKpi label="Total users" value={totals.users} detail={`${totals.creators} creators · ${totals.brands} brands`} />
         <AnalyticsKpi label="Verified creators" value={totals.verifiedCreators} detail={`${totals.pendingVerifications} verification requests pending.`} />
-        <AnalyticsKpi label="Collaborations" value={totals.collaborations} detail={`${summary.active} active in the selected period.`} />
+        <AnalyticsKpi label="Collaborations" value={totals.collaborations} detail={`${summary.active} currently active; current all-time snapshot.`} />
         <AnalyticsKpi label="New users" value={totals.newUsers} detail={`${totals.newCreators} creators · ${totals.newBrands} brands in this period.`} />
-        <AnalyticsKpi label="Active collaborations" value={summary.active} detail="Accepted through approved work still in motion." />
+        <AnalyticsKpi label="Currently active" value={summary.active} detail="Current all-time snapshot of accepted through approved work still in motion." />
         <AnalyticsKpi label="Completed" value={summary.completed} detail={`${summary.completionRate}% terminal success rate (completions divided by completions plus cancellations in this period).`} />
         <AnalyticsKpi label="Cancelled or declined" value={totals.cancelled} detail="Final rejected or cancelled collaborations in this period." />
         <AnalyticsKpi label="Messages" value={totals.messages} detail="Message count only; content is never loaded." />
         <AnalyticsKpi label="Notifications" value={totals.notifications} detail="Notifications created in the selected period." />
         <AnalyticsKpi label="Acceptance rate" value={`${summary.acceptanceRate}%`} detail="Accepted divided by finalized collaboration decisions." />
-        <AnalyticsKpi label="Brand-to-creator ratio" value={totals.creators ? `1:${Math.round((totals.creators / Math.max(1, totals.brands)) * 10) / 10}` : "Unavailable"} detail="Registered brands compared with registered creators." />
+        <AnalyticsKpi label="Brand-to-creator ratio" value={totals.brands > 0 ? `1:${Math.round((totals.creators / totals.brands) * 10) / 10}` : "Unavailable"} detail="Registered brands compared with registered creators." />
         <AnalyticsKpi label="Average accepted deal" value={<MoneyRows values={summary.averageDealValueByCurrency} />} detail="Accepted values in the period, separated by currency." />
         <AnalyticsKpi label="Average acceptance time" value={summary.averageResponseHours ? `${summary.averageResponseHours}h` : "Unavailable"} detail="Time from request creation to the first recorded creator response." />
         <AnalyticsKpi label="Completed value" value={<MoneyRows values={summary.completedValueByCurrency} />} detail="Completed marketplace value, separated by currency." />
       </section>
       <div className="mt-5 grid gap-4 xl:grid-cols-[1.5fr_1fr]">
-        <AnalyticsTrend points={summary.trend} title="Collaboration creation over time" />
+        <AnalyticsTrend points={summary.trend} title="Collaboration lifecycle events" />
         <AnalyticsCurrencyTrend points={summary.trend} title="Completed marketplace value over time" />
         <AnalyticsBars title="Cumulative marketplace funnel" items={summary.funnel.map((item) => ({ label: item.label, value: item.count, conversion: item.conversion }))} />
         <AnalyticsTrend points={registrations} title="User registrations over time" />

@@ -8,6 +8,7 @@ test('seeded creator can open the authenticated dashboard', async ({ page }) => 
 
   await expect(page).not.toHaveURL(/\/sign-in(?:\/|\?|$)/);
   await expect(page.locator('body')).toBeVisible();
+  await expect(page.getByTestId('branzzo-logo').first()).toBeVisible();
   await expect(page.locator('body')).not.toContainText(
     /Application error|Internal Server Error/i,
   );

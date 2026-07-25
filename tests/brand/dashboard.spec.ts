@@ -10,6 +10,7 @@ test('seeded brand can open the authenticated dashboard', async ({ page }) => {
   await expect(page).toHaveURL(/\/dashboard\/brand(?:[/?#]|$)/);
   await expect(page.locator('body')).toBeVisible();
   await expect(page.getByText('Brand Command Center', { exact: true })).toBeVisible();
+  await expect(page.getByTestId('branzzo-logo').first()).toBeVisible();
   await expect(page.locator('body')).not.toContainText(
     /Application error|Internal Server Error/i,
   );

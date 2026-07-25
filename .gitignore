@@ -1,7 +1,13 @@
 node_modules/
 .next/
+.open-next/
 out/
 coverage/
+.wrangler/
+.wrangler-dry-run/
+.dev.vars
+.dev.vars.*
+cloudflare-env.d.ts
 
 .env
 .env*.local
@@ -9,6 +15,7 @@ coverage/
 .env.playwright
 playwright-report/
 playwright/screenshots/
+playwright/.auth/
 
 *.log
 tsconfig.tsbuildinfo
@@ -21,4 +28,3 @@ testsprite_tests\tmp\config.json
 /blob-report/
 /playwright/.cache/
 /playwright/.auth/
-

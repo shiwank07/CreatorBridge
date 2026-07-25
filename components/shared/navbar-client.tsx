@@ -6,6 +6,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useAuth, useClerk, UserButton } from "@clerk/nextjs";
 import { Bell, History, LayoutDashboard, Menu, Repeat2, ShieldCheck, UserRound, X } from "lucide-react";
 
+import { BranzzoLogo } from "@/components/branding/branzzo-logo";
 import { NotificationIndicator } from "@/components/notifications/notification-indicator";
 import { clearBranzzoClientState } from "@/lib/auth-client";
 import { type InAppNotificationData } from "@/lib/types";
@@ -116,11 +117,7 @@ export function NavbarClient({
           aria-label="Branzzo home"
           className="group flex min-w-0 shrink-0 items-center gap-2 font-display text-base font-bold sm:gap-3 sm:text-lg"
         >
-          <span className="relative flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-[8px] border border-cyan-300/35 bg-white/[0.06] text-sm text-cyan-100 shadow-[0_0_32px_rgba(103,232,249,0.22)]">
-            <span className="absolute inset-0 bg-gradient-to-br from-violet-500/35 via-transparent to-cyan-300/25" />
-            <span className="relative">BZ</span>
-          </span>
-          <span className="hidden truncate sm:inline">Branzzo</span>
+          <BranzzoLogo showWordmark size={40} priority wordmarkClassName="hidden sm:inline" />
         </Link>
 
         <nav className={`ml-auto min-w-0 items-center text-sm text-[var(--text-secondary)] ${isSignedIn ? "hidden" : "hidden lg:flex"}`}>
@@ -216,10 +213,7 @@ export function NavbarClient({
           >
             <div className="flex items-center justify-between gap-3 border-b border-white/10 pb-4">
               <Link href="/" onClick={closeMenu} className="flex min-w-0 items-center gap-3 font-display text-lg font-bold">
-                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[8px] border border-cyan-300/35 bg-white/[0.06] text-sm text-cyan-100">
-                  BZ
-                </span>
-                <span className="truncate">Branzzo</span>
+                <BranzzoLogo showWordmark size={36} />
               </Link>
               <button
                 type="button"

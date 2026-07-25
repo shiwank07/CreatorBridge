@@ -1,0 +1,60 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches-ignore: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      ANALYTICS_TEST_MONGODB_URI: ${{ secrets.ANALYTICS_TEST_MONGODB_URI }}
+      NEXT_PUBLIC_APP_URL: http://localhost:3000
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - name: Production dependency audit
+        run: npm audit --omit=dev --audit-level=high
+      - run: npm run typecheck
+      - run: npm run lint
+      - run: npm run test
+      - name: Integration tests
+        if: env.ANALYTICS_TEST_MONGODB_URI != ''
+        run: npm run test:integration
+      - name: Integration tests unavailable
+        if: env.ANALYTICS_TEST_MONGODB_URI == ''
+        run: echo "Skipped because the isolated ANALYTICS_TEST_MONGODB_URI secret is unavailable."
+      - run: npm run build
+      - name: Build Cloudflare Worker
+        run: npx opennextjs-cloudflare build --skipNextBuild
+      - name: Verify Worker output
+        shell: bash
+        run: |
+          test -f .open-next/worker.js
+          test -d .open-next/assets
+          test -f .open-next/assets/favicon.ico
+      - name: Upload safe failure artifacts
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ci-failure-${{ github.run_id }}
+          path: |
+            test-results/
+            playwright-report/
+            .open-next/worker.js
+          if-no-files-found: ignore
+          retention-days: 7

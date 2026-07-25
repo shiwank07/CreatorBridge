@@ -28,7 +28,7 @@ export type AnalyticsCollaboration = {
   currentOfferAmount?: number;
   initialOfferAmount?: number;
   currency?: string | null;
-  firstViewedAt?: Date | null;
+  firstCreatorViewedAt?: Date | null;
   firstCreatorResponseAt?: Date | null;
   acceptedAt?: Date | null;
   rejectedAt?: Date | null;
@@ -85,12 +85,13 @@ export function buildCreatorFunnel(funnel: FunnelStage[]) {
   const stages = [funnel[0], funnel[2], funnel[3], funnel[5]].filter((stage): stage is FunnelStage => Boolean(stage));
   return stages.map((stage, index) => ({
     ...stage,
+    label: index === 0 ? "Received" : stage.label,
     conversion: index === 0 ? (stage.count ? 100 : 0) : safeRate(stage.count, stages[index - 1].count),
   }));
 }
 
-export function hasPeriodAnalyticsActivity(summary: { total: number; accepted: number; rejected: number; cancelled: number; completed: number }) {
-  return summary.total + summary.accepted + summary.rejected + summary.cancelled + summary.completed > 0;
+export function hasPeriodAnalyticsActivity(summary: { periodActivityCount: number }) {
+  return summary.periodActivityCount > 0;
 }
 
 export function dateInPeriod(date: Date | null | undefined, start: Date | null, end: Date) {
@@ -112,6 +113,41 @@ export function formatAnalyticsBucket(label: string) {
     return new Intl.DateTimeFormat("en", { month: "short", year: "numeric", timeZone: "UTC" }).format(new Date(`${label}-01T00:00:00Z`));
   }
   return label;
+}
+
+export function fillAnalyticsTrendBuckets(points: AnalyticsSeriesPoint[], period: AnalyticsPeriod) {
+  if (!points.length) return [];
+  const seriesNames = [...new Set(points.flatMap((point) => Object.keys(point.series)))];
+  const currencies = [...new Set(points.flatMap((point) => Object.keys(point.currencySeries ?? {})))];
+  const byLabel = new Map(points.map((point) => [point.label, point]));
+  const labels: string[] = [];
+  if (period.key === "year" || period.key === "all") {
+    const first = period.key === "all" ? points[0].label : `${period.end.getUTCFullYear()}-01`;
+    const last = period.key === "all" ? points[points.length - 1].label : period.end.toISOString().slice(0, 7);
+    const cursor = new Date(`${first}-01T00:00:00Z`);
+    const stop = new Date(`${last}-01T00:00:00Z`);
+    while (cursor <= stop) {
+      labels.push(cursor.toISOString().slice(0, 7));
+      cursor.setUTCMonth(cursor.getUTCMonth() + 1);
+    }
+  } else {
+    const cursor = new Date(period.start ?? points[0].label);
+    cursor.setUTCHours(0, 0, 0, 0);
+    const stepDays = period.key === "90d" ? 7 : 1;
+    if (period.key === "90d") cursor.setUTCDate(cursor.getUTCDate() - cursor.getUTCDay());
+    while (cursor < period.end) {
+      labels.push(cursor.toISOString().slice(0, 10));
+      cursor.setUTCDate(cursor.getUTCDate() + stepDays);
+    }
+  }
+  return labels.map((label) => {
+    const existing = byLabel.get(label);
+    return {
+      label,
+      series: Object.fromEntries(seriesNames.map((series) => [series, existing?.series[series] ?? 0])),
+      ...(currencies.length ? { currencySeries: Object.fromEntries(currencies.map((currency) => [currency, existing?.currencySeries?.[currency] ?? 0])) } : {}),
+    };
+  });
 }
 
 function amount(doc: AnalyticsCollaboration) {
@@ -162,7 +198,7 @@ export function summarizeCollaborations(
     // creator responded; only the immutable creator-response milestone or a
     // logically later accepted milestone does.
     const responded = accepted || Boolean(doc.firstCreatorResponseAt);
-    const viewed = responded || Boolean(doc.firstViewedAt);
+    const viewed = responded || Boolean(doc.firstCreatorViewedAt);
     return { viewed, responded, accepted, proof, completed };
   });
   const stageCounts = [
@@ -190,6 +226,8 @@ export function summarizeCollaborations(
   };
   docs.forEach((doc) => {
     addTrend(doc.createdAt, "Created");
+    addTrend(doc.firstCreatorViewedAt, "Viewed");
+    addTrend(doc.firstCreatorResponseAt, "First response");
     addTrend(doc.acceptedAt, "Accepted");
     addTrend(doc.rejectedAt, "Rejected");
     addTrend(doc.completedAt, "Completed");
@@ -215,6 +253,16 @@ export function summarizeCollaborations(
     // Terminal success rate is stable by event period: completions divided by
     // completions plus cancellations recorded in the same period.
     completionRate: safeRate(completedDocs.length, completedDocs.length + cancelledDocs.length),
+    periodActivityCount: [
+      ...created,
+      ...docs.filter((doc) => dateInPeriod(doc.firstCreatorViewedAt, start, end)),
+      ...docs.filter((doc) => dateInPeriod(doc.firstCreatorResponseAt, start, end)),
+      ...acceptedDocs,
+      ...rejectedDocs,
+      ...cancelledDocs,
+      ...docs.filter((doc) => dateInPeriod(doc.proofSubmittedAt, start, end)),
+      ...completedDocs,
+    ].length,
     averageResponseHours: responses.length ? Math.round((responses.reduce((sum, value) => sum + value, 0) / responses.length / 3_600_000) * 10) / 10 : 0,
     completedValueByCurrency,
     averageDealValueByCurrency: acceptedValueByCurrency.map((group) => ({ currency: group.currency, amount: group.count ? Math.round(group.amount / group.count) : 0 })),

@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test";
 
-import { buildCreatorFunnel, hasPeriodAnalyticsActivity, summarizeCollaborations, metricChange, parseAnalyticsRange, safeRate } from "../../lib/analytics/core";
-import { deriveLifecycleTimestampBackfill, resolveOwnershipBackfill } from "../../lib/analytics/migration";
+import { buildCreatorFunnel, fillAnalyticsTrendBuckets, hasPeriodAnalyticsActivity, summarizeCollaborations, metricChange, parseAnalyticsRange, safeRate } from "../../lib/analytics/core";
+import { classifyCreatorViewBackfill, deriveLifecycleTimestampBackfill, resolveOwnershipBackfill } from "../../lib/analytics/migration";
 import { appendCollaborationTimeline } from "../../lib/collaborations";
 
 const start = new Date("2026-02-01T00:00:00Z");
@@ -48,6 +48,19 @@ test("first creator response timestamp is immutable across later responses", () 
   expect(collaboration.acceptedAt).toEqual(later);
 });
 
+test("only creator views set the immutable creator-view timestamp", () => {
+  const brandView = new Date("2026-02-01T00:00:00Z");
+  const creatorView = new Date("2026-02-02T00:00:00Z");
+  const laterCreatorView = new Date("2026-02-03T00:00:00Z");
+  const collaboration: Parameters<typeof appendCollaborationTimeline>[0] = {};
+  appendCollaborationTimeline(collaboration, { event: "VIEWED", actor: "brand", createdAt: brandView });
+  expect(collaboration.firstCreatorViewedAt).toBeUndefined();
+  appendCollaborationTimeline(collaboration, { event: "VIEWED", actor: "creator", createdAt: creatorView });
+  appendCollaborationTimeline(collaboration, { event: "VIEWED", actor: "creator", createdAt: laterCreatorView });
+  expect(collaboration.firstCreatorViewedAt).toEqual(creatorView);
+  expect(collaboration.lastViewedAt).toEqual(laterCreatorView);
+});
+
 test("cumulative funnels are monotonic even with skipped or duplicate history", () => {
   const summary = summarizeCollaborations([
     { _id: "one", status: "COMPLETED", createdAt: new Date("2026-02-01T00:00:00Z"), completedAt: new Date("2026-02-20T00:00:00Z"), statusHistory: [{ event: "VIEWED" }, { event: "VIEWED" }] },
@@ -78,8 +91,8 @@ test("creator funnel recalculates conversion against visible creator stages", ()
 });
 
 test("period completion activity prevents a false empty state", () => {
-  expect(hasPeriodAnalyticsActivity({ total: 0, accepted: 0, rejected: 0, cancelled: 0, completed: 1 })).toBeTruthy();
-  expect(hasPeriodAnalyticsActivity({ total: 0, accepted: 0, rejected: 0, cancelled: 0, completed: 0 })).toBeFalsy();
+  expect(hasPeriodAnalyticsActivity({ periodActivityCount: 1 })).toBeTruthy();
+  expect(hasPeriodAnalyticsActivity({ periodActivityCount: 0 })).toBeFalsy();
 });
 
 test("migration derives only trustworthy history timestamps and is idempotent", () => {
@@ -88,6 +101,23 @@ test("migration derives only trustworthy history timestamps and is idempotent", 
   expect(first).toMatchObject({ acceptedAt: accepted, firstCreatorResponseAt: accepted, lastMeaningfulActivityAt: accepted });
   expect(deriveLifecycleTimestampBackfill({ acceptedAt: accepted, firstCreatorResponseAt: accepted, lastMeaningfulActivityAt: accepted, statusHistory: [{ event: "ACCEPTED", actor: "creator", createdAt: accepted }] })).toEqual({});
   expect(deriveLifecycleTimestampBackfill({ statusHistory: [{ event: "COMPLETED", createdAt: null }] })).toEqual({});
+});
+
+test("creator-view migration rejects generic and ambiguous legacy views", () => {
+  const viewedAt = new Date("2026-02-05T00:00:00Z");
+  expect(classifyCreatorViewBackfill({ statusHistory: [{ event: "VIEWED", actor: "creator", createdAt: viewedAt }] })).toEqual({ status: "valid", date: viewedAt });
+  expect(classifyCreatorViewBackfill({ statusHistory: [{ event: "VIEWED", createdAt: viewedAt }] })).toEqual({ status: "missing_actor" });
+  expect(deriveLifecycleTimestampBackfill({ statusHistory: [{ event: "VIEWED", actor: "brand", createdAt: viewedAt }] })).toEqual({ lastMeaningfulActivityAt: viewedAt });
+});
+
+test("trend buckets include zero-activity days", () => {
+  const period = parseAnalyticsRange("7d", new Date("2026-02-08T12:00:00Z"));
+  const points = fillAnalyticsTrendBuckets([
+    { label: "2026-02-02", series: { Created: 1 } },
+    { label: "2026-02-08", series: { Created: 1 } },
+  ], period);
+  expect(points.length).toBe(8);
+  expect(points.find((point) => point.label === "2026-02-05")?.series.Created).toBe(0);
 });
 
 test("ownership migration reports ambiguity and never guesses", () => {

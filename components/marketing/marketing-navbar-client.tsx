@@ -6,6 +6,7 @@ import { Bell, History, LayoutDashboard, Menu, Repeat2, ShieldCheck, UserRound, 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 
+import { BranzzoLogo } from "@/components/branding/branzzo-logo";
 import { NotificationIndicator } from "@/components/notifications/notification-indicator";
 import { clearBranzzoClientState } from "@/lib/auth-client";
 import { type InAppNotificationData } from "@/lib/types";
@@ -107,10 +108,7 @@ export function MarketingNavbarClient({
       <div className="marketing-navbar__edge" />
       <div className="marketing-navbar__inner">
         <Link href="/" aria-label="Branzzo home" className="marketing-navbar__brand">
-          <span className="marketing-navbar__mark">
-            <span>BZ</span>
-          </span>
-          <span className="marketing-navbar__wordmark">Branzzo</span>
+          <BranzzoLogo showWordmark size={40} priority wordmarkClassName="marketing-navbar__wordmark" />
         </Link>
 
         {!isSignedIn ? (
@@ -186,8 +184,7 @@ export function MarketingNavbarClient({
           <aside id="marketing-mobile-navigation" className="marketing-mobile-nav__panel">
             <div className="marketing-mobile-nav__header">
               <Link href="/" onClick={closeMenu} className="marketing-mobile-nav__brand">
-                <span className="marketing-mobile-nav__mark">BZ</span>
-                <span>Branzzo</span>
+                <BranzzoLogo showWordmark size={36} />
               </Link>
               <button type="button" onClick={closeMenu} className="focus-ring marketing-navbar__menu-button" aria-label="Close navigation">
                 <X size={18} />

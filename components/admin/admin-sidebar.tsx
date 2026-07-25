@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { BarChart3, Building2, ClipboardList, Flag, LayoutDashboard, Mail, ShieldCheck, UserCog, Users } from "lucide-react";
 
+import { BranzzoLogo } from "@/components/branding/branzzo-logo";
+
 const links = [
   { href: "/admin", label: "Overview", icon: LayoutDashboard },
   { href: "/admin/analytics", label: "Analytics", icon: BarChart3 },
@@ -17,8 +19,8 @@ export function AdminSidebar() {
   return (
     <aside className="min-w-0 max-w-full border-b border-[var(--border)] bg-[#0d0d14] lg:min-h-screen lg:border-b-0 lg:border-r">
       <div className="flex items-center justify-between px-4 py-4 lg:block lg:px-5">
-        <Link href="/" className="font-display text-lg font-bold">
-          Branzzo
+        <Link href="/admin" aria-label="Branzzo admin home" className="font-display text-lg font-bold">
+          <BranzzoLogo showWordmark size={40} />
         </Link>
         <p className="hidden text-xs text-[var(--text-secondary)] lg:mt-1 lg:block">Admin</p>
       </div>

@@ -5,12 +5,39 @@ import "@/app/globals.css";
 import { hasClerkKeys } from "@/lib/clerk-config";
 
 export const metadata: Metadata = {
+  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL?.trim() || "https://branzzo.com"),
+  applicationName: "Branzzo",
   title: {
     default: "Branzzo | Where Brands Meet Creators",
     template: "%s | Branzzo",
   },
   description:
     "India's creator economy marketplace for discovering creators, building creator profiles, and collecting collaboration requests.",
+  icons: {
+    icon: [
+      { url: "/favicon.ico", sizes: "any" },
+      { url: "/icon.png", type: "image/png", sizes: "512x512" },
+    ],
+    apple: [{ url: "/apple-icon.png", type: "image/png", sizes: "180x180" }],
+  },
+  appleWebApp: {
+    title: "Branzzo",
+    capable: true,
+    statusBarStyle: "black-translucent",
+  },
+  openGraph: {
+    title: "Branzzo | Where Brands Meet Creators",
+    description: "Discover creators, build trusted partnerships, and manage brand collaborations in one place.",
+    siteName: "Branzzo",
+    type: "website",
+    images: [{ url: "/branding/branzzo-og.png", width: 1200, height: 630, alt: "Branzzo — Where Brands Meet Creators" }],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Branzzo | Where Brands Meet Creators",
+    description: "Discover creators, build trusted partnerships, and manage brand collaborations in one place.",
+    images: ["/branding/branzzo-og.png"],
+  },
 };
 
 export default function RootLayout({

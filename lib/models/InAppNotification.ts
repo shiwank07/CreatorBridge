@@ -53,6 +53,7 @@ const InAppNotificationSchema = new Schema<IInAppNotification>(
 );
 
 InAppNotificationSchema.index({ recipientUserId: 1, createdAt: -1 });
+InAppNotificationSchema.index({ createdAt: -1 });
 InAppNotificationSchema.index({ recipientUserId: 1, isRead: 1, createdAt: -1 });
 InAppNotificationSchema.index({ recipientClerkUserId: 1, createdAt: -1 });
 InAppNotificationSchema.index({ recipientClerkUserId: 1, isRead: 1 });

@@ -1,6 +1,8 @@
 import { SignIn } from "@clerk/nextjs";
+import Link from "next/link";
 
 import { GoogleAccountActions } from "@/components/auth/google-account-actions";
+import { BranzzoLogo } from "@/components/branding/branzzo-logo";
 import { AuthSetupNotice } from "@/components/shared/auth-setup-notice";
 import { getRedirectParam, safeInternalRedirect } from "@/lib/auth-redirect";
 import { hasClerkKeys } from "@/lib/clerk-config";
@@ -16,6 +18,9 @@ export default async function SignInPage({ searchParams }: { searchParams: AuthS
 
   return (
     <main className="flex min-h-screen flex-col items-center justify-center px-4 py-12">
+      <Link href="/" aria-label="Branzzo home" className="mb-6">
+        <BranzzoLogo showWordmark size={52} priority wordmarkClassName="text-xl" />
+      </Link>
       <SignIn
         routing="path"
         path="/sign-in"

@@ -27,7 +27,7 @@ export default async function CreatorAnalyticsPage({ searchParams }: { searchPar
         <section className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
           <AnalyticsKpi label="Offers received" value={summary.total} detail="Non-draft collaboration requests created in this period." change={analytics.changes.offers} />
           <AnalyticsKpi label="Accepted" value={summary.accepted} detail={`${summary.active} currently active collaborations.`} />
-          <AnalyticsKpi label="Active" value={summary.active} detail="Accepted work that has not reached completion." />
+          <AnalyticsKpi label="Currently active" value={summary.active} detail="Current all-time snapshot of accepted work that has not reached completion." />
           <AnalyticsKpi label="Completed" value={summary.completed} detail="Collaborations completed in the selected period." />
           <AnalyticsKpi label="Rejected" value={summary.rejected} detail="Creator rejection events recorded in this period." />
           <AnalyticsKpi label="Acceptance rate" value={`${summary.acceptanceRate}%`} detail="Accepted offers divided by accepted plus declined decisions." change={analytics.changes.acceptance} />
@@ -40,7 +40,7 @@ export default async function CreatorAnalyticsPage({ searchParams }: { searchPar
         </section>
         {!hasPeriodActivity ? <div className="mt-5"><AnalyticsEmpty role="creator" /></div> : (
           <div className="mt-5 grid gap-4 xl:grid-cols-[1.5fr_1fr]">
-            <AnalyticsTrend points={summary.trend} title="Offers received over time" />
+            <AnalyticsTrend points={summary.trend} title="Offers and lifecycle events" />
             <AnalyticsCurrencyTrend points={summary.trend} title="Completed deal value over time" />
             <AnalyticsBars title="Creator cumulative lifecycle funnel" items={analytics.creatorFunnel.map((item) => ({ label: item.label, value: item.count, conversion: item.conversion }))} />
             <AnalyticsBars title="Current status snapshot" items={summary.distribution} />

@@ -5,7 +5,6 @@ type HistoryEntry = {
 };
 
 export const EVENT_TIMESTAMP_FIELDS = {
-  VIEWED: "firstViewedAt",
   ACCEPTED: "acceptedAt",
   DECLINED: "rejectedAt",
   CANCELLED: "cancelledAt",
@@ -15,7 +14,7 @@ export const EVENT_TIMESTAMP_FIELDS = {
 } as const;
 
 type TimestampDocument = {
-  firstViewedAt?: Date | null;
+  firstCreatorViewedAt?: Date | null;
   firstCreatorResponseAt?: Date | null;
   acceptedAt?: Date | null;
   rejectedAt?: Date | null;
@@ -41,6 +40,10 @@ export function deriveLifecycleTimestampBackfill(document: TimestampDocument) {
     const match = history.find((entry) => entry.event === event);
     if (match) set[field] = match.createdAt;
   }
+  if (!document.firstCreatorViewedAt) {
+    const creatorView = classifyCreatorViewBackfill(document);
+    if (creatorView.status === "valid") set.firstCreatorViewedAt = creatorView.date;
+  }
   if (!document.firstCreatorResponseAt) {
     const response = history.find((entry) => entry.actor === "creator" && ["COUNTERED", "ACCEPTED", "DECLINED"].includes(entry.event ?? ""));
     if (response) set.firstCreatorResponseAt = response.createdAt;
@@ -49,6 +52,18 @@ export function deriveLifecycleTimestampBackfill(document: TimestampDocument) {
     set.lastMeaningfulActivityAt = history[history.length - 1].createdAt;
   }
   return set;
+}
+
+export function classifyCreatorViewBackfill(document: TimestampDocument) {
+  if (document.firstCreatorViewedAt) return { status: "already_populated" as const };
+  const views = (document.statusHistory ?? []).filter((entry) => entry.event === "VIEWED");
+  if (views.some((entry) => !entry.actor)) return { status: "missing_actor" as const };
+  if (views.some((entry) => !["creator", "brand", "admin", "system"].includes(entry.actor ?? ""))) return { status: "ambiguous" as const };
+  const valid = views
+    .filter((entry): entry is HistoryEntry & { createdAt: Date } => entry.actor === "creator" && entry.createdAt instanceof Date)
+    .sort((left, right) => left.createdAt.getTime() - right.createdAt.getTime());
+  if (valid.length) return { status: "valid" as const, date: valid[0].createdAt };
+  return { status: "unresolved" as const };
 }
 
 export type OwnershipCandidates = {

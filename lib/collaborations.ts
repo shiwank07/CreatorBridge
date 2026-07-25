@@ -212,7 +212,9 @@ export function collaborationTimelineEventLabel(event?: string) {
 
 export function appendCollaborationTimeline(
   collaboration: {
-    firstViewedAt?: Date | null;
+    firstCreatorViewedAt?: Date | null;
+    lastViewedAt?: Date | null;
+    lastViewedByRole?: "brand" | "creator" | "admin" | "system" | null;
     firstCreatorResponseAt?: Date | null;
     acceptedAt?: Date | null;
     rejectedAt?: Date | null;
@@ -250,7 +252,6 @@ export function appendCollaborationTimeline(
   // Lifecycle timestamps are immutable facts. Later status changes must not erase
   // an earlier acceptance, rejection, response, or completion event.
   const firstFieldByEvent: Partial<Record<CollaborationTimelineEvent, keyof typeof collaboration>> = {
-    VIEWED: "firstViewedAt",
     ACCEPTED: "acceptedAt",
     DECLINED: "rejectedAt",
     CANCELLED: "cancelledAt",
@@ -261,6 +262,13 @@ export function appendCollaborationTimeline(
   const eventField = firstFieldByEvent[input.event];
   if (eventField && !collaboration[eventField]) {
     (collaboration[eventField] as Date | null | undefined) = occurredAt;
+  }
+  if (input.event === "VIEWED") {
+    collaboration.lastViewedAt = occurredAt;
+    collaboration.lastViewedByRole = input.actor ?? "system";
+    if (input.actor === "creator" && !collaboration.firstCreatorViewedAt) {
+      collaboration.firstCreatorViewedAt = occurredAt;
+    }
   }
   if (input.actor === "creator" && ["COUNTERED", "ACCEPTED", "DECLINED"].includes(input.event) && !collaboration.firstCreatorResponseAt) {
     collaboration.firstCreatorResponseAt = occurredAt;

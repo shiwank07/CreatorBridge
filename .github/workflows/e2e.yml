@@ -1,0 +1,68 @@
+name: E2E
+
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: e2e-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      BASE_URL: http://127.0.0.1:3000
+      NEXT_PUBLIC_APP_URL: http://127.0.0.1:3000
+      NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: ${{ secrets.E2E_CLERK_PUBLISHABLE_KEY }}
+      CLERK_SECRET_KEY: ${{ secrets.E2E_CLERK_SECRET_KEY }}
+      MONGODB_URI: ${{ secrets.E2E_MONGODB_URI }}
+      CREATOR_EMAIL: ${{ secrets.E2E_CREATOR_EMAIL }}
+      BRAND_EMAIL: ${{ secrets.E2E_BRAND_EMAIL }}
+      ADMIN_EMAIL: ${{ secrets.E2E_ADMIN_EMAIL }}
+      CLERK_TEST_OTP: ${{ secrets.E2E_CLERK_TEST_OTP }}
+      ADMIN_EMAILS: ${{ secrets.E2E_ADMIN_EMAIL }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - name: Public non-destructive tests
+        run: npx playwright test tests/public --project=chromium
+      - name: Check isolated E2E credentials
+        id: auth
+        shell: bash
+        run: |
+          if [ -n "$MONGODB_URI" ] && [ -n "$CLERK_SECRET_KEY" ] && [ -n "$NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY" ] && [ -n "$CREATOR_EMAIL" ] && [ -n "$BRAND_EMAIL" ] && [ -n "$ADMIN_EMAIL" ] && [ -n "$CLERK_TEST_OTP" ]; then
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+            echo "Authenticated E2E skipped: isolated test credentials are unavailable."
+          fi
+      - name: Authenticated creator tests
+        if: steps.auth.outputs.enabled == 'true'
+        run: npx playwright test tests/creator --project=creator-chromium
+      - name: Authenticated brand tests
+        if: steps.auth.outputs.enabled == 'true'
+        run: npx playwright test tests/brand --project=brand-chromium
+      - name: Authenticated admin tests
+        if: steps.auth.outputs.enabled == 'true'
+        run: npx playwright test tests/admin --project=admin-chromium
+      - name: Upload failure artifacts
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-failure-${{ github.run_id }}
+          path: |
+            playwright-report/
+            test-results/
+          if-no-files-found: ignore
+          retention-days: 7

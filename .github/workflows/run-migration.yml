@@ -1,0 +1,62 @@
+name: Run Analytics Migration
+
+on:
+  workflow_dispatch:
+    inputs:
+      migration:
+        description: Migration to run
+        required: true
+        type: choice
+        options:
+          - analytics
+      mode:
+        description: Execution mode
+        required: true
+        default: dry-run
+        type: choice
+        options:
+          - dry-run
+          - write
+      confirmation:
+        description: For write mode, enter APPLY analytics
+        required: false
+        type: string
+
+concurrency:
+  group: production-migration
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  migrate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    environment: production
+    env:
+      MONGODB_URI: ${{ secrets.MONGODB_URI }}
+      MONGODB_DB_NAME: ${{ vars.MONGODB_DB_NAME }}
+      REQUESTED_MODE: ${{ inputs.mode }}
+      WRITE_CONFIRMATION: ${{ inputs.confirmation }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - name: Validate request
+        shell: bash
+        run: |
+          test -n "$MONGODB_URI"
+          if [ "$REQUESTED_MODE" = "write" ] && [ "$WRITE_CONFIRMATION" != "APPLY analytics" ]; then
+            echo "Write mode requires the exact confirmation: APPLY analytics"
+            exit 1
+          fi
+      - name: Dry run
+        if: inputs.mode == 'dry-run'
+        run: npm run migrate:analytics -- --batch=250
+      - name: Apply migration
+        if: inputs.mode == 'write'
+        run: npm run migrate:analytics -- --write --batch=250

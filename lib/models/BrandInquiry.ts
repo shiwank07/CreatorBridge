@@ -74,7 +74,9 @@ export interface IBrandInquiry extends Document {
   reviewedAt?: Date | null;
   sentToCreatorAt?: Date | null;
   creatorResponseAt?: Date | null;
-  firstViewedAt?: Date | null;
+  firstCreatorViewedAt?: Date | null;
+  lastViewedAt?: Date | null;
+  lastViewedByRole?: "brand" | "creator" | "admin" | "system" | null;
   firstCreatorResponseAt?: Date | null;
   acceptedAt?: Date | null;
   rejectedAt?: Date | null;
@@ -195,7 +197,9 @@ const BrandInquirySchema = new Schema<IBrandInquiry>(
     reviewedAt: { type: Date, default: null },
     sentToCreatorAt: { type: Date, default: null },
     creatorResponseAt: { type: Date, default: null },
-    firstViewedAt: { type: Date, default: null },
+    firstCreatorViewedAt: { type: Date, default: null },
+    lastViewedAt: { type: Date, default: null },
+    lastViewedByRole: { type: String, enum: ["brand", "creator", "admin", "system"], default: null },
     firstCreatorResponseAt: { type: Date, default: null },
     acceptedAt: { type: Date, default: null },
     rejectedAt: { type: Date, default: null },
@@ -244,13 +248,19 @@ BrandInquirySchema.index({ creatorUserId: 1, createdAt: -1 });
 BrandInquirySchema.index({ brandProfileId: 1, createdAt: -1 });
 BrandInquirySchema.index({ creatorProfileId: 1, createdAt: -1 });
 BrandInquirySchema.index({ createdByClerkId: 1, createdAt: -1 });
+BrandInquirySchema.index({ createdAt: -1 });
+BrandInquirySchema.index({ firstCreatorViewedAt: -1 });
 BrandInquirySchema.index({ acceptedAt: -1 });
 BrandInquirySchema.index({ rejectedAt: -1 });
 BrandInquirySchema.index({ cancelledAt: -1 });
 BrandInquirySchema.index({ completedAt: -1 });
+BrandInquirySchema.index({ proofSubmittedAt: -1 });
 BrandInquirySchema.index({ firstCreatorResponseAt: -1 });
 BrandInquirySchema.index({ brandUserId: 1, status: 1, deadline: 1 });
 BrandInquirySchema.index({ creatorUserId: 1, status: 1, deadline: 1 });
+BrandInquirySchema.index({ brandProfileId: 1, status: 1, deadline: 1 });
+BrandInquirySchema.index({ creatorProfileId: 1, status: 1, deadline: 1 });
+BrandInquirySchema.index({ createdByClerkId: 1, status: 1, deadline: 1 });
 BrandInquirySchema.index({ status: 1, lastMeaningfulActivityAt: 1 });
 BrandInquirySchema.index({ status: 1, updatedAt: -1 });
 

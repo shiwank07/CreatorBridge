@@ -1,4 +1,4 @@
-/* eslint-disable @next/next/no-head-element -- This file renders standalone HTML email markup, not a Next.js page. */
+/* eslint-disable @next/next/no-head-element, @next/next/no-img-element -- This file renders standalone HTML email markup, not a Next.js page. */
 import type { CSSProperties, ReactNode } from "react";
 
 export type HaloEmailCta = {
@@ -158,6 +158,9 @@ export function EmailDetails({ items }: { items: EmailDetailItem[] }) {
 }
 
 export default function HaloEmailLayout({ preview, eyebrow, title, cta, children }: HaloEmailLayoutProps) {
+  const publicBaseUrl = process.env.BRANZZO_PUBLIC_URL?.trim().replace(/\/+$/, "");
+  const publicLogoUrl = publicBaseUrl ? `${publicBaseUrl}/branding/branzzo-logo.png` : "";
+
   return (
     <html lang="en">
       <head>
@@ -189,7 +192,11 @@ export default function HaloEmailLayout({ preview, eyebrow, title, cta, children
                     </tr>
                     <tr>
                       <td className="halo-content" style={contentStyle}>
-                        <p style={eyebrowStyle}>Branzzo</p>
+                        {publicLogoUrl ? (
+                          <img src={publicLogoUrl} width="48" height="48" alt="Branzzo" style={{ display: "block", margin: "0 0 14px", borderRadius: 8 }} />
+                        ) : (
+                          <p style={eyebrowStyle}>Branzzo</p>
+                        )}
                         <p style={eyebrowStyle}>{eyebrow}</p>
                         <h1 className="halo-title" style={titleStyle}>
                           {title}

@@ -5,6 +5,7 @@ import { Building2, UserPlus } from "lucide-react";
 
 import { BrandOnboardingForm } from "@/components/forms/brand-onboarding-form";
 import { CreatorOnboardingForm } from "@/components/forms/creator-onboarding-form";
+import { BranzzoLogo } from "@/components/branding/branzzo-logo";
 import { AuthSetupNotice } from "@/components/shared/auth-setup-notice";
 import { Navbar } from "@/components/shared/navbar";
 import { hasClerkKeys } from "@/lib/clerk-config";
@@ -78,6 +79,7 @@ export default async function OnboardingPage({ searchParams }: { searchParams: O
       <main className="bridge-section max-w-6xl py-8 sm:py-10">
       <div className="mb-8 grid gap-6 lg:grid-cols-[1fr_320px] lg:items-end">
         <div>
+          <BranzzoLogo showWordmark size={48} className="mb-5" wordmarkClassName="text-xl" />
           <p className="bridge-eyebrow">Onboarding</p>
           <h1 className="mt-3 font-display text-3xl font-black leading-tight sm:text-4xl">
             {selectedRole === "creator" ? "Build your public creator profile" : "Create your brand profile"}

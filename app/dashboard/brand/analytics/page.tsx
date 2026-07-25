@@ -26,8 +26,8 @@ export default async function BrandAnalyticsPage({ searchParams }: { searchParam
         <section className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
           <AnalyticsKpi label="Requests sent" value={summary.total} detail={`${analytics.uniqueCreators} unique creators contacted.`} change={analytics.changes.requests} />
           <AnalyticsKpi label="Accepted" value={summary.accepted} detail={`${summary.active} active collaborations.`} />
-          <AnalyticsKpi label="Rejected" value={summary.rejected} detail="Creator-declined or cancelled requests." />
-          <AnalyticsKpi label="Active" value={summary.active} detail="Accepted campaigns still in motion." />
+          <AnalyticsKpi label="Rejection events" value={summary.rejected} detail="Creator declines and brand rejections recorded in this period; cancellations are separate." />
+          <AnalyticsKpi label="Currently active" value={summary.active} detail="Current all-time snapshot of accepted campaigns still in motion." />
           <AnalyticsKpi label="Completed" value={summary.completed} detail="Campaigns completed in the selected period." />
           <AnalyticsKpi label="Unique creators" value={analytics.uniqueCreators} detail="Distinct creator accounts contacted." />
           <AnalyticsKpi label="Acceptance rate" value={`${summary.acceptanceRate}%`} detail="Accepted requests divided by accepted plus rejected decisions." change={analytics.changes.acceptance} />
@@ -40,7 +40,7 @@ export default async function BrandAnalyticsPage({ searchParams }: { searchParam
         </section>
         {!hasPeriodActivity ? <div className="mt-5"><AnalyticsEmpty role="brand" /></div> : (
           <div className="mt-5 grid gap-4 xl:grid-cols-[1.5fr_1fr]">
-            <AnalyticsTrend points={summary.trend} title="Requests sent over time" />
+            <AnalyticsTrend points={summary.trend} title="Request lifecycle over time" />
             <AnalyticsCurrencyTrend points={summary.trend} title="Completed spend over time" />
             <AnalyticsBars title="Cumulative collaboration funnel" items={summary.funnel.map((item) => ({ label: item.label, value: item.count, conversion: item.conversion }))} />
             <AnalyticsBars title="Most active creators" items={analytics.mostActive} />

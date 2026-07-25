@@ -10,6 +10,8 @@ test('seeded admin can open the authenticated dashboard', async ({ page }) => {
   await expect(page).toHaveURL(/\/admin(?:[/?#]|$)/);
   await expect(page.locator('body')).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Overview', exact: true })).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Branzzo admin home' })).toBeVisible();
+  await expect(page.getByTestId('branzzo-logo').first()).toBeVisible();
   await expect(page.locator('body')).not.toContainText(
     /Application error|Internal Server Error/i,
   );
