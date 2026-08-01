@@ -8,7 +8,9 @@ import { connectDB, hasMongoUri } from "@/lib/db";
 import { BrandInquiry } from "@/lib/models/BrandInquiry";
 import { BrandProfile } from "@/lib/models/BrandProfile";
 import { CreatorProfile } from "@/lib/models/CreatorProfile";
+import { ProofUpload } from "@/lib/models/ProofUpload";
 import { User } from "@/lib/models/User";
+import { notificationService } from "@/lib/notifications/notification-service";
 import { collaborationPaymentSchema } from "@/lib/validators/brand-inquiry";
 
 type PaymentCollaborationDocument = {
@@ -100,14 +102,30 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
           ? "payment_received"
           : "payment_disputed";
 
+    if (parsed.data.action === "mark_payment_sent") {
+      const proof = await ProofUpload.findOne({ _id: parsed.data.proofId, collaborationId: id, uploaderUserId: user._id, proofType: "payment" }).select("_id").lean();
+      if (!proof) return NextResponse.json({ error: "Payment proof does not belong to this collaboration." }, { status: 400 });
+      if ((collaboration as unknown as { paymentStatus?: string }).paymentStatus === "payment_sent") return NextResponse.json({ ok: true, paymentStatus: "payment_sent", duplicate: true });
+    }
+    if (parsed.data.action === "mark_payment_received" && (collaboration as unknown as { paymentStatus?: string }).paymentStatus === "payment_received") return NextResponse.json({ ok: true, paymentStatus: "payment_received", duplicate: true });
+    if (parsed.data.action === "mark_payment_received" && (collaboration as unknown as { paymentStatus?: string }).paymentStatus !== "payment_sent") return NextResponse.json({ error: "Payment must be marked sent before it can be confirmed." }, { status: 409 });
+
+    const now = new Date();
     collaboration.set({
       paymentStatus,
       paymentNote: parsed.data.paymentNote,
-      paymentScreenshotUrl: parsed.data.paymentScreenshotUrl,
-      paymentUpdatedAt: new Date(),
+      paymentProofId: parsed.data.proofId || undefined,
+      paymentTransactionId: parsed.data.transactionId,
+      paymentSentAt: parsed.data.action === "mark_payment_sent" ? now : undefined,
+      paymentConfirmedAt: parsed.data.action === "mark_payment_received" ? now : undefined,
+      paymentConfirmedBy: parsed.data.action === "mark_payment_received" ? user._id : undefined,
+      paymentUpdatedAt: now,
       paymentUpdatedBy: user.role,
     });
     await collaboration.save();
+
+    if (parsed.data.action === "mark_payment_sent") await notificationService.notifyPaymentSent({ collaboration });
+    if (parsed.data.action === "mark_payment_received") await notificationService.notifyPaymentConfirmed({ collaboration });
 
     return NextResponse.json({ ok: true, paymentStatus });
   } catch (error) {

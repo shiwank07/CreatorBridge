@@ -12,12 +12,14 @@ cloudflare-env.d.ts
 .env
 .env*.local
 !.env.local.example
+.env.production.local
 .env.playwright
 playwright-report/
 playwright/screenshots/
 playwright/.auth/
 
 *.log
+*.cpuprofile
 tsconfig.tsbuildinfo
 
 testsprite_tests\tmp\config.json

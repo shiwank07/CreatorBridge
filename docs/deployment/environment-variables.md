@@ -57,3 +57,10 @@ Cloudflare Worker runtime variables are available through the Node compatibility
 | `CI` | Automatic | CI | Enables CI behavior and retries | GitHub Actions | Yes |
 
 Forked pull requests do not receive repository secrets. Public tests still run; database integration and authenticated E2E explicitly skip when their isolated credentials are unavailable.
+
+Trusted CI does not silently skip these gates: internal CI requires `ANALYTICS_TEST_MONGODB_URI`, while authenticated browser tests require the protected GitHub `e2e` environment. Only untrusted forks may run the public secret-free subset.
+# Private proof uploads
+
+Payment and campaign proof screenshots use the private `BRANZZO_UPLOADS` R2 binding. This is a Worker binding, not an environment secret. Production must bind it to `branzzo-uploads`; staging should use a separate bucket such as `branzzo-uploads-staging`. Never bind uploads to `branzzo-incremental-cache` and do not enable public bucket access.
+
+`EMAIL_LOGO_URL` remains an optional backward-compatible override. By default email templates derive the verified `/branding/branzzo-logo.png` asset from `APP_URL`, then `NEXT_PUBLIC_APP_URL`.

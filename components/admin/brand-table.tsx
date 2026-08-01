@@ -1,12 +1,11 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import Link from "next/link";
-import { BadgeCheck, Ban, ExternalLink, EyeOff, Loader2, RotateCcw, XCircle } from "lucide-react";
+import { BadgeCheck, Ban, ChevronDown, ExternalLink, EyeOff, Loader2, MoreHorizontal, RotateCcw, XCircle } from "lucide-react";
 
 import { Badge } from "@/components/shared/badge";
 import { InitialsAvatar } from "@/components/shared/initials-avatar";
-import { AdminPagination, useAdminPagination } from "@/components/admin/admin-pagination";
 import { type AdminBrandData } from "@/lib/types";
 
 type BrandTableProps = {
@@ -14,15 +13,6 @@ type BrandTableProps = {
 };
 
 type BrandAction = "approve" | "reject" | "hide" | "suspend" | "restore";
-type BrandFilter = "all" | "verified" | "pending" | "suspended";
-
-const filters: { value: BrandFilter; label: string }[] = [
-  { value: "all", label: "All" },
-  { value: "verified", label: "Verified" },
-  { value: "pending", label: "Pending" },
-  { value: "suspended", label: "Suspended" },
-];
-
 function verificationTone(status: AdminBrandData["verificationStatus"]) {
   if (status === "verified") return "green";
   if (status === "pending") return "yellow";
@@ -35,25 +25,18 @@ function accountTone(status: AdminBrandData["accountStatus"]) {
   return "neutral";
 }
 
-function matchesFilter(brand: AdminBrandData, filter: BrandFilter) {
-  if (filter === "verified") return brand.verificationStatus === "verified";
-  if (filter === "pending") return brand.verificationStatus === "pending";
-  if (filter === "suspended") return brand.accountStatus === "suspended";
-  return true;
-}
-
 export function BrandTable({ brands }: BrandTableProps) {
   const [rows, setRows] = useState(brands);
-  const [filter, setFilter] = useState<BrandFilter>("all");
   const [savingKey, setSavingKey] = useState("");
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
-  const filteredRows = useMemo(() => rows.filter((brand) => matchesFilter(brand, filter)), [rows, filter]);
-  const pagination = useAdminPagination(filteredRows);
 
   async function updateBrand(brand: AdminBrandData, action: BrandAction) {
     setError("");
     setSuccess("");
+    const destructiveLabel =
+      action === "reject" ? "reject verification for" : action === "hide" ? "hide the profile for" : action === "suspend" ? "suspend the account for" : "";
+    if (destructiveLabel && !window.confirm(`Are you sure you want to ${destructiveLabel} ${brand.companyName}?`)) return;
     const note = action === "reject" ? window.prompt("Rejection reason")?.trim() : "";
     if (action === "reject" && !note) return;
 
@@ -102,14 +85,10 @@ export function BrandTable({ brands }: BrandTableProps) {
   }
 
   function ActionButtons({ brand }: { brand: AdminBrandData }) {
-    const isVerified = brand.verificationStatus === "verified";
     const isRejected = brand.verificationStatus === "rejected";
     const isHidden = brand.accountStatus === "hidden";
     const isSuspended = brand.accountStatus === "suspended";
     const actions: { action: BrandAction; label: string; icon: typeof BadgeCheck; className: string }[] = [
-      ...(!isVerified
-        ? [{ action: "approve" as const, label: "Approve Verification", icon: BadgeCheck, className: "border-emerald-800 text-emerald-200" }]
-        : []),
       ...(!isRejected
         ? [{ action: "reject" as const, label: "Reject", icon: XCircle, className: "border-red-900 text-red-200" }]
         : []),
@@ -125,58 +104,68 @@ export function BrandTable({ brands }: BrandTableProps) {
     ];
 
     return (
-      <div className="flex flex-wrap gap-2">
-        <Link
-          href={`/brands/${brand.username}`}
-          className="bridge-action-button border-[var(--border)] text-[var(--text-secondary)]"
-        >
-          View
-          <ExternalLink size={14} />
-        </Link>
-        {isVerified ? (
-          <button type="button" disabled className="bridge-action-button border-emerald-800 text-emerald-200">
-            <BadgeCheck size={14} />
-            Verified
+      <div className="flex flex-nowrap items-start gap-2">
+        {brand.profileId ? (
+          <Link
+            href={`/brands/${brand.username}`}
+            className="bridge-action-button border-[var(--border)] text-[var(--text-secondary)]"
+          >
+            View
+            <ExternalLink size={14} />
+          </Link>
+        ) : null}
+        {brand.verificationStatus === "pending" ? (
+          <button
+            type="button"
+            onClick={() => updateBrand(brand, "approve")}
+            disabled={savingKey === `${brand.username}:approve`}
+            className="bridge-action-button whitespace-nowrap border-emerald-800 text-emerald-200"
+          >
+            {savingKey === `${brand.username}:approve` ? <Loader2 size={14} className="animate-spin" /> : <BadgeCheck size={14} />}
+            Approve
           </button>
         ) : null}
-        {actions.map(({ action, label, icon: Icon, className }) => {
-          const key = `${brand.username}:${action}`;
-          return (
-            <button
-              key={action}
-              type="button"
-              onClick={() => updateBrand(brand, action)}
-              disabled={savingKey === key}
-              className={`bridge-action-button ${className}`}
-            >
-              {savingKey === key ? <Loader2 size={14} className="animate-spin" /> : <Icon size={14} />}
-              {label}
-            </button>
-          );
-        })}
+        <details
+          className="group relative"
+          onKeyDown={(event) => {
+            if (event.key !== "Escape") return;
+            event.currentTarget.open = false;
+            event.currentTarget.querySelector<HTMLElement>("summary")?.focus();
+          }}
+        >
+          <summary
+            aria-label={`More actions for ${brand.companyName}`}
+            className="bridge-action-button cursor-pointer list-none whitespace-nowrap border-[var(--border)] text-[var(--text-secondary)]"
+          >
+            <MoreHorizontal size={14} /> More <ChevronDown size={12} className="group-open:rotate-180" />
+          </summary>
+          <div className="absolute right-0 z-30 mt-2 w-56 rounded-[8px] border border-[var(--border)] bg-[#15151f] p-2 shadow-2xl">
+            {actions.map(({ action, label, icon: Icon, className }) => {
+              const key = `${brand.username}:${action}`;
+              return (
+                <button
+                  key={action}
+                  type="button"
+                  onClick={(event) => {
+                    event.currentTarget.closest("details")?.removeAttribute("open");
+                    void updateBrand(brand, action);
+                  }}
+                  disabled={savingKey === key}
+                  className={`focus-ring flex w-full items-center gap-2 rounded-[6px] px-3 py-2 text-left text-xs font-semibold hover:bg-white/5 ${className}`}
+                >
+                  {savingKey === key ? <Loader2 size={14} className="animate-spin" /> : <Icon size={14} />}
+                  {label}
+                </button>
+              );
+            })}
+          </div>
+        </details>
       </div>
     );
   }
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap gap-2">
-        {filters.map((item) => (
-          <button
-            key={item.value}
-            type="button"
-            onClick={() => setFilter(item.value)}
-            className={`focus-ring rounded-[8px] border px-3 py-2 text-xs font-semibold ${
-              filter === item.value
-                ? "border-violet-500 bg-violet-950/50 text-violet-100"
-                : "border-[var(--border)] text-[var(--text-secondary)]"
-            }`}
-          >
-            {item.label}
-          </button>
-        ))}
-      </div>
-
       <div className="bridge-card overflow-hidden">
         {error ? (
           <div role="alert" className="border-b border-red-900 bg-red-950/40 px-4 py-3 text-sm text-red-200">
@@ -188,26 +177,23 @@ export function BrandTable({ brands }: BrandTableProps) {
             {success}
           </div>
         ) : null}
-        {filteredRows.length === 0 ? (
-          <div className="border-b border-[var(--border)] px-4 py-6 text-sm text-[var(--text-secondary)]">
-            No brands match this filter.
-          </div>
-        ) : null}
         <div className="hidden overflow-x-auto md:block">
-          <table className="w-full min-w-[900px] text-left text-sm">
+          <table className="w-full min-w-[1180px] text-left text-sm">
             <thead className="border-b border-[var(--border)] text-xs uppercase text-[var(--text-secondary)]">
               <tr>
                 <th className="px-4 py-3">Logo</th>
                 <th className="px-4 py-3">Company</th>
                 <th className="px-4 py-3">Email</th>
-                <th className="px-4 py-3">Verification</th>
+                <th className="px-4 py-3">Registered</th>
+                <th className="px-4 py-3">Profile</th>
                 <th className="px-4 py-3">Status</th>
+                <th className="px-4 py-3">Collaborations</th>
                 <th className="px-4 py-3">Actions</th>
               </tr>
             </thead>
             <tbody>
-              {pagination.pageItems.map((brand) => (
-                <tr key={brand.userId} className="border-b border-[var(--border)] align-top last:border-b-0">
+              {rows.map((brand) => (
+                <tr key={brand.userId} className="h-auto border-b border-[var(--border)] align-middle last:border-b-0">
                   <td className="px-4 py-4">
                     <Logo brand={brand} />
                   </td>
@@ -217,10 +203,19 @@ export function BrandTable({ brands }: BrandTableProps) {
                   </td>
                   <td className="px-4 py-4 break-all text-[var(--text-secondary)]">{brand.email}</td>
                   <td className="px-4 py-4">
-                    <Badge tone={verificationTone(brand.verificationStatus)}>{brand.verificationStatus}</Badge>
+                    {brand.joinedDate ? new Date(brand.joinedDate).toLocaleDateString("en-IN") : "—"}
+                  </td>
+                  <td className="px-4 py-4">
+                    <div className="flex flex-col items-start gap-2">
+                      <Badge tone={brand.profileStatus === "complete" ? "green" : "yellow"}>{brand.profileStatus}</Badge>
+                      <Badge tone={verificationTone(brand.verificationStatus)}>{brand.verificationStatus}</Badge>
+                    </div>
                   </td>
                   <td className="px-4 py-4">
                     <Badge tone={accountTone(brand.accountStatus)}>{brand.accountStatus}</Badge>
+                  </td>
+                  <td className="px-4 py-4">
+                    {brand.collaborationCount}
                   </td>
                   <td className="px-4 py-4">
                     <ActionButtons brand={brand} />
@@ -232,7 +227,7 @@ export function BrandTable({ brands }: BrandTableProps) {
         </div>
 
         <div className="divide-y divide-[var(--border)] md:hidden">
-          {pagination.pageItems.map((brand) => (
+          {rows.map((brand) => (
             <article key={brand.userId} className="p-4">
               <div className="flex items-start gap-3">
                 <Logo brand={brand} />
@@ -240,11 +235,16 @@ export function BrandTable({ brands }: BrandTableProps) {
                   <h2 className="truncate font-semibold text-[var(--text-primary)]">{brand.companyName}</h2>
                   <p className="text-xs text-[var(--text-secondary)]">@{brand.username}</p>
                   <p className="mt-1 break-all text-xs text-[var(--text-secondary)]">{brand.email}</p>
+                  <p className="mt-1 text-xs text-[var(--text-secondary)]">
+                    Registered {brand.joinedDate ? new Date(brand.joinedDate).toLocaleDateString("en-IN") : "—"}
+                  </p>
                 </div>
               </div>
               <div className="mt-4 flex flex-wrap gap-2">
                 <Badge tone={verificationTone(brand.verificationStatus)}>{brand.verificationStatus}</Badge>
+                <Badge tone={brand.profileStatus === "complete" ? "green" : "yellow"}>{brand.profileStatus} profile</Badge>
                 <Badge tone={accountTone(brand.accountStatus)}>{brand.accountStatus}</Badge>
+                <Badge tone="neutral">{brand.collaborationCount} collaborations</Badge>
               </div>
               <div className="mt-4">
                 <ActionButtons brand={brand} />
@@ -252,13 +252,6 @@ export function BrandTable({ brands }: BrandTableProps) {
             </article>
           ))}
         </div>
-        <AdminPagination
-          page={pagination.page}
-          pageCount={pagination.pageCount}
-          pageSize={pagination.pageSize}
-          total={pagination.total}
-          onPageChange={pagination.setPage}
-        />
       </div>
     </div>
   );

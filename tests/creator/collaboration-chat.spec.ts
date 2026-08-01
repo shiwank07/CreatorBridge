@@ -15,6 +15,7 @@ test("creator can open collaboration chat and reply", async ({ page }) => {
 });
 
 test("collaboration chat blocks an unrelated creator", async ({ page }) => {
+  await page.goto("/dashboard/creator");
   const response = await page.request.get("/api/collaborations/000000000000000000000001/chat");
-  expect([403, 404]).toContain(response.status());
+  expect(response.status()).toBe(404);
 });

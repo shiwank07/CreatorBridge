@@ -6,15 +6,24 @@ import { connectDB, hasMongoUri } from "@/lib/db";
 import { BrandProfile } from "@/lib/models/BrandProfile";
 import { CreatorProfile } from "@/lib/models/CreatorProfile";
 import { User } from "@/lib/models/User";
-import { getAdminContactDetails } from "@/lib/queries/admin";
+import { getAdminContactsPage } from "@/lib/queries/admin";
 import { adminContactUpdateSchema } from "@/lib/validators/admin";
 
-export async function GET() {
+export async function GET(req: Request) {
   const admin = await getAdminState();
   if (!admin.isAdmin) return NextResponse.json({ error: "Admin access required." }, { status: 403 });
 
-  const contacts = await getAdminContactDetails();
-  return NextResponse.json({ contacts });
+  const url = new URL(req.url);
+  return NextResponse.json(await getAdminContactsPage({
+    page: Number(url.searchParams.get("page") ?? 1),
+    limit: Number(url.searchParams.get("limit") ?? 30),
+    role: url.searchParams.get("role") ?? undefined,
+    status: url.searchParams.get("status") ?? undefined,
+    search: url.searchParams.get("search") ?? undefined,
+    sort: url.searchParams.get("sort") ?? undefined,
+    from: url.searchParams.get("from") ?? undefined,
+    to: url.searchParams.get("to") ?? undefined,
+  }));
 }
 
 export async function PATCH(req: Request) {

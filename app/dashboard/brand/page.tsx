@@ -11,7 +11,6 @@ import {
   Layers3,
   Megaphone,
   Search,
-  ShieldCheck,
   Sparkles,
   Star,
   UsersRound,
@@ -25,6 +24,7 @@ import { NotificationList } from "@/components/notifications/notification-list";
 import { Badge } from "@/components/shared/badge";
 import { Navbar } from "@/components/shared/navbar";
 import { ProfileCompletionCard } from "@/components/shared/profile-completion-card";
+import { InitialsAvatar } from "@/components/shared/initials-avatar";
 import { BrandVerificationCard } from "@/components/verification/brand-verification-card";
 import { TrustPassportCard } from "@/components/verification/trust-passport-card";
 import { collaborationDetailsHref } from "@/lib/collaboration-routes";
@@ -171,9 +171,13 @@ function BrandVerificationStatus({ brand }: { brand: BrandProfileData | null }) 
             {brand?.industry ?? "Industry not set"} {brand?.country ? `- ${brand.country}` : ""}
           </p>
         </div>
-        <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[8px] border border-violet-300/20 bg-violet-400/10 text-violet-100">
-          <ShieldCheck size={20} />
-        </span>
+        <InitialsAvatar
+          imageUrl={brand?.avatar}
+          name={brand?.companyName}
+          alt={`${brand?.companyName ?? "Brand"} logo`}
+          className="h-12 w-12 rounded-full"
+          sizes="48px"
+        />
       </div>
       <div className="mt-5 flex flex-wrap gap-2">
         <Badge tone={verificationTone(brand?.verificationStatus)}>{verificationLabel(brand?.verificationStatus)}</Badge>

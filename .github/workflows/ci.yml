@@ -20,6 +20,7 @@ jobs:
     env:
       ANALYTICS_TEST_MONGODB_URI: ${{ secrets.ANALYTICS_TEST_MONGODB_URI }}
       NEXT_PUBLIC_APP_URL: http://localhost:3000
+      IS_FORK: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -37,10 +38,19 @@ jobs:
         run: npm run test:integration
       - name: Integration tests unavailable
         if: env.ANALYTICS_TEST_MONGODB_URI == ''
-        run: echo "Skipped because the isolated ANALYTICS_TEST_MONGODB_URI secret is unavailable."
+        shell: bash
+        run: |
+          if [ "$IS_FORK" = "true" ]; then
+            echo "Skipped for an untrusted fork because repository secrets are unavailable."
+          else
+            echo "Trusted CI requires the isolated ANALYTICS_TEST_MONGODB_URI secret."
+            exit 1
+          fi
       - run: npm run build
       - name: Build Cloudflare Worker
         run: npx opennextjs-cloudflare build --skipNextBuild
+      - name: Validate minified Wrangler bundle
+        run: npm run cf:dry-run
       - name: Verify Worker output
         shell: bash
         run: |

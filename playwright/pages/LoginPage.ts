@@ -64,6 +64,13 @@ export class LoginPage {
     await this.signInWithEmail(email);
     await this.enterOtp(otp);
 
-    await this.page.waitForLoadState('domcontentloaded');
+    await this.page.waitForFunction(
+      () => Boolean((window as typeof window & { Clerk?: { session?: { id?: string } } }).Clerk?.session?.id),
+      undefined,
+      { timeout: 30_000 },
+    );
+    await this.page.waitForURL((url) => !/\/sign-in(?:\/|\?|$)/.test(url.pathname + url.search), {
+      timeout: 30_000,
+    });
   }
 }

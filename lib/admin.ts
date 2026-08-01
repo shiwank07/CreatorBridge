@@ -12,6 +12,15 @@ function adminEmailSet() {
   );
 }
 
+function adminClerkUserIdSet() {
+  return new Set(
+    (process.env.ADMIN_CLERK_USER_IDS ?? "")
+      .split(",")
+      .map((id) => id.trim())
+      .filter(Boolean),
+  );
+}
+
 export async function getAdminState() {
   if (!hasClerkKeys()) return { isAdmin: false, userId: null, email: null };
 
@@ -22,7 +31,9 @@ export async function getAdminState() {
   const primaryEmail =
     user?.emailAddresses.find((email) => email.id === user.primaryEmailAddressId)?.emailAddress ??
     user?.emailAddresses[0]?.emailAddress;
-  const isAdmin = primaryEmail ? adminEmailSet().has(primaryEmail.toLowerCase()) : false;
+  const adminIds = adminClerkUserIdSet();
+  const isAdmin = adminIds.has(userId) ||
+    (process.env.NODE_ENV !== "production" && primaryEmail ? adminEmailSet().has(primaryEmail.toLowerCase()) : false);
 
   return {
     isAdmin,

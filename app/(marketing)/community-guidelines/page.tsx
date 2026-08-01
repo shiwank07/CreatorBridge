@@ -2,11 +2,9 @@ import Link from "next/link";
 import { Flag, Handshake, MessageSquareWarning, ShieldCheck } from "lucide-react";
 
 import { CONTACT_EMAILS, LEGAL_LAST_UPDATED } from "@/lib/constants";
+import { publicPageMetadata } from "@/lib/seo";
 
-export const metadata = {
-  title: "Community Guidelines",
-  description: "Branzzo Community Guidelines for brands and creators.",
-};
+export const metadata = publicPageMetadata("Community Guidelines", "Branzzo Community Guidelines for professional, transparent, and safe brand-creator collaborations.", "/community-guidelines");
 
 const guidelineSections = [
   {

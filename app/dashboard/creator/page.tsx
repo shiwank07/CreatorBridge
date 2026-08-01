@@ -11,7 +11,6 @@ import {
   Compass,
   FileCheck2,
   Layers3,
-  ShieldCheck,
   Sparkles,
   UserRound,
   type LucideIcon,
@@ -24,6 +23,7 @@ import { NotificationList } from "@/components/notifications/notification-list";
 import { Badge } from "@/components/shared/badge";
 import { Navbar } from "@/components/shared/navbar";
 import { ProfileCompletionCard } from "@/components/shared/profile-completion-card";
+import { InitialsAvatar } from "@/components/shared/initials-avatar";
 import { CreatorVerificationCard } from "@/components/verification/creator-verification-card";
 import { TrustPassportCard } from "@/components/verification/trust-passport-card";
 import { collaborationDetailsHref } from "@/lib/collaboration-routes";
@@ -162,9 +162,14 @@ function CreatorPassport({ creator }: { creator: CreatorCardData | null }) {
             @{creator?.username ?? "pending"} - {creator?.niche.slice(0, 2).join(", ") || "Niche not set"}
           </p>
         </div>
-        <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[8px] border border-violet-300/20 bg-violet-400/10 text-violet-100">
-          <ShieldCheck size={20} />
-        </span>
+        <InitialsAvatar
+          imageUrl={creator?.avatar}
+          name={creator?.name}
+          username={creator?.username}
+          alt={`${creator?.name ?? "Creator"} profile picture`}
+          className="h-12 w-12 rounded-full"
+          sizes="48px"
+        />
       </div>
 
       <div className="mt-5 grid gap-3 sm:grid-cols-3">

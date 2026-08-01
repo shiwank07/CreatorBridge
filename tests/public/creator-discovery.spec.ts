@@ -23,9 +23,9 @@ test.describe("creator discovery", () => {
       await page.goto("/creators");
       await expect(page.getByRole("heading", { name: "Campaign-fit profiles" })).toBeVisible();
       if (viewport.width < 768) {
-        await page.getByRole("button", { name: "Open filters" }).click();
+        await page.getByRole("button", { name: /^Filters(?: \(\d+\))?$/ }).click();
         await expect(page.getByRole("heading", { name: "Discovery filters" })).toBeVisible();
-        await page.getByRole("button", { name: "Close filters" }).click();
+        await page.getByRole("dialog", { name: "Creator filters" }).getByRole("button", { name: "Close filters" }).click();
       }
       const dimensions = await page.evaluate(() => ({ scroll: document.documentElement.scrollWidth, client: document.documentElement.clientWidth }));
       expect(dimensions.scroll).toBeLessThanOrEqual(dimensions.client + 1);

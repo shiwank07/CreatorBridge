@@ -20,6 +20,9 @@ export default async function SignUpPage({ searchParams }: { searchParams: AuthS
       <Link href="/" aria-label="Branzzo home" className="mb-6">
         <BranzzoLogo showWordmark size={52} priority wordmarkClassName="text-xl" />
       </Link>
+      <p id="password-guidance" className="mb-4 max-w-sm text-center text-sm leading-6 text-[var(--text-secondary)]">
+        Use at least 8 characters. Avoid common words, your name, email, or easily guessed patterns.
+      </p>
       <SignUp
         routing="path"
         path="/sign-up"

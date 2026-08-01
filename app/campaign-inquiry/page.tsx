@@ -13,6 +13,7 @@ import { getCreatorByUsername } from "@/lib/queries/creators";
 export const metadata: Metadata = {
   title: "Start Collaboration",
   description: "Start a structured creator collaboration request on Branzzo.",
+  robots: { index: false, follow: false },
 };
 
 type InquirySearchParams = Promise<Record<string, string | string[] | undefined>>;

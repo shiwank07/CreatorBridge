@@ -8,8 +8,9 @@ test.describe("admin creator verification queue", () => {
     await expect(page.getByRole("button", { name: "Approved" })).toBeVisible();
     await expect(page.getByRole("button", { name: "Rejected" })).toBeVisible();
     await expect(page.getByPlaceholder("Name, username, email, platform")).toBeVisible();
-    await expect(page.getByRole("button", { name: "Previous" })).toBeVisible();
-    await expect(page.getByRole("button", { name: "Next" })).toBeVisible();
+    const pagination = page.getByRole("navigation", { name: "Verification pagination" });
+    await expect(pagination.getByRole("button", { name: "Previous", exact: true })).toBeVisible();
+    await expect(pagination.getByRole("button", { name: "Next", exact: true })).toBeVisible();
   });
 
   test("contains the queue on mobile", async ({ page }) => {

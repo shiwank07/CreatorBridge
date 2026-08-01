@@ -13,9 +13,37 @@ permissions:
   contents: read
 
 jobs:
-  e2e:
+  public:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      BASE_URL: http://127.0.0.1:3000
+      NEXT_PUBLIC_APP_URL: http://127.0.0.1:3000
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - run: npx playwright test tests/public --project=chromium
+      - name: Upload failure artifacts
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-public-failure-${{ github.run_id }}
+          path: |
+            playwright-report/
+            test-results/
+          if-no-files-found: ignore
+          retention-days: 7
+
+  authenticated:
+    if: github.event_name == 'workflow_dispatch' || github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
     timeout-minutes: 45
+    environment: e2e
     env:
       BASE_URL: http://127.0.0.1:3000
       NEXT_PUBLIC_APP_URL: http://127.0.0.1:3000
@@ -34,33 +62,28 @@ jobs:
           node-version-file: .nvmrc
           cache: npm
       - run: npm ci
-      - run: npx playwright install --with-deps chromium
-      - name: Public non-destructive tests
-        run: npx playwright test tests/public --project=chromium
-      - name: Check isolated E2E credentials
-        id: auth
+      - name: Require isolated authenticated E2E environment
         shell: bash
         run: |
-          if [ -n "$MONGODB_URI" ] && [ -n "$CLERK_SECRET_KEY" ] && [ -n "$NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY" ] && [ -n "$CREATOR_EMAIL" ] && [ -n "$BRAND_EMAIL" ] && [ -n "$ADMIN_EMAIL" ] && [ -n "$CLERK_TEST_OTP" ]; then
-            echo "enabled=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "enabled=false" >> "$GITHUB_OUTPUT"
-            echo "Authenticated E2E skipped: isolated test credentials are unavailable."
+          for name in MONGODB_URI CLERK_SECRET_KEY NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY CREATOR_EMAIL BRAND_EMAIL ADMIN_EMAIL CLERK_TEST_OTP; do
+            if [ -z "${!name}" ]; then
+              echo "Missing required E2E environment value: $name"
+              exit 1
+            fi
+          done
+          database_name="$(node -e "const u=new URL(process.env.MONGODB_URI);process.stdout.write(u.pathname.replace(/^\\/+/,''))")"
+          if ! printf '%s' "$database_name" | grep -Eiq '(test|testing|ci|e2e|integration)'; then
+            echo "E2E_MONGODB_URI must select an explicitly isolated test database."
+            exit 1
           fi
-      - name: Authenticated creator tests
-        if: steps.auth.outputs.enabled == 'true'
-        run: npx playwright test tests/creator --project=creator-chromium
-      - name: Authenticated brand tests
-        if: steps.auth.outputs.enabled == 'true'
-        run: npx playwright test tests/brand --project=brand-chromium
-      - name: Authenticated admin tests
-        if: steps.auth.outputs.enabled == 'true'
-        run: npx playwright test tests/admin --project=admin-chromium
+      - run: npx playwright install --with-deps chromium
+      - name: Authenticated role suites
+        run: npx playwright test --project=creator-chromium --project=brand-chromium --project=admin-chromium
       - name: Upload failure artifacts
         if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: playwright-failure-${{ github.run_id }}
+          name: playwright-authenticated-failure-${{ github.run_id }}
           path: |
             playwright-report/
             test-results/

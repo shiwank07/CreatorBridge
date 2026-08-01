@@ -1,6 +1,6 @@
 import { getCurrentAppUser } from "@/lib/current-user";
 import { notificationTargetHref } from "@/lib/collaboration-routes";
-import { connectDB, hasMongoUri } from "@/lib/db";
+import { connectDB, hasMongoUri, MONGO_QUERY_TIMEOUT_MS } from "@/lib/db";
 import { InAppNotification } from "@/lib/models/InAppNotification";
 import { type InAppNotificationData } from "@/lib/types";
 import { safeNotificationActionUrl } from "@/lib/notifications/notification-safety";
@@ -45,7 +45,7 @@ export type NotificationPageFilters = {
 
 export async function getCurrentUserNotificationPage(filters: NotificationPageFilters = {}) {
   const page = Math.max(1, Math.trunc(filters.page ?? 1));
-  const pageSize = Math.min(50, Math.max(1, Math.trunc(filters.pageSize ?? 20)));
+  const pageSize = Math.min(50, Math.max(1, Math.trunc(filters.pageSize ?? 30)));
   if (!hasMongoUri()) return { notifications: [], total: 0, page, pageSize, totalPages: 1, unreadCount: 0 };
   const user = await getCurrentAppUser();
   if (!user?.onboardingComplete) return { notifications: [], total: 0, page, pageSize, totalPages: 1, unreadCount: 0 };
@@ -116,8 +116,14 @@ export async function getCurrentUserNotificationSummary(limit = 5) {
 
   await connectDB();
   const [docs, unreadCount] = await Promise.all([
-    InAppNotification.find({ recipientUserId: user.id }).sort({ createdAt: -1 }).limit(limit).exec(),
-    InAppNotification.countDocuments(unreadNotificationFilter(user.id)).exec(),
+    InAppNotification.find({ recipientUserId: user.id })
+      .select("event type entityType title message href actionUrl isRead readAt createdAt")
+      .sort({ createdAt: -1 })
+      .limit(limit)
+      .maxTimeMS(MONGO_QUERY_TIMEOUT_MS)
+      .lean()
+      .exec(),
+    InAppNotification.countDocuments(unreadNotificationFilter(user.id)).maxTimeMS(MONGO_QUERY_TIMEOUT_MS).exec(),
   ]);
 
   return {

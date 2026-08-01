@@ -9,9 +9,10 @@ import { BranzzoLogo } from "@/components/branding/branzzo-logo";
 import { AuthSetupNotice } from "@/components/shared/auth-setup-notice";
 import { Navbar } from "@/components/shared/navbar";
 import { hasClerkKeys } from "@/lib/clerk-config";
-import { connectDB, hasMongoUri } from "@/lib/db";
+import { classifyMongoError, connectDB, hasMongoUri, MONGO_QUERY_TIMEOUT_MS } from "@/lib/db";
 import { User } from "@/lib/models/User";
 import { generateUsername } from "@/lib/slug";
+import { logServerTiming, withServerTiming } from "@/lib/server-timing";
 
 export const dynamic = "force-dynamic";
 
@@ -33,6 +34,7 @@ function dashboardHrefForRole(role: string | undefined) {
 }
 
 export default async function OnboardingPage({ searchParams }: { searchParams: OnboardingSearchParams }) {
+  const renderStartedAt = performance.now();
   if (!hasClerkKeys()) return <AuthSetupNotice />;
 
   const params = await searchParams;
@@ -52,8 +54,14 @@ export default async function OnboardingPage({ searchParams }: { searchParams: O
 
   if (hasMongoUri()) {
     try {
-      await connectDB();
-      const dbUser = await User.findOne({ clerkId: clerkUser.id });
+      const dbUser = await withServerTiming("onboarding.preload", async () => {
+        await connectDB();
+        return User.findOne({ clerkId: clerkUser.id })
+          .select("username role onboardingComplete")
+          .maxTimeMS(MONGO_QUERY_TIMEOUT_MS)
+          .lean()
+          .exec();
+      });
       const existingRole = isOnboardingRole(dbUser?.role) ? dbUser.role : null;
 
       if (dbUser?.onboardingComplete) {
@@ -66,12 +74,17 @@ export default async function OnboardingPage({ searchParams }: { searchParams: O
 
       if (dbUser?.username) initialUsername = dbUser.username;
     } catch (error) {
-      console.error("Onboarding database preload failed", error);
-      databaseWarning = "MongoDB Atlas is not reachable right now. Check the connection string, network access, and Atlas IP allowlist.";
+      const kind = classifyMongoError(error);
+      console.error("Onboarding database preload failed", { kind });
+      databaseWarning = kind === "connecting"
+        ? "Branzzo is connecting to the database. Please retry in a moment."
+        : "The database is temporarily unavailable. Please retry shortly.";
     }
   }
 
   if (completedRedirectHref) redirect(completedRedirectHref);
+
+  logServerTiming("server-render.total", performance.now() - renderStartedAt, { route: "/onboarding" });
 
   return (
     <>

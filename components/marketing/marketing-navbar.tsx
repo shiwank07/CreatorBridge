@@ -5,8 +5,10 @@ import { authHref } from "@/lib/auth-redirect";
 import { hasClerkKeys } from "@/lib/clerk-config";
 import { getCurrentAppUser } from "@/lib/current-user";
 import { getCurrentUserNotificationSummary } from "@/lib/queries/notifications";
+import { logServerTiming } from "@/lib/server-timing";
 
 export async function MarketingNavbar() {
+  const startedAt = performance.now();
   const { userId } = hasClerkKeys() ? await auth() : { userId: null };
   const user = userId ? await getCurrentAppUser() : null;
   const onboardingHref = "/onboarding";
@@ -59,6 +61,8 @@ export async function MarketingNavbar() {
             accountHref: "/dashboard/settings/account",
           }
         : null;
+
+  logServerTiming("navbar.session-lookup", performance.now() - startedAt, { variant: "marketing" });
 
   return (
     <MarketingNavbarClient

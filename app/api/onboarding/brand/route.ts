@@ -5,11 +5,13 @@ import { handleRouteError, parseJsonBody } from "@/lib/api-errors";
 import { hasClerkKeys } from "@/lib/clerk-config";
 import { getClerkEmailVerificationState } from "@/lib/clerk-verification";
 import { connectDB, hasMongoUri } from "@/lib/db";
+import { sendBrandWelcomeOnce } from "@/lib/email/welcome-emails";
 import { BrandProfile } from "@/lib/models/BrandProfile";
 import { User } from "@/lib/models/User";
 import { ensureUniqueUsername } from "@/lib/queries/creators";
 import { brandOnboardingSchema } from "@/lib/validators/brand-profile";
 import { emailDomain, normalizeUrlDomain } from "@/lib/verification-helpers";
+import { onboardingRoleFilter } from "@/lib/onboarding-role";
 
 function getClerkEmail(user: Awaited<ReturnType<typeof currentUser>>) {
   return (
@@ -51,8 +53,10 @@ export async function POST(req: Request) {
     const phoneVerified = Boolean(existingUser?.phoneVerified && (existingUser.phoneNumber ?? "") === parsed.data.phoneNumber);
     const phoneVerifiedAt = phoneVerified ? existingUser?.phoneVerifiedAt ?? null : null;
 
-    const user = await User.findOneAndUpdate(
-      { clerkId: userId },
+    let user;
+    try {
+      user = await User.findOneAndUpdate(
+      onboardingRoleFilter(userId, "brand"),
       {
         $set: {
           email: userEmail,
@@ -62,7 +66,8 @@ export async function POST(req: Request) {
           phoneNumber: parsed.data.phoneNumber,
           phoneVerified,
           phoneVerifiedAt,
-          avatar: parsed.data.logo || existingUser?.avatar || clerkUser?.imageUrl || "",
+          // Clerk owns the image; MongoDB keeps only its current URL for public queries.
+          avatar: clerkUser?.imageUrl ?? parsed.data.logo,
           role: "brand",
           onboardingComplete: true,
         },
@@ -74,7 +79,14 @@ export async function POST(req: Request) {
         },
       },
       { upsert: true, new: true },
-    );
+      );
+    } catch (error) {
+      if (typeof error === "object" && error && "code" in error && error.code === 11000) {
+        return NextResponse.json({ error: "This account already has a different completed role." }, { status: 403 });
+      }
+      throw error;
+    }
+    if (!user) return NextResponse.json({ error: "This account cannot complete brand onboarding." }, { status: 403 });
 
     const existingProfile = await BrandProfile.findOne({ userId: user._id });
     const companyDomain = emailDomain(parsed.data.contactEmail);
@@ -103,6 +115,7 @@ export async function POST(req: Request) {
           country: parsed.data.country,
           companyRegistrationText: parsed.data.companyRegistrationText,
           notes: parsed.data.notes,
+          displayPublicly: parsed.data.displayPublicly,
           companyDomain,
           normalizedWebsiteDomain,
           verificationStatus: brandIdentityChanged ? "unverified" : existingProfile?.verificationStatus ?? "unverified",
@@ -123,6 +136,13 @@ export async function POST(req: Request) {
     if (brandIdentityChanged) {
       await User.updateOne({ _id: user._id }, { $set: { isVerified: false } });
     }
+
+    await sendBrandWelcomeOnce({
+      to: user.email,
+      firstName: user.name.split(/\s+/)[0],
+      userId: user._id.toString(),
+      idempotencyKey: `welcome:brand:${user._id}`,
+    }).catch(() => console.error("[email] Brand welcome delivery could not be recorded."));
 
     return NextResponse.json({
       ok: true,

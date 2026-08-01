@@ -3,8 +3,10 @@ import { AdminGlobalSearch } from "@/components/admin/admin-global-search";
 import { requireAdmin } from "@/lib/admin";
 import { NotificationIndicator } from "@/components/notifications/notification-indicator";
 import { getCurrentUserNotificationSummary } from "@/lib/queries/notifications";
+import type { Metadata } from "next";
 
 export const dynamic = "force-dynamic";
+export const metadata: Metadata = { robots: { index: false, follow: false } };
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
   await requireAdmin();

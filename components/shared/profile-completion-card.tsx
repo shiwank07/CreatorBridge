@@ -85,7 +85,14 @@ export function ProfileCompletionCard({ completion, updateHref, className = "rou
         <Gauge size={22} className="shrink-0 text-cyan-200" />
       </div>
 
-      <div className="mt-4 h-2 overflow-hidden rounded-full bg-white/10" aria-label={`Profile completion ${completion.percent}%`}>
+      <div
+        role="meter"
+        aria-label="Profile completion"
+        aria-valuemin={0}
+        aria-valuemax={100}
+        aria-valuenow={completion.percent}
+        className="mt-4 h-2 overflow-hidden rounded-full bg-white/10"
+      >
         <div className="h-full rounded-full bg-gradient-to-r from-cyan-300 via-violet-400 to-emerald-300" style={{ width: `${completion.percent}%` }} />
       </div>
 

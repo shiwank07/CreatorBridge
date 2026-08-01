@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { cache } from "react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { BadgeCheck, ExternalLink, MapPin } from "lucide-react";
@@ -10,12 +11,14 @@ import { ProfileCompletionCard } from "@/components/shared/profile-completion-ca
 import { TrustPassportCard } from "@/components/verification/trust-passport-card";
 import { getCurrentAppUser } from "@/lib/current-user";
 import { calculateBrandProfileCompletion } from "@/lib/profile-completion";
-import { getBrandByUsername } from "@/lib/queries/brands";
+import { getBrandByUsername, getPublicBrandByUsername } from "@/lib/queries/brands";
 import { verificationBadgeLabel } from "@/lib/verification";
+import { SOCIAL_IMAGE } from "@/lib/seo";
 
 export const dynamic = "force-dynamic";
 
 type BrandProfileParams = Promise<{ username: string }>;
+const getCachedPublicBrandByUsername = cache(getPublicBrandByUsername);
 
 function displayUrl(url: string) {
   try {
@@ -28,24 +31,36 @@ function displayUrl(url: string) {
 
 export async function generateMetadata({ params }: { params: BrandProfileParams }): Promise<Metadata> {
   const { username } = await params;
-  const brand = await getBrandByUsername(username);
+  const brand = await getCachedPublicBrandByUsername(username);
 
   if (!brand) {
     return {
       title: "Brand Not Found",
+      robots: { index: false, follow: false },
     };
   }
 
+  const title = `${brand.companyName} — Brand Profile`;
+  const description = `View ${brand.companyName}'s ${brand.industry} brand profile and creator collaboration activity on Branzzo.`;
+  const canonical = `/brands/${encodeURIComponent(brand.username)}`;
   return {
-    title: `${brand.companyName} on Branzzo`,
-    description: `${brand.companyName} is a ${brand.industry} brand on Branzzo.`,
+    title,
+    description,
+    alternates: { canonical },
+    openGraph: { title, description, url: canonical, type: "profile", images: [{ url: SOCIAL_IMAGE, width: 1200, height: 630, alt: `${brand.companyName} brand profile on Branzzo` }] },
+    twitter: { card: "summary_large_image", title, description, images: [SOCIAL_IMAGE] },
   };
 }
 
 export default async function BrandProfilePage({ params }: { params: BrandProfileParams }) {
   const { username } = await params;
-  const brand = await getBrandByUsername(username);
   const viewer = await getCurrentAppUser();
+  const publicBrand = await getCachedPublicBrandByUsername(username);
+  const ownerBrand =
+    !publicBrand && viewer?.role === "brand" && viewer.username === username
+      ? await getBrandByUsername(username)
+      : null;
+  const brand = publicBrand ?? ownerBrand;
 
   if (!brand) notFound();
 
@@ -95,7 +110,7 @@ export default async function BrandProfilePage({ params }: { params: BrandProfil
           </div>
         </header>
 
-        <div className="bridge-section grid gap-6 py-8 sm:py-10 lg:grid-cols-[1fr_320px]">
+        <div className="bridge-section grid items-start gap-6 py-8 sm:py-10 lg:grid-cols-[1fr_320px]">
           <div className="space-y-6">
           <section className="bridge-card p-5">
             <h2 className="font-display text-2xl font-bold">Brand Details</h2>

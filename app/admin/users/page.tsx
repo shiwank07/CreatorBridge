@@ -1,11 +1,23 @@
 import { UserTable } from "@/components/admin/user-table";
+import { AdminListControls } from "@/components/admin/admin-list-controls";
 import { EmptyState } from "@/components/shared/empty-state";
-import { getAdminUsers } from "@/lib/queries/admin";
+import { ServerPagination } from "@/components/shared/server-pagination";
+import { parsePageSearchParams } from "@/lib/pagination";
+import { getAdminUsersPage } from "@/lib/queries/admin";
 
 export const dynamic = "force-dynamic";
 
-export default async function AdminUsersPage() {
-  const users = await getAdminUsers();
+type SearchParams = Promise<Record<string, string | string[] | undefined>>;
+export default async function AdminUsersPage({ searchParams }: { searchParams: SearchParams }) {
+  const params = await searchParams;
+  const page = await getAdminUsersPage({
+    ...parsePageSearchParams(params),
+    role: typeof params.role === "string" ? params.role : undefined,
+    status: typeof params.status === "string" ? params.status : undefined,
+    search: typeof params.search === "string" ? params.search : undefined,
+    onboarding: typeof params.onboarding === "string" ? params.onboarding : undefined,
+    sort: typeof params.sort === "string" ? params.sort : undefined,
+  });
 
   return (
     <div>
@@ -17,14 +29,22 @@ export default async function AdminUsersPage() {
         </p>
       </div>
 
-      {users.length > 0 ? (
-        <UserTable users={users} />
+      <AdminListControls searchPlaceholder="Search name or email; exact Clerk ID supported" selects={[
+        { name: "role", label: "Role", options: [{ value: "creator", label: "Creator" }, { value: "brand", label: "Brand" }] },
+        { name: "status", label: "Account", options: ["active", "hidden", "suspended", "deleted"].map((value) => ({ value, label: value })) },
+        { name: "sort", label: "Sort", options: [{ value: "newest", label: "Newest" }, { value: "oldest", label: "Oldest" }, { value: "name_asc", label: "Name A–Z" }, { value: "name_desc", label: "Name Z–A" }] },
+      ]} />
+      {page.items.length > 0 ? (
+        <>
+          <UserTable users={page.items} />
+          <ServerPagination pagination={page} pathname="/admin/users" searchParams={params} />
+        </>
       ) : (
         <EmptyState
-          title="No users yet"
-          description="Creator and brand accounts will appear here after onboarding."
-          actionHref="/admin"
-          actionLabel="Back to Overview"
+          title="No matching users"
+          description="No user matches the current search and filters."
+          actionHref="/admin/users"
+          actionLabel="Clear filters"
         />
       )}
     </div>

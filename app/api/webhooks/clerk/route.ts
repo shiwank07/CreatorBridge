@@ -4,28 +4,15 @@ import { Webhook } from "svix";
 import type { WebhookEvent } from "@clerk/nextjs/server";
 
 import { handleRouteError } from "@/lib/api-errors";
-import { getClerkEmailVerificationState } from "@/lib/clerk-verification";
+import {
+  applyClerkUserEvent, claimClerkWebhookEvent, failClerkWebhookEvent,
+  finishClerkWebhookEvent, trustedClerkEventTimestamp,
+} from "@/lib/clerk-user-sync";
 import { connectDB, hasMongoUri } from "@/lib/db";
-import { BrandProfile } from "@/lib/models/BrandProfile";
-import { CreatorProfile } from "@/lib/models/CreatorProfile";
-import { User } from "@/lib/models/User";
-import { ensureUniqueUsername } from "@/lib/queries/creators";
-
-function getPrimaryEmail(data: WebhookEvent["data"]) {
-  if (!("email_addresses" in data)) return "";
-  const primary = data.email_addresses.find((email) => email.id === data.primary_email_address_id);
-  return primary?.email_address ?? data.email_addresses[0]?.email_address ?? "";
-}
-
-function getDisplayName(data: WebhookEvent["data"], email: string) {
-  if (!("first_name" in data)) return email.split("@")[0] ?? "Creator";
-  const fullName = [data.first_name, data.last_name].filter(Boolean).join(" ").trim();
-  return fullName || data.username || email.split("@")[0] || "Creator";
-}
 
 export async function POST(req: Request) {
   try {
-    const webhookSecret = process.env.CLERK_WEBHOOK_SECRET;
+    const webhookSecret = process.env.CLERK_WEBHOOK_SIGNING_SECRET || process.env.CLERK_WEBHOOK_SECRET;
     if (!webhookSecret) {
       return NextResponse.json({ error: "CLERK_WEBHOOK_SECRET is not configured." }, { status: 500 });
     }
@@ -59,46 +46,23 @@ export async function POST(req: Request) {
 
     await connectDB();
 
-    if (event.type === "user.created" || event.type === "user.updated") {
-      const email = getPrimaryEmail(event.data);
-      const emailVerified = Boolean(getClerkEmailVerificationState(event.data, email)?.verified);
-      const name = getDisplayName(event.data, email);
-      const usernameSeed = "username" in event.data && event.data.username ? event.data.username : name;
-      const username = await ensureUniqueUsername(usernameSeed, event.data.id);
-
-      await User.findOneAndUpdate(
-        { clerkId: event.data.id },
-        {
-          $set: {
-            email,
-            emailVerified,
-            name,
-            avatar: "image_url" in event.data ? event.data.image_url ?? "" : "",
-          },
-          $setOnInsert: {
-            username,
-            role: "creator",
-            onboardingComplete: false,
-            subscriptionTier: "free",
-            isFeatured: false,
-            isVerified: false,
-          },
-        },
-        { upsert: true, new: true },
-      );
+    if (!["user.created", "user.updated", "user.deleted"].includes(event.type)) {
+      return NextResponse.json({ ok: true });
     }
-
-    if (event.type === "user.deleted" && event.data.id) {
-      const deletedUser = await User.findOneAndDelete({ clerkId: event.data.id });
-      if (deletedUser) {
-        await Promise.all([
-          CreatorProfile.deleteOne({ userId: deletedUser._id }),
-          BrandProfile.deleteOne({ userId: deletedUser._id }),
-        ]);
-      }
+    const userEvent = event as Extract<WebhookEvent, { type: "user.created" | "user.updated" | "user.deleted" }>;
+    const eventTimestamp = trustedClerkEventTimestamp(userEvent, svixTimestamp);
+    const claim = await claimClerkWebhookEvent({
+      eventId: svixId, eventType: event.type, clerkUserId: event.data.id, eventTimestamp,
+    });
+    if (!claim.claimed || !claim.record) return NextResponse.json({ ok: true });
+    try {
+      const outcome = await applyClerkUserEvent(userEvent, svixId, eventTimestamp);
+      await finishClerkWebhookEvent(claim.record._id, outcome);
+      return NextResponse.json({ ok: true });
+    } catch {
+      await failClerkWebhookEvent(claim.record._id);
+      return NextResponse.json({ ok: false }, { status: 500 });
     }
-
-    return NextResponse.json({ ok: true });
   } catch (error) {
     return handleRouteError(error, "Clerk webhook failed", "Could not process Clerk webhook.");
   }

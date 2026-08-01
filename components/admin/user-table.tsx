@@ -1,12 +1,11 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import { Ban, ExternalLink, EyeOff, Loader2, RotateCcw } from "lucide-react";
 
 import { Badge } from "@/components/shared/badge";
 import { InitialsAvatar } from "@/components/shared/initials-avatar";
-import { AdminPagination, useAdminPagination } from "@/components/admin/admin-pagination";
 import { formatDate } from "@/lib/format-date";
 import { type AdminUserData } from "@/lib/types";
 
@@ -15,17 +14,6 @@ type UserTableProps = {
 };
 
 type UserAction = "hide" | "suspend" | "restore";
-type UserFilter = "all" | "verified" | "pending" | "suspended" | "creator" | "brand";
-
-const filters: { value: UserFilter; label: string }[] = [
-  { value: "all", label: "All" },
-  { value: "verified", label: "Verified" },
-  { value: "pending", label: "Pending" },
-  { value: "suspended", label: "Suspended" },
-  { value: "creator", label: "Creator" },
-  { value: "brand", label: "Brand" },
-];
-
 function dateLabel(value?: string) {
   return formatDate(value);
 }
@@ -42,15 +30,6 @@ function accountTone(status: AdminUserData["accountStatus"]) {
   return "neutral";
 }
 
-function matchesFilter(user: AdminUserData, filter: UserFilter) {
-  if (filter === "verified") return verificationTone(user.verificationStatus) === "green";
-  if (filter === "pending") return verificationTone(user.verificationStatus) === "yellow";
-  if (filter === "suspended") return user.accountStatus === "suspended";
-  if (filter === "creator") return user.role === "creator";
-  if (filter === "brand") return user.role === "brand";
-  return true;
-}
-
 function profileHref(user: AdminUserData) {
   if (user.role === "brand") return `/brands/${user.username}`;
   if (user.role === "creator") return `/creators/${user.username}`;
@@ -59,12 +38,9 @@ function profileHref(user: AdminUserData) {
 
 export function UserTable({ users }: UserTableProps) {
   const [rows, setRows] = useState(users);
-  const [filter, setFilter] = useState<UserFilter>("all");
   const [savingKey, setSavingKey] = useState("");
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
-  const filteredRows = useMemo(() => rows.filter((user) => matchesFilter(user, filter)), [rows, filter]);
-  const pagination = useAdminPagination(filteredRows);
 
   async function updateUser(user: AdminUserData, action: UserAction) {
     setError("");
@@ -120,14 +96,15 @@ export function UserTable({ users }: UserTableProps) {
   function Actions({ user }: { user: AdminUserData }) {
     const isHidden = user.accountStatus === "hidden";
     const isSuspended = user.accountStatus === "suspended";
+    const isDeleted = user.accountStatus === "deleted";
     const actions: { action: UserAction; label: string; icon: typeof EyeOff; className: string }[] = [
-      ...(!isHidden && !isSuspended
+      ...(!isDeleted && !isHidden && !isSuspended
         ? [{ action: "hide" as const, label: "Hide", icon: EyeOff, className: "border-[var(--border)] text-[var(--text-secondary)]" }]
         : []),
-      ...(!isHidden && !isSuspended
+      ...(!isDeleted && !isHidden && !isSuspended
         ? [{ action: "suspend" as const, label: "Suspend", icon: Ban, className: "border-yellow-800 text-yellow-200" }]
         : []),
-      ...(isHidden || isSuspended
+      ...(!isDeleted && (isHidden || isSuspended)
         ? [{ action: "restore" as const, label: "Restore", icon: RotateCcw, className: "border-[var(--border)] text-[var(--text-secondary)]" }]
         : []),
     ];
@@ -162,23 +139,6 @@ export function UserTable({ users }: UserTableProps) {
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap gap-2">
-        {filters.map((item) => (
-          <button
-            key={item.value}
-            type="button"
-            onClick={() => setFilter(item.value)}
-            className={`focus-ring rounded-[8px] border px-3 py-2 text-xs font-semibold ${
-              filter === item.value
-                ? "border-violet-500 bg-violet-950/50 text-violet-100"
-                : "border-[var(--border)] text-[var(--text-secondary)]"
-            }`}
-          >
-            {item.label}
-          </button>
-        ))}
-      </div>
-
       <div className="bridge-card overflow-hidden">
         {error ? (
           <div role="alert" className="border-b border-red-900 bg-red-950/40 px-4 py-3 text-sm text-red-200">
@@ -188,11 +148,6 @@ export function UserTable({ users }: UserTableProps) {
         {success ? (
           <div role="status" className="border-b border-emerald-800 bg-emerald-950/40 px-4 py-3 text-sm text-emerald-100">
             {success}
-          </div>
-        ) : null}
-        {filteredRows.length === 0 ? (
-          <div className="border-b border-[var(--border)] px-4 py-6 text-sm text-[var(--text-secondary)]">
-            No users match this filter.
           </div>
         ) : null}
         <div className="hidden overflow-x-auto md:block">
@@ -209,7 +164,7 @@ export function UserTable({ users }: UserTableProps) {
               </tr>
             </thead>
             <tbody>
-              {pagination.pageItems.map((user) => (
+              {rows.map((user) => (
                 <tr key={user.userId} className="border-b border-[var(--border)] align-top last:border-b-0">
                   <td className="px-4 py-4">
                     <div className="flex items-center gap-3">
@@ -241,7 +196,7 @@ export function UserTable({ users }: UserTableProps) {
         </div>
 
         <div className="divide-y divide-[var(--border)] md:hidden">
-          {pagination.pageItems.map((user) => (
+          {rows.map((user) => (
             <article key={user.userId} className="p-4">
               <div className="flex items-start gap-3">
                 <Avatar user={user} />
@@ -262,13 +217,6 @@ export function UserTable({ users }: UserTableProps) {
             </article>
           ))}
         </div>
-        <AdminPagination
-          page={pagination.page}
-          pageCount={pagination.pageCount}
-          pageSize={pagination.pageSize}
-          total={pagination.total}
-          onPageChange={pagination.setPage}
-        />
       </div>
     </div>
   );

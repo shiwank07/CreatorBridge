@@ -1,13 +1,21 @@
 import Link from "next/link";
 
 import { CONTACT_EMAILS, LEGAL_LAST_UPDATED } from "@/lib/constants";
+import { publicPageMetadata } from "@/lib/seo";
 
-export const metadata = {
-  title: "Privacy Policy",
-  description: "Branzzo Privacy Policy.",
-};
+export const metadata = publicPageMetadata("Privacy Policy", "Learn how Branzzo handles account, profile, collaboration, verification, and platform usage data.", "/privacy");
 
 const privacySections = [
+  {
+    title: "Services that process information",
+    items: [
+      "Clerk processes authentication identifiers, login sessions, account email addresses, and authentication cookies.",
+      "MongoDB stores Branzzo account records, creator and brand profiles, collaboration requests, messages, verification records, and notifications.",
+      "Cloudflare provides hosting, request delivery, security, and operational infrastructure and may process technical request data such as IP addresses and logs.",
+      "Resend processes recipient addresses and delivery information for transactional and notification email.",
+      "Any analytics service we enable may process usage events, device or browser information, approximate location, and cookie identifiers; we will not represent analytics as anonymous unless the implementation supports that claim.",
+    ],
+  },
   {
     title: "Information we collect",
     items: [
@@ -47,6 +55,7 @@ const privacySections = [
       "You can edit many profile and onboarding details from your account experience when those controls are available.",
       "You can choose what optional public profile information to provide, but some fields may be required to use core marketplace features.",
       "You can request access, correction, deletion, or export of personal information by contacting us, subject to identity verification and legal limits.",
+      "You can request account deletion from account settings. Deletion may remove or anonymize account and profile data while retaining limited security, dispute, or legal records where necessary.",
       "You can unsubscribe from certain non-essential emails, but we may still send service, security, legal, and account messages.",
     ],
   },
@@ -95,9 +104,10 @@ export default function PrivacyPolicyPage() {
       <section className="bridge-section relative py-16 sm:py-20">
         <div className="max-w-3xl">
           <p className="bridge-eyebrow">Privacy Policy</p>
-          <h1 className="mt-4 font-display text-4xl font-black leading-tight sm:text-5xl">
-            How Branzzo handles personal information.
-          </h1>
+          <h1 className="mt-4 font-display text-4xl font-black leading-tight sm:text-5xl">Privacy Policy</h1>
+          <p className="mt-4 text-xl font-semibold leading-8 text-[var(--text-secondary)]">
+            How Branzzo handles your personal information.
+          </p>
           <p className="mt-5 text-base leading-8 text-[var(--text-secondary)]">
             This Privacy Policy explains what information Branzzo collects, how we use it, when we share it, and
             the choices users have when using our creator marketplace and collaboration tools.

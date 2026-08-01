@@ -6,6 +6,7 @@ import {
   CHAT_MESSAGE_LIMIT,
   ensureConversation,
   isChatEligible,
+  resolveChatParticipants,
   viewerChatRole,
 } from "@/lib/collaboration-chat";
 import { hasClerkKeys } from "@/lib/clerk-config";
@@ -31,8 +32,15 @@ async function contextFor(id: string) {
       .lean(),
   ]);
   if (!user || !collaboration) return { error: "Collaboration not found.", status: 404 } as const;
+  const participants = await resolveChatParticipants(collaboration);
+  const isParticipant =
+    (user.role === "brand" && String(participants.brandId) === String(user._id)) ||
+    (user.role === "creator" && String(participants.creatorId) === String(user._id));
+  // A non-participant receives the same response as a missing record so neither
+  // collaboration existence nor chat state is disclosed.
+  if (!isParticipant) return { error: "Collaboration not found.", status: 404 } as const;
   if (!isChatEligible(collaboration.status)) {
-    return { error: "Chat is unavailable for this collaboration status.", status: 409 } as const;
+    return { error: "Chat is unavailable for this collaboration status.", status: 403 } as const;
   }
 
   const conversation = await ensureConversation(collaboration);

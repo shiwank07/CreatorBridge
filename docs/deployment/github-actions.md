@@ -12,6 +12,8 @@ In repository settings, create an environment named `production`.
 
 These dashboard settings are instructions; they are not configured by this repository.
 
+Create a separate environment named `e2e` for authenticated browser tests. Store only isolated test Clerk, MongoDB, and account credentials there. The E2E database name must visibly contain `test`, `testing`, `ci`, `e2e`, or `integration`; the workflow rejects any other database.
+
 ## Cloudflare API token
 
 Create an API token—not a Global API Key—for the one Cloudflare account that owns Branzzo. Scope it to the Worker resources needed for script deployment and Worker version management. Add extra permissions only if the configuration later adds resources such as R2 or Cloudflare Images. Store the token and account ID in the GitHub `production` environment.

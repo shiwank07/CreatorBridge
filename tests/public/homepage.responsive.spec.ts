@@ -12,12 +12,12 @@ test.describe('public homepage responsive health', () => {
         path: '/',
         screenshotName: 'homepage',
         viewport,
-        overlapElements: '#how-it-works > div:first-child > .bridge-card',
+        overlapElements: '#how-it-works > div:nth-child(2) > .bridge-card',
         assertPage: async () => {
           await expect(page).toHaveURL(/\/$/);
           await expect(
             page.getByRole('heading', {
-              name: /Creator signals\. Real brand partnerships\./i,
+              name: /Branzzo connects brands with verified creators\./i,
             }),
           ).toBeVisible();
           await expect(page.locator('body')).toBeVisible();

@@ -1,6 +1,6 @@
 import { DEMO_AVATARS } from "@/lib/constants";
 import { normalizeCreatorAvailability, type CreatorAvailabilityStatus } from "@/lib/availability";
-import { connectDB, hasMongoUri } from "@/lib/db";
+import { connectDB, hasMongoUri, MONGO_QUERY_TIMEOUT_MS } from "@/lib/db";
 import { CreatorProfile } from "@/lib/models/CreatorProfile";
 import { type IUser, User } from "@/lib/models/User";
 import { formatNumber } from "@/lib/format";
@@ -9,6 +9,16 @@ import { getPublicAverageViews, getPublicSubscriberCount, isCreatorVerifiedStatu
 import { generateUsername } from "@/lib/slug";
 import { SavedCreator } from "@/lib/models/SavedCreator";
 import type { PipelineStage } from "mongoose";
+import { withServerTiming } from "@/lib/server-timing";
+
+const CREATOR_PUBLIC_USER_SELECT = "_id username name avatar isFeatured isVerified emailVerified phoneNumber phoneVerified";
+const CREATOR_PUBLIC_PROFILE_SELECT = [
+  "_id", "userId", "bio", "phoneNumber", "phoneVerified", "niche", "country", "languages", "youtubeUrl", "youtubeHandle",
+  "instagramUrl", "podcastUrl", "subscribers", "claimedSubscribers", "verifiedSubscribers", "claimedAverageViews",
+  "verifiedAverageViews", "claimedEngagementRate", "verifiedEngagementRate", "statsVerificationStatus", "verificationStatus",
+  "verificationPlatform", "customPlatformName", "verificationProfileUrl", "avgViews", "instagramFollowers", "sponsorshipRate",
+  "rateType", "pastBrands", "sampleWorkUrls", "isOpenToDeals", "availabilityStatus", "verifiedAt", "lastVerifiedAt", "createdAt",
+].join(" ");
 
 export type CreatorFilters = {
   search?: string;
@@ -448,8 +458,8 @@ function sortCreators(creators: CreatorCardData[], sort?: string) {
 
   return result.sort(
     (a, b) =>
-      Number(b.isFeatured) - Number(a.isFeatured) ||
       Number(b.isVerified) - Number(a.isVerified) ||
+      Number(b.isFeatured) - Number(a.isFeatured) ||
       (b.subscribers ?? 0) - (a.subscribers ?? 0),
   );
 }
@@ -509,11 +519,14 @@ export async function getCreatorDiscoveryPage(filters: CreatorDiscoveryFilters =
     const match: Record<string, unknown>[] = [];
     const search = filters.search?.trim();
     if (search) {
-      const [matchingUsers, matchingProfiles] = await Promise.all([
-        User.find({ $text: { $search: search }, role: "creator", onboardingComplete: true, accountStatus: "active" }).select("_id").limit(500).lean(),
-        CreatorProfile.find({ $text: { $search: search } }).select("_id").limit(500).lean(),
-      ]);
-      match.push({ $or: [{ userId: { $in: matchingUsers.map((user) => user._id) } }, { _id: { $in: matchingProfiles.map((profile) => profile._id) } }] });
+      const regex = new RegExp(escapeRegex(search.slice(0, 120)), "i");
+      // This post-lookup substring search is intentionally uncapped so a valid
+      // creator can never disappear behind the former 500-candidate ceiling.
+      match.push({ $or: [
+        { "user.name": regex }, { "user.username": regex },
+        { bio: regex }, { niche: regex }, { country: regex }, { languages: regex },
+        { youtubeHandle: regex }, { youtubeUrl: regex }, { instagramUrl: regex }, { verificationProfileUrl: regex },
+      ] });
     }
     if (filters.niche) match.push({ niche: filters.niche });
     if (filters.country) match.push({ country: new RegExp(`^${escapeRegex(filters.country)}$`, "i") });
@@ -542,7 +555,7 @@ export async function getCreatorDiscoveryPage(filters: CreatorDiscoveryFilters =
       "rate-high": { sponsorshipRate: -1 },
       alphabetical: { "user.name": 1 },
       "alphabetical-desc": { "user.name": -1 },
-      featured: { "user.isFeatured": -1, publicSubscribers: -1 },
+      featured: { "user.isVerified": -1, "user.isFeatured": -1, publicSubscribers: -1 },
     };
     const pipeline: PipelineStage[] = [
       { $lookup: { from: "users", localField: "userId", foreignField: "_id", as: "user" } },
@@ -571,7 +584,9 @@ export async function getCreatorDiscoveryPage(filters: CreatorDiscoveryFilters =
         count: [{ $count: "value" }],
       } },
     ];
-    const [result] = await CreatorProfile.aggregate(pipeline);
+    const [result] = await withServerTiming("creator-discovery.query", () =>
+      CreatorProfile.aggregate(pipeline).option({ maxTimeMS: MONGO_QUERY_TIMEOUT_MS }),
+    );
     const total = result?.count?.[0]?.value ?? 0;
     const totalPages = Math.max(1, Math.ceil(total / pageSize));
     const page = Math.min(requestedPage, totalPages);
@@ -581,14 +596,19 @@ export async function getCreatorDiscoveryPage(filters: CreatorDiscoveryFilters =
     );
     return { creators, total, page, pageSize, totalPages };
   } catch {
-    return filterDemoDiscovery(filters);
+    const pageSize = Math.min(Math.max(filters.pageSize ?? 20, 1), 50);
+    return { creators: [], total: 0, page: 1, pageSize, totalPages: 1 };
   }
 }
 
 export async function getSavedCreatorUsernames(brandUserId?: string): Promise<Set<string>> {
   if (!brandUserId || !hasMongoUri()) return new Set();
   await connectDB();
-  const saved = await SavedCreator.find({ brandUserId }).populate({ path: "creatorUserId", select: "username" }).lean();
+  const saved = await SavedCreator.find({ brandUserId })
+    .select("creatorUserId")
+    .populate({ path: "creatorUserId", select: "username" })
+    .maxTimeMS(MONGO_QUERY_TIMEOUT_MS)
+    .lean();
   return new Set(saved.map((entry) => (entry.creatorUserId as unknown as { username?: string })?.username).filter((value): value is string => Boolean(value)));
 }
 
@@ -648,11 +668,15 @@ export async function getCreators(filters: CreatorFilters = {}): Promise<Creator
     if (andClauses.length > 0) profileQuery.$and = andClauses;
 
     const docs = await CreatorProfile.find(profileQuery)
+      .select(CREATOR_PUBLIC_PROFILE_SELECT)
       .populate({
         path: "userId",
         match: { role: "creator", onboardingComplete: true, accountStatus: { $nin: ["hidden", "suspended"] } },
+        select: CREATOR_PUBLIC_USER_SELECT,
       })
       .limit(Math.max(filters.limit ?? 24, 100))
+      .maxTimeMS(MONGO_QUERY_TIMEOUT_MS)
+      .lean()
       .exec();
 
     const creators = docs
@@ -661,7 +685,7 @@ export async function getCreators(filters: CreatorFilters = {}): Promise<Creator
 
     return sortCreators(creators, filters.sort).slice(0, filters.limit ?? 24);
   } catch {
-    return filterDemoCreators(filters);
+    return [];
   }
 }
 
@@ -677,25 +701,30 @@ export async function getCreatorByUsername(username: string): Promise<CreatorCar
 
   try {
     await connectDB();
-    const user = await User.findOne({
-      username: username.toLowerCase(),
-      role: "creator",
-      onboardingComplete: true,
-      accountStatus: { $nin: ["hidden", "suspended"] },
-    });
-    if (!user) return null;
-
-    const profile = await CreatorProfile.findOne({ userId: user._id })
-      .populate({
-        path: "userId",
-        match: { role: "creator", onboardingComplete: true, accountStatus: { $nin: ["hidden", "suspended"] } },
+    const profile = await withServerTiming("creator-profile.query", async () => {
+      const user = await User.findOne({
+        username: username.toLowerCase(),
+        role: "creator",
+        onboardingComplete: true,
+        accountStatus: { $nin: ["hidden", "suspended"] },
       })
-      .exec();
+        .select(CREATOR_PUBLIC_USER_SELECT)
+        .maxTimeMS(MONGO_QUERY_TIMEOUT_MS)
+        .lean()
+        .exec();
+      if (!user) return null;
+      const publicProfile = await CreatorProfile.findOne({ userId: user._id })
+        .select(CREATOR_PUBLIC_PROFILE_SELECT)
+        .maxTimeMS(MONGO_QUERY_TIMEOUT_MS)
+        .lean()
+        .exec();
+      return publicProfile ? { ...publicProfile, userId: user } : null;
+    });
     if (!profile) return null;
 
     return mapCreator(profile as unknown as CreatorDocumentWithUser) as CreatorCardData;
   } catch {
-    return demoCreators.find((creator) => creator.username === username) ?? null;
+    return null;
   }
 }
 

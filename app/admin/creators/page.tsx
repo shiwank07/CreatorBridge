@@ -1,11 +1,17 @@
 import { CreatorTable } from "@/components/admin/creator-table";
+import { AdminListControls } from "@/components/admin/admin-list-controls";
 import { EmptyState } from "@/components/shared/empty-state";
-import { getAdminCreators } from "@/lib/queries/admin";
+import { ServerPagination } from "@/components/shared/server-pagination";
+import { parsePageSearchParams } from "@/lib/pagination";
+import { getAdminCreatorsPage } from "@/lib/queries/admin";
 
 export const dynamic = "force-dynamic";
 
-export default async function AdminCreatorsPage() {
-  const creators = await getAdminCreators();
+type SearchParams = Promise<Record<string, string | string[] | undefined>>;
+export default async function AdminCreatorsPage({ searchParams }: { searchParams: SearchParams }) {
+  const params = await searchParams;
+  const value = (name: string) => typeof params[name] === "string" ? params[name] : undefined;
+  const page = await getAdminCreatorsPage({ ...parsePageSearchParams(params), search: value("search"), verification: value("verification"), status: value("status"), platform: value("platform"), sort: value("sort") });
 
   return (
     <div>
@@ -17,14 +23,22 @@ export default async function AdminCreatorsPage() {
         </p>
       </div>
 
-      {creators.length > 0 ? (
-        <CreatorTable creators={creators} />
+      <AdminListControls searchPlaceholder="Search name, email, handle, or profile URL" selects={[
+        { name: "verification", label: "Verification", options: ["unverified", "pending", "verified", "rejected", "needs_review"].map((value) => ({ value, label: value.replaceAll("_", " ") })) },
+        { name: "status", label: "Account", options: ["active", "hidden", "suspended", "deleted"].map((value) => ({ value, label: value })) },
+        { name: "sort", label: "Sort", options: [{ value: "updated", label: "Recently updated" }, { value: "newest", label: "Newest" }, { value: "oldest", label: "Oldest" }, { value: "name_asc", label: "Name A–Z" }, { value: "name_desc", label: "Name Z–A" }] },
+      ]} />
+      {page.items.length > 0 ? (
+        <>
+          <CreatorTable creators={page.items} />
+          <ServerPagination pagination={page} pathname="/admin/creators" searchParams={params} />
+        </>
       ) : (
         <EmptyState
-          title="No creators yet"
-          description="Creators will appear here after completing onboarding."
-          actionHref="/onboarding"
-          actionLabel="Create First Creator"
+          title={page.total === 0 && Object.keys(params).length === 0 ? "No creators yet" : "No matching creators"}
+          description="No creator matches the current search and filters."
+          actionHref="/admin/creators"
+          actionLabel="Clear filters"
         />
       )}
     </div>

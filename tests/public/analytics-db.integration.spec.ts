@@ -5,8 +5,9 @@ import { parseAnalyticsRange } from "../../lib/analytics/core";
 import { aggregateCollaborationsForOwnership } from "../../lib/analytics/service";
 import { BrandInquiry } from "../../lib/models/BrandInquiry";
 import { InAppNotification } from "../../lib/models/InAppNotification";
+import { getIsolatedMongoUri } from "../helpers/isolated-mongo";
 
-const databaseUri = process.env.ANALYTICS_TEST_MONGODB_URI;
+const databaseUri = getIsolatedMongoUri("ANALYTICS_TEST_MONGODB_URI");
 const runId = `analytics-integration-${Date.now()}`;
 const brandA = new mongoose.Types.ObjectId();
 const brandB = new mongoose.Types.ObjectId();

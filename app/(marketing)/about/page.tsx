@@ -1,10 +1,8 @@
 import Link from "next/link";
 import { ArrowRight, Eye, Handshake, ShieldCheck, Target } from "lucide-react";
+import { publicPageMetadata } from "@/lib/seo";
 
-export const metadata = {
-  title: "About Us",
-  description: "Learn about Branzzo mission, vision, and trust-first collaboration philosophy.",
-};
+export const metadata = publicPageMetadata("About Branzzo", "Learn how Branzzo connects brands and creators through clear, trusted paid collaboration workflows.", "/about");
 
 const principles = [
   {

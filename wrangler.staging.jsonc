@@ -1,0 +1,21 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "branzzo-staging",
+  "main": ".open-next/worker.js",
+  "compatibility_date": "2026-07-27",
+  "compatibility_flags": [
+    "nodejs_compat",
+    "global_fetch_strictly_public"
+  ],
+  "workers_dev": true,
+  "assets": {
+    "directory": ".open-next/assets",
+    "binding": "ASSETS"
+  },
+  "minify": true,
+  "observability": {
+    "enabled": true,
+    "head_sampling_rate": 1
+  },
+  "r2_buckets": [{ "bucket_name": "branzzo-uploads-staging", "binding": "BRANZZO_UPLOADS", "remote": true }]
+}

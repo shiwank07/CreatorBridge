@@ -6,15 +6,22 @@ import { connectDB, hasMongoUri } from "@/lib/db";
 import { BrandProfile } from "@/lib/models/BrandProfile";
 import { User } from "@/lib/models/User";
 import { notificationService } from "@/lib/notifications/notification-service";
-import { getAdminBrands } from "@/lib/queries/admin";
+import { getAdminBrandsPage } from "@/lib/queries/admin";
 import { brandAdminUpdateSchema } from "@/lib/validators/admin";
 
-export async function GET() {
+export async function GET(req: Request) {
   const admin = await getAdminState();
   if (!admin.isAdmin) return NextResponse.json({ error: "Admin access required." }, { status: 403 });
 
-  const brands = await getAdminBrands();
-  return NextResponse.json({ brands });
+  const url = new URL(req.url);
+  return NextResponse.json(await getAdminBrandsPage({
+    page: Number(url.searchParams.get("page") ?? 1),
+    limit: Number(url.searchParams.get("limit") ?? 30),
+    verification: url.searchParams.get("verification") ?? undefined,
+    status: url.searchParams.get("status") ?? undefined,
+    search: url.searchParams.get("search") ?? undefined,
+    sort: url.searchParams.get("sort") ?? undefined,
+  }));
 }
 
 export async function PATCH(req: Request) {
@@ -35,6 +42,9 @@ export async function PATCH(req: Request) {
     await connectDB();
     const user = await User.findOne({ username: parsed.data.username, role: "brand" });
     if (!user) return NextResponse.json({ error: "Brand not found." }, { status: 404 });
+    if (user.accountStatus === "deleted") {
+      return NextResponse.json({ error: "Deleted accounts cannot be changed." }, { status: 409 });
+    }
 
     const accountStatusPatch =
       parsed.data.action === "hide"

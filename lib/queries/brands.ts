@@ -1,4 +1,4 @@
-import { connectDB, hasMongoUri } from "@/lib/db";
+import { connectDB, hasMongoUri, MONGO_QUERY_TIMEOUT_MS } from "@/lib/db";
 import { BrandProfile } from "@/lib/models/BrandProfile";
 import { type IUser, User } from "@/lib/models/User";
 import { type BrandProfileData } from "@/lib/types";
@@ -21,6 +21,7 @@ type BrandDocumentWithUser = {
   verificationNote?: string;
   companyRegistrationText?: string;
   createdAt?: Date;
+  displayPublicly?: boolean;
 };
 
 function mapBrand(doc: BrandDocumentWithUser): BrandProfileData {
@@ -46,7 +47,32 @@ function mapBrand(doc: BrandDocumentWithUser): BrandProfileData {
     phoneAdded: Boolean(user.phoneNumber || doc.phoneNumber),
     phoneVerified: Boolean(user.phoneVerified || doc.phoneVerified),
     createdAt: doc.createdAt?.toISOString(),
+    displayPublicly: Boolean(doc.displayPublicly),
   };
+}
+
+export async function getPublicBrands(limit = 6): Promise<BrandProfileData[]> {
+  if (!hasMongoUri()) return [];
+  try {
+    await connectDB();
+    const profiles = await BrandProfile.find({ displayPublicly: true })
+      .select("_id userId companyName contactName contactRole website industry companySize country notes verificationStatus verificationNote companyRegistrationText createdAt displayPublicly phoneNumber phoneVerified")
+      .sort({ verificationStatus: -1, updatedAt: -1 })
+      .limit(Math.min(Math.max(limit, 1), 24))
+      .maxTimeMS(MONGO_QUERY_TIMEOUT_MS)
+      .populate({
+        path: "userId",
+        match: { role: "brand", onboardingComplete: true, accountStatus: "active" },
+        select: "username avatar isVerified emailVerified phoneVerified",
+      })
+      .lean()
+      .exec();
+    return profiles
+      .filter((profile) => Boolean(profile.userId))
+      .map((profile) => mapBrand(profile as unknown as BrandDocumentWithUser));
+  } catch {
+    return [];
+  }
 }
 
 export async function getBrandByUsername(username: string): Promise<BrandProfileData | null> {
@@ -59,7 +85,7 @@ export async function getBrandByUsername(username: string): Promise<BrandProfile
       role: "brand",
       onboardingComplete: true,
       accountStatus: { $nin: ["hidden", "suspended"] },
-    });
+    }).maxTimeMS(MONGO_QUERY_TIMEOUT_MS);
     if (!user) return null;
 
     const profile = await BrandProfile.findOne({ userId: user._id })
@@ -67,6 +93,7 @@ export async function getBrandByUsername(username: string): Promise<BrandProfile
         path: "userId",
         match: { role: "brand", onboardingComplete: true, accountStatus: { $nin: ["hidden", "suspended"] } },
       })
+      .maxTimeMS(MONGO_QUERY_TIMEOUT_MS)
       .exec();
     if (!profile?.userId) return null;
 
@@ -74,4 +101,9 @@ export async function getBrandByUsername(username: string): Promise<BrandProfile
   } catch {
     return null;
   }
+}
+
+export async function getPublicBrandByUsername(username: string): Promise<BrandProfileData | null> {
+  const brand = await getBrandByUsername(username);
+  return brand?.displayPublicly ? brand : null;
 }

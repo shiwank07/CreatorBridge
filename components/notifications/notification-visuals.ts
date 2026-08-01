@@ -153,13 +153,20 @@ export function getNotificationVisual(event: string) {
   return notificationVisuals[event] ?? fallbackVisual;
 }
 
-export function formatNotificationTime(value?: string) {
+export function formatNotificationTime(value?: string, referenceTime?: number) {
   if (!value) return "Recently";
 
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return "Recently";
 
-  const now = new Date();
+  if (referenceTime === undefined) {
+    return new Intl.DateTimeFormat("en", {
+      month: "short",
+      day: "numeric",
+    }).format(date);
+  }
+
+  const now = new Date(referenceTime);
   const diffMs = now.getTime() - date.getTime();
   const diffSeconds = Math.max(0, Math.floor(diffMs / 1000));
   const diffMinutes = Math.floor(diffSeconds / 60);

@@ -40,6 +40,7 @@ Use a production Clerk instance with production publishable and secret keys. Con
 
 ## Current launch gates
 
-- The validated Worker bundle is approximately 3,079 KiB compressed. It exceeds the Workers Free-plan 3 MiB compressed limit and requires either bundle reduction or a plan with the 10 MiB limit.
-- The production dependency audit currently reports high-severity advisories inherited through Next.js (`postcss` and `sharp`). CI and production deployment intentionally fail on high-severity production advisories. Resolve with a tested upstream Next.js release or a separately validated dependency remediation; do not use the audit tool's suggested Next.js major downgrade blindly.
+- The minified Worker bundle is 2,653.23 KiB compressed and fits the Workers Free-plan 3 MiB compressed limit.
+- Next.js is pinned to 15.5.22 with scoped PostCSS 8.5.23 and Sharp 0.35.3 overrides. The production dependency audit reports zero vulnerabilities.
 - On this Windows workstation, OpenNext builds successfully when allowed normal host path access, but local `wrangler dev` fails while spawning `workerd`. Linux GitHub runners remain the authoritative preview/deployment environment.
+- The `branzzo` Worker does not yet exist in the authenticated Cloudflare account, so runtime secret names cannot be remotely verified until an approved first deployment or Worker creation.

@@ -4,7 +4,7 @@ const POSTER_SRC = "/media/cyber-creator-poster.webp";
 
 export function CyberHeroMedia() {
   return (
-    <div className="cyber-hero-media" aria-hidden="true">
+    <div className="cyber-hero-media" role="img" aria-label="A futuristic digital creator representing Branzzo's creator marketplace">
       <div className="cyber-hero-media__frame">
         <div className="cyber-hero-media__poster" style={{ backgroundImage: `url(${POSTER_SRC})` }} />
         <video className="cyber-hero-media__video" autoPlay muted loop playsInline controls={false} preload="metadata" poster={POSTER_SRC}>
@@ -17,26 +17,13 @@ export function CyberHeroMedia() {
       <div className="creator-signal-preview">
         <div className="creator-signal-preview__scan" />
         <div className="creator-signal-preview__header">
-          <p>CREATOR SIGNAL</p>
-          <span>LIVE FIT</span>
-        </div>
-        <div className="creator-signal-preview__stats">
-          <div>
-            <strong>680K</strong>
-            <span>subscribers</span>
-          </div>
-          <div>
-            <strong>145K</strong>
-            <span>average views</span>
-          </div>
-          <div>
-            <strong>92%</strong>
-            <span>brand fit</span>
-          </div>
+          <p>CREATOR PROFILE</p>
+          <span>VERIFIED</span>
         </div>
         <div className="creator-signal-preview__tags">
-          <span>Tech</span>
-          <span>India</span>
+          <span>Discover</span>
+          <span>Collaborate</span>
+          <span>Grow</span>
         </div>
         <div className="creator-signal-preview__status">
           <i />

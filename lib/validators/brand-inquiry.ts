@@ -53,13 +53,9 @@ export const brandInquirySchema = z
 export const collaborationPaymentSchema = z.object({
   action: z.enum(["mark_payment_sent", "mark_payment_received", "mark_payment_disputed"]),
   paymentNote: z.string().trim().max(1000).optional().default(""),
-  paymentScreenshotUrl: z
-    .string()
-    .trim()
-    .optional()
-    .transform((value) => value ?? "")
-    .refine((value) => !value || /^https?:\/\/.+/i.test(value), "Use a full screenshot URL beginning with http or https."),
-});
+  transactionId: z.string().trim().max(120).optional().default(""),
+  proofId: z.string().trim().optional().default(""),
+}).refine((value) => value.action !== "mark_payment_sent" || /^[a-f\d]{24}$/i.test(value.proofId), { path: ["proofId"], message: "Upload one payment screenshot before marking payment as sent." });
 
 export const inquiryStatusSchema = z.object({
   id: z.string().min(1),

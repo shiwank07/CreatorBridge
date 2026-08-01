@@ -1,4 +1,4 @@
-import { ArrowRight, Search, UserPlus } from "lucide-react";
+import { BadgeCheck, CheckCircle2, Search, ShieldCheck, UserPlus } from "lucide-react";
 import Link from "next/link";
 
 import { CyberHeroMedia } from "@/components/marketing/cyber-hero-media";
@@ -10,7 +10,6 @@ type LandingHeroProps = {
 
 export function LandingHero({ viewerRole }: LandingHeroProps) {
   const createProfileHref = viewerRole === "creator" ? "/dashboard/creator" : viewerRole === "brand" ? "/dashboard/brand" : authHref("/sign-up", "/onboarding?role=creator");
-  const brandHref = viewerRole === "brand" ? "/dashboard/brand" : authHref("/sign-up", "/onboarding?role=brand");
 
   return (
     <section className="marketing-hero">
@@ -19,26 +18,29 @@ export function LandingHero({ viewerRole }: LandingHeroProps) {
       <div className="marketing-hero__streak" />
       <div className="bridge-section marketing-hero__inner">
         <div className="hero-copy-load marketing-hero__copy">
-          <p className="marketing-hero__eyebrow">THE CREATOR COLLABORATION NETWORK</p>
+          <p className="marketing-hero__eyebrow">THE CREATOR COLLABORATION MARKETPLACE</p>
           <h1 className="marketing-hero__title">
-            <span className="marketing-hero__title-line">Creator signals.</span>
-            <span className="marketing-hero__title-line">Real brand partnerships.</span>
+            <span className="marketing-hero__title-line marketing-hero__title-accent">Branzzo connects brands</span>
+            <span className="marketing-hero__title-line">with verified creators.</span>
           </h1>
-          <p className="marketing-hero__support">Discover trusted creators, send structured offers and manage every collaboration from first contact to final delivery.</p>
+          <p className="marketing-hero__support">
+            Discover creators across YouTube, Instagram, TikTok, Twitch, and more. Compare professional profiles, send collaboration requests, and manage paid partnerships in one secure platform.
+          </p>
 
           <div className="marketing-hero__actions">
             <Link href="/creators" className="focus-ring marketing-hero__primary-action">
               <Search size={18} />
-              <span>Explore Creators</span>
+              <span>Find Creators</span>
             </Link>
             <Link href={createProfileHref} className="focus-ring marketing-hero__secondary-action">
               <UserPlus size={18} />
-              <span>Create Your Profile</span>
+              <span>{viewerRole === "creator" ? "Open Creator Dashboard" : "Join as Creator"}</span>
             </Link>
-            <Link href={brandHref} className="focus-ring marketing-hero__tertiary-link">
-              <span>I represent a brand</span>
-              <ArrowRight size={16} />
-            </Link>
+          </div>
+          <div className="marketing-hero__trust" aria-label="Platform trust signals">
+            <span><BadgeCheck aria-hidden="true" size={15} /> Verified creator profiles</span>
+            <span><ShieldCheck aria-hidden="true" size={15} /> Secure collaboration workflows</span>
+            <span><CheckCircle2 aria-hidden="true" size={15} /> Transparent pricing signals</span>
           </div>
         </div>
         <CyberHeroMedia />

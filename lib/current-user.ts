@@ -1,10 +1,12 @@
 import { auth, currentUser } from "@clerk/nextjs/server";
+import { cache } from "react";
 
 import { hasClerkKeys } from "@/lib/clerk-config";
 import { getClerkEmailVerificationState } from "@/lib/clerk-verification";
-import { connectDB, hasMongoUri } from "@/lib/db";
+import { connectDB, hasMongoUri, MONGO_QUERY_TIMEOUT_MS } from "@/lib/db";
 import { User } from "@/lib/models/User";
 import { type Role } from "@/lib/types";
+import { withServerTiming } from "@/lib/server-timing";
 
 export type CurrentAppUser = {
   id: string;
@@ -61,7 +63,11 @@ async function syncEmailVerification(user: UserDocument) {
       user._id,
       { $set: { emailVerified } },
       { new: true },
-    ).exec();
+    )
+      .select("_id clerkId email emailVerified phoneNumber phoneVerified username name role onboardingComplete")
+      .maxTimeMS(MONGO_QUERY_TIMEOUT_MS)
+      .lean()
+      .exec();
 
     return updated ? (updated as unknown as UserDocument) : { ...user, emailVerified };
   } catch (error) {
@@ -70,23 +76,34 @@ async function syncEmailVerification(user: UserDocument) {
   }
 }
 
-export async function getCurrentAppUser(): Promise<CurrentAppUser | null> {
+async function getCurrentAppUserUncached(): Promise<CurrentAppUser | null> {
   if (!hasClerkKeys() || !hasMongoUri()) return null;
 
   const userId = await getCurrentClerkUserId();
   if (!userId) return null;
 
-  await connectDB();
-  const user = await User.findOne({ clerkId: userId }).exec();
-  if (!user) return null;
-
-  const syncedUser = await syncEmailVerification(user as unknown as UserDocument);
-  return mapUser(syncedUser);
+  try {
+    await connectDB();
+    const user = await withServerTiming("current-user.query", () => User.findOne({ clerkId: userId })
+      .select("_id clerkId email emailVerified phoneNumber phoneVerified username name role onboardingComplete")
+      .maxTimeMS(MONGO_QUERY_TIMEOUT_MS)
+      .lean()
+      .exec());
+    if (!user) return null;
+    const syncedUser = await syncEmailVerification(user as unknown as UserDocument);
+    return mapUser(syncedUser);
+  } catch {
+    return null;
+  }
 }
 
-export async function getCurrentClerkUserId() {
+export const getCurrentAppUser = cache(getCurrentAppUserUncached);
+
+async function getCurrentClerkUserIdUncached() {
   if (!hasClerkKeys()) return null;
 
   const { userId } = await auth();
   return userId;
 }
+
+export const getCurrentClerkUserId = cache(getCurrentClerkUserIdUncached);

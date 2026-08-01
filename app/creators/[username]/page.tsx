@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { cache } from "react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Camera, ExternalLink, Globe2, Languages, MapPin, Radio, Send, ShieldCheck, Tags, TvMinimalPlay } from "lucide-react";
@@ -18,7 +19,9 @@ import { getCurrentAppUser } from "@/lib/current-user";
 import { platformDisplayName } from "@/lib/platforms";
 import { calculateCreatorProfileCompletion } from "@/lib/profile-completion";
 import { getCreatorCollaborationHistorySummary } from "@/lib/queries/collaborations";
-import { creatorMetaDescription, getCreatorByUsername, getSavedCreatorUsernames } from "@/lib/queries/creators";
+import { getCreatorByUsername, getSavedCreatorUsernames } from "@/lib/queries/creators";
+import { logServerTiming } from "@/lib/server-timing";
+import { SOCIAL_IMAGE } from "@/lib/seo";
 import {
   getPublicAverageViews,
   getPublicEngagementRate,
@@ -33,6 +36,7 @@ import {
 export const dynamic = "force-dynamic";
 
 type CreatorProfileParams = Promise<{ username: string }>;
+const getCachedCreatorByUsername = cache(getCreatorByUsername);
 
 function displayUrl(url: string) {
   try {
@@ -62,37 +66,39 @@ function dateLabel(value?: string) {
 
 export async function generateMetadata({ params }: { params: CreatorProfileParams }): Promise<Metadata> {
   const { username } = await params;
-  const creator = await getCreatorByUsername(username);
-
-  if (!creator) {
-    return {
-      title: "Creator Not Found",
-    };
-  }
-
+  const creator = await getCachedCreatorByUsername(username);
+  if (!creator) return { title: "Creator Not Found", robots: { index: false, follow: false } };
+  const title = `${creator.name} (@${creator.username}) — Creator Profile`;
+  const description = `View ${creator.name}'s verified creator profile, audience channels, niche, and paid collaboration availability on Branzzo.`;
+  const canonical = `/creators/${encodeURIComponent(creator.username)}`;
   return {
-    title: `${creator.name} - ${formatNumber(getPublicSubscriberCount(creator))} Creator`,
-    description: creatorMetaDescription(creator),
+    title,
+    description,
+    alternates: { canonical },
     openGraph: {
-      title: `${creator.name} on Branzzo`,
-      description: creatorMetaDescription(creator),
-      images: creator.avatar ? [{ url: creator.avatar }] : [],
+      title,
+      description,
+      url: canonical,
       type: "profile",
+      images: [{ url: SOCIAL_IMAGE, width: 1200, height: 630, alt: `${creator.name} creator profile on Branzzo` }],
     },
+    twitter: { card: "summary_large_image", title, description, images: [SOCIAL_IMAGE] },
   };
 }
 
 export default async function CreatorProfilePage({ params }: { params: CreatorProfileParams }) {
+  const renderStartedAt = performance.now();
   const { username } = await params;
-  const creator = await getCreatorByUsername(username);
+  const [creator, viewer, historySummary] = await Promise.all([
+    getCachedCreatorByUsername(username),
+    getCurrentAppUser(),
+    getCreatorCollaborationHistorySummary(username),
+  ]);
 
   if (!creator) notFound();
-  const [viewer, historySummary] = await Promise.all([
-    getCurrentAppUser(),
-    getCreatorCollaborationHistorySummary(creator.username),
-  ]);
   const viewerRole = viewer?.onboardingComplete && (viewer.role === "creator" || viewer.role === "brand") ? viewer.role : undefined;
   const savedUsernames = viewerRole === "brand" ? await getSavedCreatorUsernames(viewer?.id) : new Set<string>();
+  logServerTiming("server-render.total", performance.now() - renderStartedAt, { route: "/creators/[username]" });
   const isOwner = viewerRole === "creator" && viewer?.username === creator.username;
   const statsVerified = hasVerifiedStats(creator);
   const statsStatus = normalizeStatsVerificationStatus(creator.statsVerificationStatus);
@@ -137,7 +143,7 @@ export default async function CreatorProfilePage({ params }: { params: CreatorPr
         <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(schema) }} />
         <CreatorProfileHeader creator={creator} viewerRole={viewerRole} viewerUsername={viewer?.username} />
 
-        <div className="bridge-section grid gap-6 py-8 sm:py-10 lg:grid-cols-[1fr_340px]">
+        <div className="bridge-section grid items-start gap-6 py-8 sm:py-10 lg:grid-cols-[1fr_340px]">
           <div className="space-y-6">
           <section className="bridge-card p-5">
             <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-center">

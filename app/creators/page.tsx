@@ -13,13 +13,16 @@ import { formatNumber } from "@/lib/format";
 import { platformDisplayName } from "@/lib/platforms";
 import { getCreatorDiscoveryPage, getSavedCreatorUsernames } from "@/lib/queries/creators";
 import { getPublicSubscriberCount } from "@/lib/verification";
+import { logServerTiming } from "@/lib/server-timing";
+import { publicPageMetadata } from "@/lib/seo";
 
 export const dynamic = "force-dynamic";
 
-export const metadata: Metadata = {
-  title: "Creator Directory",
-  description: "Browse Indian creators by niche, platform, country, availability, and creator stats.",
-};
+export const metadata: Metadata = publicPageMetadata(
+  "Discover Verified Creators",
+  "Browse verified creators by niche, platform, country, availability, audience, and collaboration fit on Branzzo.",
+  "/creators",
+);
 
 type CreatorSearchParams = Promise<Record<string, string | string[] | undefined>>;
 
@@ -49,9 +52,8 @@ function priceRangeLabel(value?: string) {
 }
 
 export default async function CreatorsPage({ searchParams }: { searchParams: CreatorSearchParams }) {
+  const renderStartedAt = performance.now();
   const params = await searchParams;
-  const viewer = await getCurrentAppUser();
-  const viewerRole = viewer?.onboardingComplete && (viewer.role === "creator" || viewer.role === "brand") ? viewer.role : undefined;
   const filters = {
     search: readParam(params.q),
     niche: readParam(params.niche),
@@ -66,12 +68,14 @@ export default async function CreatorsPage({ searchParams }: { searchParams: Cre
     country: readParam(params.country),
     sort: readParam(params.sort) ?? "featured",
     page: Math.max(Number.parseInt(readParam(params.page) ?? "1", 10) || 1, 1),
-    pageSize: 20,
+    pageSize: 30,
   };
 
-  const discovery = await getCreatorDiscoveryPage(filters);
+  const [viewer, discovery] = await Promise.all([getCurrentAppUser(), getCreatorDiscoveryPage(filters)]);
+  const viewerRole = viewer?.onboardingComplete && (viewer.role === "creator" || viewer.role === "brand") ? viewer.role : undefined;
   const creators = discovery.creators;
   const savedUsernames = viewerRole === "brand" ? await getSavedCreatorUsernames(viewer?.id) : new Set<string>();
+  logServerTiming("server-render.total", performance.now() - renderStartedAt, { route: "/creators" });
   const verifiedCreators = creators.filter((creator) => creator.isVerified).length;
   const totalReach = creators.reduce((sum, creator) => sum + getPublicSubscriberCount(creator), 0);
   const activeFilters = [

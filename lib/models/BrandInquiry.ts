@@ -97,6 +97,11 @@ export interface IBrandInquiry extends Document {
   notes?: string;
   paymentNote?: string;
   paymentScreenshotUrl?: string;
+  paymentProofId?: mongoose.Types.ObjectId;
+  paymentTransactionId?: string;
+  paymentSentAt?: Date | null;
+  paymentConfirmedAt?: Date | null;
+  paymentConfirmedBy?: mongoose.Types.ObjectId;
   paymentUpdatedAt?: Date | null;
   paymentUpdatedBy?: "brand" | "creator" | "admin" | "system";
   ipHash?: string;
@@ -218,6 +223,11 @@ const BrandInquirySchema = new Schema<IBrandInquiry>(
     },
     paymentNote: { type: String, trim: true, maxlength: 1000, default: "" },
     paymentScreenshotUrl: { type: String, trim: true, maxlength: 500, default: "" },
+    paymentProofId: { type: Schema.Types.ObjectId, ref: "ProofUpload", default: null },
+    paymentTransactionId: { type: String, trim: true, maxlength: 120, default: "" },
+    paymentSentAt: { type: Date, default: null },
+    paymentConfirmedAt: { type: Date, default: null },
+    paymentConfirmedBy: { type: Schema.Types.ObjectId, ref: "User", default: null },
     paymentUpdatedAt: { type: Date, default: null },
     paymentUpdatedBy: { type: String, enum: ["brand", "creator", "admin", "system"], default: "system" },
     creatorStatus: { type: String, trim: true, default: "pending" },
@@ -248,6 +258,7 @@ BrandInquirySchema.index({ creatorUserId: 1, createdAt: -1 });
 BrandInquirySchema.index({ brandProfileId: 1, createdAt: -1 });
 BrandInquirySchema.index({ creatorProfileId: 1, createdAt: -1 });
 BrandInquirySchema.index({ createdByClerkId: 1, createdAt: -1 });
+BrandInquirySchema.index({ creatorUsername: 1, status: 1 });
 BrandInquirySchema.index({ createdAt: -1 });
 BrandInquirySchema.index({ firstCreatorViewedAt: -1 });
 BrandInquirySchema.index({ acceptedAt: -1 });
@@ -263,6 +274,7 @@ BrandInquirySchema.index({ creatorProfileId: 1, status: 1, deadline: 1 });
 BrandInquirySchema.index({ createdByClerkId: 1, status: 1, deadline: 1 });
 BrandInquirySchema.index({ status: 1, lastMeaningfulActivityAt: 1 });
 BrandInquirySchema.index({ status: 1, updatedAt: -1 });
+BrandInquirySchema.index({ status: 1, createdAt: -1, _id: -1 });
 
 export const BrandInquiry =
   (mongoose.models.BrandInquiry as Model<IBrandInquiry> | undefined) ??

@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { classifyMongoError, MongoTemporaryUnavailableError } from "@/lib/db";
 
 export class HttpError extends Error {
   status: number;
@@ -67,9 +68,17 @@ export function handleRouteError(error: unknown, context: string, fallbackMessag
     return NextResponse.json({ error: duplicateKeyMessage(error) }, { status: 409 });
   }
 
+  if (error instanceof MongoTemporaryUnavailableError) {
+    return NextResponse.json(
+      { error: "Branzzo is connecting to the database. Please retry in a moment.", code: "DATABASE_CONNECTING", retryable: true },
+      { status: 503, headers: { "Retry-After": "1" } },
+    );
+  }
+
   if (isMongoUnavailableError(error)) {
     console.error(context, error);
-    const message = error instanceof Error && error.message.includes("MONGODB_URI")
+    const kind = classifyMongoError(error);
+    const message = kind === "configuration"
       ? "MongoDB is not configured yet."
       : "Database is unavailable. Check MongoDB Atlas configuration and network access.";
 

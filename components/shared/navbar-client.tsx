@@ -117,7 +117,7 @@ export function NavbarClient({
           aria-label="Branzzo home"
           className="group flex min-w-0 shrink-0 items-center gap-2 font-display text-base font-bold sm:gap-3 sm:text-lg"
         >
-          <BranzzoLogo showWordmark size={40} priority wordmarkClassName="hidden sm:inline" />
+          <BranzzoLogo showWordmark size={40} priority wordmarkClassName="inline text-base sm:text-lg" />
         </Link>
 
         <nav className={`ml-auto min-w-0 items-center text-sm text-[var(--text-secondary)] ${isSignedIn ? "hidden" : "hidden lg:flex"}`}>

@@ -80,7 +80,7 @@ function ProgressPanel({
 
       <div className="mt-5">
         <div className="flex items-center justify-between gap-3 text-xs font-semibold uppercase text-[var(--text-muted)]">
-          <span>Verification progress</span>
+          <span>Completion</span>
           <span>{progress}%</span>
         </div>
         <div className="mt-2 h-2 overflow-hidden rounded-full bg-white/10">
@@ -236,7 +236,7 @@ export default async function VerificationCenterPage() {
 
           <div className="grid gap-6 lg:grid-cols-[1fr_390px]">
             <ProgressPanel
-              title="Creator verification"
+              title="Verification progress"
               description="Place your BZ code in your YouTube About section, Instagram bio, Twitch profile, or other platform bio, then submit the public link for admin review."
               status={normalizedStatus}
               statusLabel={verificationBadgeLabel(normalizedStatus)}
@@ -290,7 +290,7 @@ export default async function VerificationCenterPage() {
 
         <div className="grid gap-6 lg:grid-cols-[1fr_390px]">
           <ProgressPanel
-            title="Brand verification"
+            title="Verification progress"
             description="Add your official website, work email or domain, and optional GST/CIN/VAT or company registration text so an admin can review trust signals."
             status={status}
             statusLabel={verificationBadgeLabel(status, "brand")}

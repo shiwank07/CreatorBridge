@@ -66,6 +66,6 @@ test.describe("collaboration chat", () => {
     await page.goto(href!);
     await expect(page.getByRole("link", { name: "Chat", exact: true })).toHaveCount(0);
     const response = await page.request.get(`${href!.replace("/dashboard/", "/api/")}/chat`);
-    expect(response.status()).toBe(409);
+    expect(response.status()).toBe(403);
   });
 });

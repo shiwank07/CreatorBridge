@@ -2,9 +2,9 @@
 
 import { useEffect, useMemo, useState } from "react";
 
-const DEFAULT_PAGE_SIZE = 20;
+export const ADMIN_PAGE_SIZE = 30;
 
-export function useAdminPagination<T>(items: T[], pageSize = DEFAULT_PAGE_SIZE) {
+export function useAdminPagination<T>(items: T[], pageSize = ADMIN_PAGE_SIZE) {
   const [page, setPage] = useState(1);
   const pageCount = Math.max(1, Math.ceil(items.length / pageSize));
 
@@ -46,7 +46,7 @@ export function AdminPagination({
       <p className="text-sm text-[var(--text-secondary)]">
         Showing {first}-{last} of {total}
       </p>
-      <div className="flex gap-2">
+      <div className="flex items-center gap-2">
         <button
           type="button"
           className="bridge-button-secondary px-4 py-2 text-sm"
@@ -55,9 +55,29 @@ export function AdminPagination({
         >
           Previous
         </button>
-        <span className="inline-flex min-h-10 items-center px-2 text-sm text-[var(--text-secondary)]">
+        <span className="inline-flex min-h-10 items-center px-2 text-sm text-[var(--text-secondary)] sm:hidden">
           Page {page} of {pageCount}
         </span>
+        <div className="hidden items-center gap-1 sm:flex">
+          {Array.from({ length: pageCount }, (_, index) => index + 1)
+            .filter((value) => value === 1 || value === pageCount || Math.abs(value - page) <= 1)
+            .map((value, index, visible) => (
+              <span key={value} className="contents">
+                {index > 0 && value - visible[index - 1] > 1 ? <span aria-hidden="true" className="px-1">…</span> : null}
+                <button
+                  type="button"
+                  aria-label={`Page ${value}`}
+                  aria-current={value === page ? "page" : undefined}
+                  className={`focus-ring min-h-10 min-w-10 rounded-[8px] px-2 text-sm ${
+                    value === page ? "bg-violet-700 text-white" : "text-[var(--text-secondary)]"
+                  }`}
+                  onClick={() => onPageChange(value)}
+                >
+                  {value}
+                </button>
+              </span>
+            ))}
+        </div>
         <button
           type="button"
           className="bridge-button-secondary px-4 py-2 text-sm"

@@ -1,5 +1,6 @@
 /* eslint-disable @next/next/no-head-element, @next/next/no-img-element -- This file renders standalone HTML email markup, not a Next.js page. */
 import type { CSSProperties, ReactNode } from "react";
+import { resolveEmailLogoUrl } from "@/lib/email/email-config";
 
 export type HaloEmailCta = {
   label: string;
@@ -22,23 +23,23 @@ export type EmailDetailItem = {
 const bodyStyle: CSSProperties = {
   margin: 0,
   padding: 0,
-  backgroundColor: "#0b0912",
-  color: "#f7f3ff",
+  backgroundColor: "#f4f1f8",
+  color: "#251c31",
   fontFamily: "Inter, Segoe UI, Arial, sans-serif",
 };
 
 const shellStyle: CSSProperties = {
   width: "100%",
-  backgroundColor: "#0b0912",
+  backgroundColor: "#f4f1f8",
   padding: "32px 12px",
 };
 
 const cardStyle: CSSProperties = {
   width: "100%",
   maxWidth: 600,
-  backgroundColor: "#151020",
-  border: "1px solid #2a1c3d",
-  borderRadius: 8,
+  backgroundColor: "#ffffff",
+  border: "1px solid #e5dff0",
+  borderRadius: 12,
   overflow: "hidden",
 };
 
@@ -53,7 +54,7 @@ const accentStyle: CSSProperties = {
 
 const eyebrowStyle: CSSProperties = {
   margin: "0 0 14px",
-  color: "#c4b5fd",
+  color: "#6d28d9",
   fontSize: 12,
   fontWeight: 700,
   letterSpacing: 0,
@@ -62,7 +63,7 @@ const eyebrowStyle: CSSProperties = {
 
 const titleStyle: CSSProperties = {
   margin: "0 0 18px",
-  color: "#ffffff",
+  color: "#24152f",
   fontSize: 32,
   lineHeight: "40px",
   fontWeight: 800,
@@ -71,7 +72,7 @@ const titleStyle: CSSProperties = {
 
 const textStyle: CSSProperties = {
   margin: "0 0 16px",
-  color: "#ded7eb",
+  color: "#51475d",
   fontSize: 16,
   lineHeight: "26px",
 };
@@ -85,8 +86,8 @@ const ctaStyle: CSSProperties = {
   display: "inline-block",
   backgroundColor: "#8b5cf6",
   color: "#ffffff",
-  borderRadius: 6,
-  padding: "14px 20px",
+  borderRadius: 8,
+  padding: "16px 24px",
   fontSize: 15,
   lineHeight: "20px",
   fontWeight: 700,
@@ -95,8 +96,8 @@ const ctaStyle: CSSProperties = {
 
 const footerStyle: CSSProperties = {
   padding: "22px 36px 34px",
-  borderTop: "1px solid #251936",
-  color: "#9f94b5",
+  borderTop: "1px solid #e9e3f0",
+  color: "#71677d",
   fontSize: 13,
   lineHeight: "20px",
   textAlign: "center",
@@ -115,6 +116,36 @@ export function EmailText({ children }: { children: ReactNode }) {
   return <p style={textStyle}>{children}</p>;
 }
 
+export function EmailBenefits({ items }: { items: string[] }) {
+  return (
+    <table role="presentation" cellPadding="0" cellSpacing="0" width="100%" style={{ margin: "20px 0 4px" }}>
+      <tbody>
+        {items.map((item) => (
+          <tr key={item}>
+            <td
+              aria-hidden="true"
+              style={{
+                width: 22,
+                padding: "5px 10px 5px 0",
+                color: "#6d28d9",
+                fontSize: 15,
+                lineHeight: "22px",
+                fontWeight: 700,
+                verticalAlign: "top",
+              }}
+            >
+              ✓
+            </td>
+            <td style={{ padding: "5px 0", color: "#51475d", fontSize: 15, lineHeight: "22px", verticalAlign: "top" }}>
+              {item}
+            </td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  );
+}
+
 export function EmailDetails({ items }: { items: EmailDetailItem[] }) {
   const visibleItems = items.filter((item) => item.value !== undefined && item.value !== null && String(item.value).trim());
   if (!visibleItems.length) return null;
@@ -128,8 +159,8 @@ export function EmailDetails({ items }: { items: EmailDetailItem[] }) {
               style={{
                 width: "34%",
                 padding: "12px 0",
-                borderTop: "1px solid #251936",
-                color: "#a99cc1",
+                borderTop: "1px solid #e9e3f0",
+                color: "#71677d",
                 fontSize: 13,
                 lineHeight: "20px",
                 verticalAlign: "top",
@@ -140,8 +171,8 @@ export function EmailDetails({ items }: { items: EmailDetailItem[] }) {
             <td
               style={{
                 padding: "12px 0 12px 16px",
-                borderTop: "1px solid #251936",
-                color: "#f7f3ff",
+                borderTop: "1px solid #e9e3f0",
+                color: "#251c31",
                 fontSize: 14,
                 lineHeight: "22px",
                 verticalAlign: "top",
@@ -158,8 +189,8 @@ export function EmailDetails({ items }: { items: EmailDetailItem[] }) {
 }
 
 export default function HaloEmailLayout({ preview, eyebrow, title, cta, children }: HaloEmailLayoutProps) {
-  const publicBaseUrl = process.env.BRANZZO_PUBLIC_URL?.trim().replace(/\/+$/, "");
-  const publicLogoUrl = publicBaseUrl ? `${publicBaseUrl}/branding/branzzo-logo.png` : "";
+  let publicLogoUrl = "";
+  try { publicLogoUrl = resolveEmailLogoUrl(); } catch { /* Text fallback keeps local previews usable. */ }
 
   return (
     <html lang="en">
@@ -193,7 +224,7 @@ export default function HaloEmailLayout({ preview, eyebrow, title, cta, children
                     <tr>
                       <td className="halo-content" style={contentStyle}>
                         {publicLogoUrl ? (
-                          <img src={publicLogoUrl} width="48" height="48" alt="Branzzo" style={{ display: "block", margin: "0 0 14px", borderRadius: 8 }} />
+                          <img src={publicLogoUrl} width="48" height="48" alt="Branzzo logo" style={{ display: "block", margin: "0 0 14px", borderRadius: 8 }} />
                         ) : (
                           <p style={eyebrowStyle}>Branzzo</p>
                         )}
@@ -211,7 +242,11 @@ export default function HaloEmailLayout({ preview, eyebrow, title, cta, children
                     </tr>
                     <tr>
                       <td className="halo-footer" style={footerStyle}>
-                        Every collaboration begins with trust.
+                        <a href="https://branzzo.com" style={{ color: "#6d28d9" }}>branzzo.com</a>
+                        {" · "}
+                        <a href="mailto:support@branzzo.com" style={{ color: "#6d28d9" }}>support@branzzo.com</a>
+                        <br />
+                        Helping creators and brands build better partnerships.
                       </td>
                     </tr>
                   </tbody>

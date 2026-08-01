@@ -1,7 +1,7 @@
 import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
 import { NextResponse, type NextFetchEvent, type NextRequest } from "next/server";
 
-import { hasClerkKeys } from "@/lib/clerk-config";
+import { clerkConfigurationIssue, hasClerkKeys } from "@/lib/clerk-config";
 
 const isProtectedRoute = createRouteMatcher(["/onboarding(.*)", "/admin(.*)", "/dashboard(.*)", "/notifications(.*)"]);
 
@@ -12,6 +12,14 @@ const clerkHandler = clerkMiddleware(async (auth, req) => {
 });
 
 export default function middleware(req: NextRequest, event: NextFetchEvent) {
+  if (process.env.NODE_ENV === "production" && clerkConfigurationIssue()) {
+    if (
+      isProtectedRoute(req) || req.nextUrl.pathname.startsWith("/api/") ||
+      ["/sign-in", "/sign-up", "/sso-callback", "/auth/complete"].some((path) => req.nextUrl.pathname.startsWith(path))
+    ) {
+      return NextResponse.json({ error: "Authentication service is unavailable." }, { status: 503 });
+    }
+  }
   if (!hasClerkKeys()) return NextResponse.next();
   return clerkHandler(req, event);
 }

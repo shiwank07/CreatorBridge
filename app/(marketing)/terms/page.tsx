@@ -1,11 +1,9 @@
 import Link from "next/link";
 
 import { CONTACT_EMAILS, LEGAL_LAST_UPDATED } from "@/lib/constants";
+import { publicPageMetadata } from "@/lib/seo";
 
-export const metadata = {
-  title: "Terms of Service",
-  description: "Branzzo Terms of Service.",
-};
+export const metadata = publicPageMetadata("Terms of Service", "Read the terms governing accounts, creator profiles, brand requests, and collaborations on Branzzo.", "/terms");
 
 const termsSections = [
   {
@@ -141,9 +139,8 @@ export default function TermsOfServicePage() {
       <section className="bridge-section relative py-16 sm:py-20">
         <div className="max-w-3xl">
           <p className="bridge-eyebrow">Terms of Service</p>
-          <h1 className="mt-4 font-display text-4xl font-black leading-tight sm:text-5xl">
-            The rules for using Branzzo.
-          </h1>
+          <h1 className="mt-4 font-display text-4xl font-black leading-tight sm:text-5xl">Terms of Service</h1>
+          <p className="mt-4 text-xl font-semibold leading-8 text-[var(--text-secondary)]">The rules for using Branzzo.</p>
           <p className="mt-5 text-base leading-8 text-[var(--text-secondary)]">
             These Terms describe the responsibilities of brands, creators, and Branzzo when using the platform for
             discovery, profiles, collaboration requests, verification, and trust workflows.

@@ -3,6 +3,7 @@ import { expect, test } from "@playwright/test";
 import { buildCreatorFunnel, fillAnalyticsTrendBuckets, hasPeriodAnalyticsActivity, summarizeCollaborations, metricChange, parseAnalyticsRange, safeRate } from "../../lib/analytics/core";
 import { classifyCreatorViewBackfill, deriveLifecycleTimestampBackfill, resolveOwnershipBackfill } from "../../lib/analytics/migration";
 import { appendCollaborationTimeline } from "../../lib/collaborations";
+import { normalizePageRequest, pageResult } from "../../lib/pagination";
 
 const start = new Date("2026-02-01T00:00:00Z");
 const end = new Date("2026-03-01T00:00:00Z");
@@ -140,4 +141,19 @@ test("range and defensive rate helpers remain stable", () => {
   expect(safeRate(3, 0)).toBe(0);
   expect(safeRate(20, 10)).toBe(100);
   expect(metricChange(5, 0)).toEqual({ value: 5, mode: "absolute", available: true });
+});
+
+test("pagination defaults to 30 and clamps invalid pages", () => {
+  expect(normalizePageRequest({}, 95)).toMatchObject({ page: 1, limit: 30, totalPages: 4, skip: 0 });
+  expect(normalizePageRequest({ page: -10 }, 95).page).toBe(1);
+  expect(normalizePageRequest({ page: 99 }, 95)).toMatchObject({ page: 4, skip: 90 });
+});
+
+test("pagination metadata handles empty and partially filled final pages", () => {
+  expect(pageResult([], {}, 0)).toEqual({
+    items: [], page: 1, limit: 30, total: 0, totalPages: 0, hasNextPage: false, hasPreviousPage: false,
+  });
+  expect(pageResult([91, 92, 93, 94, 95], { page: 4 }, 95)).toMatchObject({
+    page: 4, total: 95, totalPages: 4, hasNextPage: false, hasPreviousPage: true,
+  });
 });

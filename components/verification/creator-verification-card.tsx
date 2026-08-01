@@ -148,7 +148,7 @@ export function CreatorVerificationCard({ creator }: CreatorVerificationCardProp
       <div className="flex items-start justify-between gap-3">
         <div>
           <p className="bridge-eyebrow">Branzzo</p>
-          <h2 className="mt-2 font-display text-2xl font-bold">Creator verification</h2>
+          <h2 className="mt-2 font-display text-2xl font-bold">Submit ownership proof</h2>
           <p className="mt-2 text-sm leading-6 text-[var(--text-secondary)]">
             Submit the platform bio where admins should check your BZ code.
           </p>
@@ -168,7 +168,14 @@ export function CreatorVerificationCard({ creator }: CreatorVerificationCardProp
           <p className="text-xs font-semibold uppercase text-cyan-100">Verification code</p>
           <div className="mt-2 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <p className="min-w-0 break-all font-mono text-2xl font-black text-[var(--text-primary)]">
-              {verificationCode || "Generating..."}
+              {verificationCode ? (
+                <span className="whitespace-nowrap font-mono">{verificationCode}</span>
+              ) : (
+                <span role="status" aria-label="Generating verification code" className="inline-flex items-center gap-2 text-[var(--text-secondary)]">
+                  <span aria-hidden="true" className="h-4 w-32 animate-pulse rounded bg-white/10" />
+                  <span className="sr-only">Generating verification code</span>
+                </span>
+              )}
             </p>
             <button type="button" onClick={copyVerificationCode} disabled={!verificationCode} className="bridge-button-secondary w-full px-3 py-2 text-xs sm:w-auto">
               {copied ? <Check size={14} /> : <Copy size={14} />}

@@ -6,15 +6,23 @@ import { connectDB, hasMongoUri } from "@/lib/db";
 import { CreatorProfile } from "@/lib/models/CreatorProfile";
 import { User } from "@/lib/models/User";
 import { notificationService } from "@/lib/notifications/notification-service";
-import { getAdminCreators } from "@/lib/queries/admin";
+import { getAdminCreatorsPage } from "@/lib/queries/admin";
 import { creatorAdminUpdateSchema } from "@/lib/validators/admin";
 
-export async function GET() {
+export async function GET(req: Request) {
   const admin = await getAdminState();
   if (!admin.isAdmin) return NextResponse.json({ error: "Admin access required." }, { status: 403 });
 
-  const creators = await getAdminCreators();
-  return NextResponse.json({ creators });
+  const url = new URL(req.url);
+  return NextResponse.json(await getAdminCreatorsPage({
+    page: Number(url.searchParams.get("page") ?? 1),
+    limit: Number(url.searchParams.get("limit") ?? 30),
+    verification: url.searchParams.get("verification") ?? undefined,
+    status: url.searchParams.get("status") ?? undefined,
+    platform: url.searchParams.get("platform") ?? undefined,
+    search: url.searchParams.get("search") ?? undefined,
+    sort: url.searchParams.get("sort") ?? undefined,
+  }));
 }
 
 export async function PATCH(req: Request) {
@@ -34,7 +42,7 @@ export async function PATCH(req: Request) {
 
     await connectDB();
     const updated = await User.findOneAndUpdate(
-      { username: parsed.data.username, role: "creator" },
+      { username: parsed.data.username, role: "creator", accountStatus: { $ne: "deleted" } },
       {
         $set: {
           ...(typeof parsed.data.isFeatured === "boolean" ? { isFeatured: parsed.data.isFeatured } : {}),
@@ -47,7 +55,13 @@ export async function PATCH(req: Request) {
       { new: true },
     );
 
-    if (!updated) return NextResponse.json({ error: "Creator not found." }, { status: 404 });
+    if (!updated) {
+      const exists = await User.exists({ username: parsed.data.username, role: "creator" });
+      return NextResponse.json(
+        { error: exists ? "Deleted accounts cannot be changed." : "Creator not found." },
+        { status: exists ? 409 : 404 },
+      );
+    }
 
     if (typeof parsed.data.isVerified === "boolean" || parsed.data.action === "approve_verification" || parsed.data.action === "reject_verification") {
       const profile = await CreatorProfile.findOne({ userId: updated._id });

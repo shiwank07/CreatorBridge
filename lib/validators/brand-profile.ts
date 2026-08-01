@@ -27,6 +27,7 @@ export const brandOnboardingSchema = z.object({
   country: z.string().trim().min(2, "Country is required.").max(80),
   companyRegistrationText: z.string().trim().max(500).optional().default(""),
   notes: z.string().trim().max(500).optional().default(""),
+  displayPublicly: z.boolean().optional().default(false),
 });
 
 export type BrandOnboardingInput = z.infer<typeof brandOnboardingSchema>;

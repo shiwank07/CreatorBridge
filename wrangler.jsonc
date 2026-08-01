@@ -2,16 +2,48 @@
   "$schema": "./node_modules/wrangler/config-schema.json",
   "name": "branzzo",
   "main": ".open-next/worker.js",
-  "compatibility_date": "2026-07-25",
+  "compatibility_date": "2026-07-27",
+
+  "placement": {
+    "region": "aws:ap-south-1"
+  },
+
   "compatibility_flags": [
     "nodejs_compat",
     "global_fetch_strictly_public"
   ],
+
+  "keep_vars": true,
+
+  "routes": [
+    {
+      "pattern": "branzzo.com",
+      "custom_domain": true
+    }
+  ],
+
   "assets": {
     "directory": ".open-next/assets",
     "binding": "ASSETS"
   },
+
+  "minify": true,
+
   "observability": {
-    "enabled": true
-  }
+    "enabled": true,
+    "head_sampling_rate": 1
+  },
+
+  "r2_buckets": [
+    {
+      "bucket_name": "branzzo-incremental-cache",
+      "binding": "branzzo_incremental_cache",
+      "remote": true
+    },
+    {
+      "bucket_name": "branzzo-uploads",
+      "binding": "BRANZZO_UPLOADS",
+      "remote": true
+    }
+  ]
 }

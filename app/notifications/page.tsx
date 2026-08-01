@@ -13,6 +13,7 @@ export const dynamic = "force-dynamic";
 export const metadata = {
   title: "Notifications",
   description: "View your Branzzo collaboration notifications.",
+  robots: { index: false, follow: false },
 };
 
 export default async function NotificationsPage({
@@ -35,7 +36,7 @@ export default async function NotificationsPage({
     status,
     type,
     page: Number(params.page) || 1,
-    pageSize: 20,
+    pageSize: 30,
   });
   const dashboardHref = user.role === "brand" ? "/dashboard/brand" : user.role === "creator" ? "/dashboard/creator" : "/admin";
   const pageHref = (page: number) => {

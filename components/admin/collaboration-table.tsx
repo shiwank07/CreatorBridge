@@ -4,7 +4,6 @@ import Link from "next/link";
 import { ExternalLink } from "lucide-react";
 
 import { Badge } from "@/components/shared/badge";
-import { AdminPagination, useAdminPagination } from "@/components/admin/admin-pagination";
 import { collaborationStatusLabel } from "@/lib/collaborations";
 import { formatDate } from "@/lib/format-date";
 import { type AdminCollaborationData } from "@/lib/types";
@@ -36,8 +35,6 @@ function DetailLink({ id }: { id: string }) {
 }
 
 export function CollaborationTable({ collaborations }: CollaborationTableProps) {
-  const pagination = useAdminPagination(collaborations);
-
   return (
     <div className="bridge-card overflow-hidden">
       <div className="hidden overflow-x-auto md:block">
@@ -54,7 +51,7 @@ export function CollaborationTable({ collaborations }: CollaborationTableProps) 
             </tr>
           </thead>
           <tbody>
-            {pagination.pageItems.map((collaboration) => (
+            {collaborations.map((collaboration) => (
               <tr key={collaboration.id} className="border-b border-[var(--border)] align-top last:border-b-0">
                 <td className="px-4 py-4">
                   <p className="font-semibold text-[var(--text-primary)]">{collaboration.brand}</p>
@@ -77,7 +74,7 @@ export function CollaborationTable({ collaborations }: CollaborationTableProps) 
       </div>
 
       <div className="divide-y divide-[var(--border)] md:hidden">
-        {pagination.pageItems.map((collaboration) => (
+        {collaborations.map((collaboration) => (
           <article key={collaboration.id} className="p-4">
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
@@ -103,13 +100,6 @@ export function CollaborationTable({ collaborations }: CollaborationTableProps) 
           </article>
         ))}
       </div>
-      <AdminPagination
-        page={pagination.page}
-        pageCount={pagination.pageCount}
-        pageSize={pagination.pageSize}
-        total={pagination.total}
-        onPageChange={pagination.setPage}
-      />
     </div>
   );
 }

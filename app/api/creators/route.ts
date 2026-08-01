@@ -19,7 +19,7 @@ export async function GET(req: Request) {
     sort: url.searchParams.get("sort") ?? undefined,
     openToDeals: url.searchParams.get("open") === "true",
     page: Number(url.searchParams.get("page") ?? 1),
-    pageSize: Number(url.searchParams.get("pageSize") ?? 20),
+    pageSize: Number(url.searchParams.get("pageSize") ?? 30),
   });
 
   return NextResponse.json(result);

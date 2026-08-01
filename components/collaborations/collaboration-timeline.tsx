@@ -58,7 +58,8 @@ export function CollaborationTimeline({ status = "NEW", history = [], compact = 
                   isCurrent ? "border-cyan-300/70 bg-cyan-300/20 text-cyan-50" : "",
                 )}
               >
-                <span className="block leading-none">{index + 1}</span>
+                <span className="sr-only">{step.label}</span>
+                <span aria-hidden="true" className="block leading-none">{index + 1}</span>
               </div>
             </li>
           );

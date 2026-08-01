@@ -1,5 +1,5 @@
 export type Role = "admin" | "creator" | "brand" | "agency" | "talent";
-export type AccountStatus = "active" | "hidden" | "suspended";
+export type AccountStatus = "active" | "hidden" | "suspended" | "deleted";
 export type CreatorAvailabilityStatus = "open_to_deals" | "limited_availability" | "unavailable" | "closed";
 export type VerificationStatus =
   | "unverified"
@@ -40,12 +40,17 @@ export type CollaborationTimelineEvent =
 export type PaymentStatus = "payment_pending" | "payment_sent" | "payment_received" | "payment_disputed";
 
 export type CreatorPaymentDetailsData = {
+  preferredMethod?: "upi" | "bank";
   upiId?: string;
   paypalEmail?: string;
   bankAccountName?: string;
+  accountHolderName?: string;
+  bankName?: string;
   bankAccountNumber?: string;
   ifsc?: string;
+  ifscCode?: string;
   preferredPaymentNote?: string;
+  paymentNote?: string;
 };
 
 export type CreatorCardData = {
@@ -145,6 +150,7 @@ export type BrandProfileData = {
   phoneAdded?: boolean;
   phoneVerified?: boolean;
   createdAt?: string;
+  displayPublicly?: boolean;
 };
 
 export type BrandVerificationData = BrandProfileData & {
@@ -282,13 +288,15 @@ export type AdminCreatorData = {
 
 export type AdminBrandData = {
   userId: string;
-  profileId: string;
+  profileId?: string;
   logo: string;
   companyName: string;
   username: string;
   email: string;
   verificationStatus: BrandVerificationStatus;
+  profileStatus: "complete" | "incomplete";
   accountStatus: AccountStatus;
+  collaborationCount: number;
   joinedDate?: string;
 };
 
@@ -319,9 +327,15 @@ export type AdminEmailLogData = {
   id: string;
   recipient: string;
   event: string;
-  status: "sent" | "failed" | "skipped";
+  status: import("@/lib/models/EmailNotification").EmailNotificationStatus;
+  deliveryKey?: string;
+  attempts: number;
+  providerId?: string | null;
+  retryEligible: boolean;
   error?: string | null;
   createdAt?: string;
+  updatedAt?: string;
+  deliveredAt?: string;
 };
 
 export type AdminUserData = {

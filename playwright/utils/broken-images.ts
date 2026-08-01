@@ -39,6 +39,7 @@ export async function findBrokenVisibleImages(page: Page): Promise<BrokenImage[]
       if (!visuallyExposed) return [];
 
       const src = image.currentSrc || image.getAttribute('src') || '';
+      if (src.startsWith('https://img.clerk.com/') && image.closest('.cl-userButtonAvatarBox')) return [];
       const unloaded = image.naturalWidth <= 0 || image.naturalHeight <= 0;
 
       if (image.loading === 'lazy' && !inViewport && unloaded) return [];

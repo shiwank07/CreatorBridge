@@ -3,8 +3,6 @@
 import { type FormEvent, useState } from "react";
 import { Mail, Send } from "lucide-react";
 
-import { CONTACT_EMAILS } from "@/lib/constants";
-
 type ContactTopic = "support" | "partnerships" | "legal";
 
 type ContactFormState = {
@@ -13,12 +11,7 @@ type ContactFormState = {
   topic: ContactTopic;
   subject: string;
   message: string;
-};
-
-const topicLabels: Record<ContactTopic, string> = {
-  support: "Support",
-  partnerships: "Business partnerships",
-  legal: "Legal",
+  companyWebsite: string;
 };
 
 export function ContactUsForm() {
@@ -28,6 +21,7 @@ export function ContactUsForm() {
     topic: "support",
     subject: "",
     message: "",
+    companyWebsite: "",
   });
   const [error, setError] = useState("");
   const [submitted, setSubmitted] = useState(false);
@@ -36,7 +30,7 @@ export function ContactUsForm() {
     setForm((current) => ({ ...current, [key]: value }));
   }
 
-  function onSubmit(event: FormEvent<HTMLFormElement>) {
+  async function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError("");
     setSubmitted(false);
@@ -46,17 +40,14 @@ export function ContactUsForm() {
       return;
     }
 
-    const to = CONTACT_EMAILS[form.topic];
-    const subject = `[${topicLabels[form.topic]}] ${form.subject.trim()}`;
-    const body = [
-      `Name: ${form.name.trim()}`,
-      `Email: ${form.email.trim()}`,
-      `Topic: ${topicLabels[form.topic]}`,
-      "",
-      form.message.trim(),
-    ].join("\n");
-
-    window.location.href = `mailto:${to}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+    const response = await fetch("/api/contact", {
+      method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(form),
+    });
+    const result = await response.json().catch(() => ({})) as { error?: string };
+    if (!response.ok) {
+      setError(result.error || "Could not send your message.");
+      return;
+    }
     setSubmitted(true);
   }
 
@@ -69,7 +60,7 @@ export function ContactUsForm() {
         <div>
           <h2 className="font-display text-2xl font-bold">Contact form</h2>
           <p className="mt-2 text-sm leading-6 text-[var(--text-secondary)]">
-            Send the team a structured note. Your email app will open with the message prefilled.
+            Send the team a structured note. We’ll confirm when your message has been received.
           </p>
         </div>
       </div>
@@ -82,11 +73,20 @@ export function ContactUsForm() {
 
       {submitted ? (
         <div role="status" className="mt-5 rounded-[8px] border border-emerald-800 bg-emerald-950/40 px-4 py-3 text-sm text-emerald-100">
-          Your email draft is ready. Send it from your email app so the Branzzo team receives it.
+          Your message was received.
         </div>
       ) : null}
 
       <div className="mt-6 grid gap-4 sm:grid-cols-2">
+        <label className="absolute -left-[10000px] top-auto h-px w-px overflow-hidden" aria-hidden="true">
+          Company website
+          <input
+            value={form.companyWebsite}
+            onChange={(event) => setField("companyWebsite", event.target.value)}
+            tabIndex={-1}
+            autoComplete="off"
+          />
+        </label>
         <label>
           <span className="bridge-label">Name</span>
           <input
@@ -143,7 +143,7 @@ export function ContactUsForm() {
 
       <button type="submit" className="bridge-button-primary mt-5 w-full sm:w-auto">
         <Send size={17} />
-        Prepare Email
+        Send message
       </button>
     </form>
   );

@@ -9,7 +9,7 @@ export const CONTACT_EMAILS = {
   legal: process.env.NEXT_PUBLIC_LEGAL_EMAIL?.trim() || `legal@${contactEmailDomain}`,
 } as const;
 
-export const LEGAL_LAST_UPDATED = "July 6, 2026";
+export const LEGAL_LAST_UPDATED = "July 30, 2026";
 
 export const NICHES = [
   "Gaming",

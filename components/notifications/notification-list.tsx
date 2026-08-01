@@ -69,11 +69,16 @@ function NotificationEmptyState() {
 
 export function NotificationList({ notifications, compact = false }: NotificationListProps) {
   const [items, setItems] = useState(notifications);
+  const [timeReference, setTimeReference] = useState<number>();
   const router = useRouter();
 
   useEffect(() => {
     setItems(notifications);
   }, [notifications]);
+
+  useEffect(() => {
+    setTimeReference(Date.now());
+  }, []);
 
   async function handleNotificationClick(event: MouseEvent<HTMLAnchorElement>, notification: InAppNotificationData) {
     if (event.metaKey || event.ctrlKey || event.shiftKey || event.button !== 0) return;
@@ -204,7 +209,7 @@ export function NotificationList({ notifications, compact = false }: Notificatio
                       {display.message}
                     </span>
                     <span className="mt-2 block text-xs text-[var(--text-muted)]">
-                      {formatNotificationTime(notification.createdAt)}
+                      {formatNotificationTime(notification.createdAt, timeReference)}
                     </span>
                   </span>
                   <ExternalLink size={14} className="mt-1 shrink-0 text-[var(--text-muted)]" />

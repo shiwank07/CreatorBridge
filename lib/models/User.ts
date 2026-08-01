@@ -16,9 +16,20 @@ export interface IUser extends Document {
   subscriptionExpiry: Date | null;
   isFeatured: boolean;
   isVerified: boolean;
-  accountStatus: "active" | "hidden" | "suspended";
+  accountStatus: "active" | "hidden" | "suspended" | "deleted";
+  deletedAt?: Date | null;
+  latestClerkEventAt?: Date | null;
+  latestClerkEventId?: string;
   trustReviewStatus: "clear" | "needs_review";
   trustReviewNote?: string;
+  emailPreferences: {
+    collaborationInvitations: boolean;
+    collaborationStatusUpdates: boolean;
+    verificationUpdates: boolean;
+    productAnnouncements: boolean;
+    weeklyDigest: boolean;
+    marketingEmail: boolean;
+  };
   lastTrustReviewedAt?: Date | null;
   createdAt: Date;
   updatedAt: Date;
@@ -48,20 +59,35 @@ const UserSchema = new Schema<IUser>(
     isVerified: { type: Boolean, default: false },
     accountStatus: {
       type: String,
-      enum: ["active", "hidden", "suspended"],
+      enum: ["active", "hidden", "suspended", "deleted"],
       default: "active",
       index: true,
     },
+    deletedAt: { type: Date, default: null, index: true },
+    latestClerkEventAt: { type: Date, default: null, index: true },
+    latestClerkEventId: { type: String, trim: true, default: "" },
     trustReviewStatus: { type: String, enum: ["clear", "needs_review"], default: "clear", index: true },
     trustReviewNote: { type: String, maxlength: 500, default: "" },
+    emailPreferences: {
+      collaborationInvitations: { type: Boolean, default: true },
+      collaborationStatusUpdates: { type: Boolean, default: true },
+      verificationUpdates: { type: Boolean, default: true },
+      productAnnouncements: { type: Boolean, default: false },
+      weeklyDigest: { type: Boolean, default: false },
+      marketingEmail: { type: Boolean, default: false },
+    },
     lastTrustReviewedAt: { type: Date, default: null },
   },
   { timestamps: true },
 );
 UserSchema.index({ name: "text", username: "text" });
 UserSchema.index({ role: 1, onboardingComplete: 1, accountStatus: 1 });
+UserSchema.index({ role: 1, onboardingComplete: 1, accountStatus: 1, isFeatured: 1, createdAt: -1 });
 UserSchema.index({ role: 1, createdAt: -1 });
+UserSchema.index({ role: 1, accountStatus: 1, createdAt: -1, _id: -1 });
 UserSchema.index({ isVerified: 1, createdAt: -1 });
+UserSchema.index({ clerkId: 1, latestClerkEventAt: -1 });
+UserSchema.index({ accountStatus: 1, deletedAt: 1 });
 
 export const User =
   (mongoose.models.User as Model<IUser> | undefined) ?? mongoose.model<IUser>("User", UserSchema);

@@ -3,6 +3,8 @@
 import { type FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Building2, Loader2 } from "lucide-react";
+import { ProfileImageUpload } from "@/components/shared/profile-image-upload";
+import { submitOnboardingWithBusyRetry } from "@/lib/onboarding-request";
 
 type BrandOnboardingFormProps = {
   initialContactName: string;
@@ -21,6 +23,7 @@ type BrandOnboardingFormProps = {
     country?: string;
     companyRegistrationText?: string;
     notes?: string;
+    displayPublicly?: boolean;
   };
   redirectHref?: string | null;
   submitLabel?: string;
@@ -40,6 +43,7 @@ type FormState = {
   country: string;
   companyRegistrationText: string;
   notes: string;
+  displayPublicly: boolean;
 };
 
 const COMPANY_SIZES = ["1-10", "11-50", "51-200", "201-1000", "1000+"] as const;
@@ -70,6 +74,7 @@ export function BrandOnboardingForm({
     country: initialValues?.country ?? "India",
     companyRegistrationText: initialValues?.companyRegistrationText ?? "",
     notes: initialValues?.notes ?? "",
+    displayPublicly: initialValues?.displayPublicly ?? false,
   });
 
   function setField<K extends keyof FormState>(key: K, value: FormState[K]) {
@@ -83,13 +88,7 @@ export function BrandOnboardingForm({
     setIsSaving(true);
 
     try {
-      const response = await fetch("/api/onboarding/brand", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(form),
-      });
-
-      const result = (await response.json().catch(() => ({}))) as { error?: string };
+      const { response, result } = await submitOnboardingWithBusyRetry("/api/onboarding/brand", form);
 
       if (!response.ok) {
         setError(result.error ?? "Could not save your brand profile.");
@@ -149,16 +148,24 @@ export function BrandOnboardingForm({
             <span className="bridge-label">Country</span>
             <input value={form.country} onChange={(event) => setField("country", event.target.value)} className="bridge-input mt-2" required />
           </label>
-          <label className="lg:col-span-2">
-            <span className="bridge-label">Brand logo image URL</span>
+          <ProfileImageUpload
+            accountType="brand"
+            name={form.companyName || form.contactName}
+            initialImageUrl={form.logo}
+            onImageChange={(imageUrl) => setField("logo", imageUrl)}
+          />
+          <label className="lg:col-span-2 flex cursor-pointer items-start gap-3 rounded-[8px] border border-white/10 bg-white/[0.035] p-4">
             <input
-              value={form.logo}
-              onChange={(event) => setField("logo", event.target.value)}
-              className="bridge-input mt-2"
-              placeholder="https://example.com/logo.png"
+              type="checkbox"
+              checked={form.displayPublicly}
+              onChange={(event) => setField("displayPublicly", event.target.checked)}
+              className="mt-1 h-4 w-4 accent-cyan-300"
             />
-            <span className="mt-2 block text-xs leading-5 text-[var(--text-secondary)]">
-              Paste a public logo URL for now. Direct image uploads are not configured for this MVP.
+            <span>
+              <span className="block font-semibold text-[var(--text-primary)]">Display publicly on Branzzo</span>
+              <span className="mt-1 block text-sm leading-6 text-[var(--text-secondary)]">
+                Opt in to showing only your logo, company name, industry, and verification badge in the public brand showcase.
+              </span>
             </span>
           </label>
           <label className="lg:col-span-2">

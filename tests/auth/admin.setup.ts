@@ -13,15 +13,26 @@ setup('authenticate seeded admin', async ({ page }) => {
     );
   }
 
-  const loginPage = new LoginPage(page);
-  await loginPage.login(email, otp);
+  try {
+    const loginPage = new LoginPage(page);
+    await loginPage.login(email, otp);
 
-  await expect(page).not.toHaveURL(/\/sign-in(?:\/|\?|$)/);
-  await page.goto('/admin');
-  await expect(page).toHaveURL(/\/admin(?:[/?#]|$)/);
-  await expect(page.getByRole('heading', { name: 'Overview', exact: true })).toBeVisible();
-  await expect(page.locator('body')).toBeVisible();
-  await page.waitForLoadState('domcontentloaded');
+    await page.goto('/admin', { waitUntil: 'domcontentloaded' });
+    await expect(page, 'The Clerk session did not authorize the configured development admin at /admin.').toHaveURL(
+      /\/admin(?:[/?#]|$)/,
+      { timeout: 20_000 },
+    );
+    await expect(
+      page.getByRole('heading', { name: 'Overview', exact: true }),
+      'Admin authorization completed, but the Overview page did not become ready.',
+    ).toBeVisible();
 
-  await page.context().storageState({ path: adminAuthFile });
+    await page.context().storageState({ path: adminAuthFile });
+  } catch (error) {
+    throw new Error(
+      `Admin authentication setup failed before storageState was saved. Final path: ${new URL(page.url()).pathname}. ` +
+        `Verify the Clerk development account, test OTP support, ADMIN_EMAIL allowlist, and Clerk instance keys. ` +
+        `${error instanceof Error ? error.message : String(error)}`,
+    );
+  }
 });

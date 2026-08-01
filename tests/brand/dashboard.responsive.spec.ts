@@ -23,7 +23,7 @@ test.describe('brand dashboard responsive health', () => {
         assertPage: async () => {
           await expect(page).not.toHaveURL(/\/sign-in(?:\/|\?|$)/);
           await expect(page).toHaveURL(/\/dashboard\/brand(?:[/?#]|$)/);
-          await expect(page.getByText('Brand Command Center', { exact: true })).toBeVisible();
+          await expect(page.getByRole('main').getByText('Brand Command Center', { exact: true })).toBeVisible();
           await expect(page.locator('body')).toBeVisible();
         },
       });

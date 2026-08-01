@@ -10,7 +10,7 @@ import {
   type CollaborationTimelineEvent,
   type CollaborationStatus,
 } from "@/lib/collaborations";
-import { connectDB, hasMongoUri } from "@/lib/db";
+import { connectDB, hasMongoUri, MONGO_QUERY_TIMEOUT_MS } from "@/lib/db";
 import { BrandInquiry } from "@/lib/models/BrandInquiry";
 import { BrandProfile } from "@/lib/models/BrandProfile";
 import { Conversation } from "@/lib/models/Conversation";
@@ -18,6 +18,7 @@ import { CreatorProfile } from "@/lib/models/CreatorProfile";
 import { User } from "@/lib/models/User";
 import { notificationService } from "@/lib/notifications/notification-service";
 import { hasClerkKeys } from "@/lib/clerk-config";
+import { normalizePageRequest, pageResult, type PaginatedResult } from "@/lib/pagination";
 import {
   type BrandInquiryData,
   type BrandVerificationStatus,
@@ -345,7 +346,7 @@ async function getCreatorPaymentDetails(
 
   const profile = collaboration.creatorProfileId
     ? await CreatorProfile.findById(collaboration.creatorProfileId)
-        .select("upiId paypalEmail bankAccountName bankAccountNumber ifsc preferredPaymentNote")
+        .select("paymentDetails +paymentDetails.upiId +paymentDetails.accountNumber")
         .exec()
     : collaboration.creatorUsername
       ? await User.findOne({ username: collaboration.creatorUsername, role: "creator" })
@@ -354,7 +355,7 @@ async function getCreatorPaymentDetails(
           .then(async (creatorUser) => {
             if (!creatorUser) return null;
             return CreatorProfile.findOne({ userId: creatorUser._id })
-              .select("upiId paypalEmail bankAccountName bankAccountNumber ifsc preferredPaymentNote")
+              .select("paymentDetails +paymentDetails.upiId +paymentDetails.accountNumber")
               .exec();
           })
       : null;
@@ -363,12 +364,13 @@ async function getCreatorPaymentDetails(
 
   return {
     creatorPaymentDetails: {
-      upiId: profile.upiId ?? "",
-      paypalEmail: profile.paypalEmail ?? "",
-      bankAccountName: profile.bankAccountName ?? "",
-      bankAccountNumber: profile.bankAccountNumber ?? "",
-      ifsc: profile.ifsc ?? "",
-      preferredPaymentNote: profile.preferredPaymentNote ?? "",
+      preferredMethod: profile.paymentDetails?.preferredMethod,
+      upiId: profile.paymentDetails?.upiId ?? "",
+      accountHolderName: profile.paymentDetails?.accountHolderName ?? "",
+      bankName: profile.paymentDetails?.bankName ?? "",
+      bankAccountNumber: profile.paymentDetails?.accountNumber ?? "",
+      ifscCode: profile.paymentDetails?.ifscCode ?? "",
+      paymentNote: profile.paymentDetails?.paymentNote ?? "",
     },
   };
 }
@@ -393,7 +395,10 @@ export async function getCreatorCollaborationDashboard(): Promise<CollaborationD
   filters.push({ creatorUserId: user._id });
   if (creatorProfile) filters.push({ creatorProfileId: creatorProfile._id });
 
-  const docs = await BrandInquiry.find({ $or: filters }).sort({ updatedAt: -1, createdAt: -1 }).limit(100).exec();
+  // Dashboard cards are a deliberately bounded recent-activity preview; the
+  // complete dataset is available from the paginated collaboration history.
+  const DASHBOARD_RECENT_COLLABORATION_LIMIT = 100;
+  const docs = await BrandInquiry.find({ $or: filters }).sort({ updatedAt: -1, createdAt: -1 }).limit(DASHBOARD_RECENT_COLLABORATION_LIMIT).exec();
 
   const unreadRows = await Conversation.find({ creatorId: user._id, collaborationId: { $in: docs.map((doc) => doc._id) } })
     .select("collaborationId unreadForCreator")
@@ -424,7 +429,10 @@ export async function getBrandCollaborationDashboard(): Promise<CollaborationDas
     filters.push({ brandProfileId: brandProfile._id });
   }
 
-  const docs = await BrandInquiry.find({ $or: filters }).sort({ updatedAt: -1, createdAt: -1 }).limit(100).exec();
+  // Dashboard cards are a deliberately bounded recent-activity preview; the
+  // complete dataset is available from the paginated collaboration history.
+  const DASHBOARD_RECENT_COLLABORATION_LIMIT = 100;
+  const docs = await BrandInquiry.find({ $or: filters }).sort({ updatedAt: -1, createdAt: -1 }).limit(DASHBOARD_RECENT_COLLABORATION_LIMIT).exec();
 
   const unreadRows = await Conversation.find({ brandId: user._id, collaborationId: { $in: docs.map((doc) => doc._id) } })
     .select("collaborationId unreadForBrand")
@@ -444,6 +452,65 @@ export async function getBrandCollaborationDashboard(): Promise<CollaborationDas
   };
 }
 
+export type CollaborationHistoryPage = {
+  user: CollaborationDashboardData["user"];
+  records: PaginatedResult<BrandInquiryData>;
+  counts: { active: number; completed: number; declined: number };
+};
+
+export async function getCurrentCollaborationHistoryPage(filters: {
+  page?: number;
+  limit?: number;
+  status?: "active" | "completed" | "declined" | "all";
+  search?: string;
+  sort?: "newest" | "oldest";
+}): Promise<CollaborationHistoryPage> {
+  const user = await getCurrentUserRecord();
+  const empty = pageResult<BrandInquiryData>([], filters, 0);
+  if (!user || (user.role !== "creator" && user.role !== "brand")) {
+    return { user: null, records: empty, counts: { active: 0, completed: 0, declined: 0 } };
+  }
+  const profile =
+    user.role === "creator"
+      ? await CreatorProfile.findOne({ userId: user._id }).select("_id").lean()
+      : await BrandProfile.findOne({ userId: user._id }).select("_id").lean();
+  const ownership =
+    user.role === "creator"
+      ? [{ creatorUsername: user.username }, { creatorUserId: user._id }, ...(profile ? [{ creatorProfileId: profile._id }] : [])]
+      : [{ createdByClerkId: user.clerkId }, { brandUserId: user._id }, ...(profile ? [{ brandProfileId: profile._id }] : [])];
+  const active = ["NEW", "PENDING_CREATOR_RESPONSE", "NEGOTIATING", "ACCEPTED", "IN_PROGRESS", "PROOF_SUBMITTED", "REVISION_REQUESTED", "APPROVED"];
+  const statusValues = filters.status === "completed" ? ["COMPLETED"] : filters.status === "declined" ? ["DECLINED", "CANCELLED"] : filters.status === "active" ? active : null;
+  const search = filters.search?.trim();
+  const escaped = search?.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const query = {
+    $and: [
+      { $or: ownership },
+      ...(statusValues ? [{ status: { $in: statusValues } }] : []),
+      ...(escaped
+        ? [{ $or: [{ companyName: { $regex: escaped, $options: "i" } }, { creatorUsername: { $regex: escaped, $options: "i" } }, { campaignGoal: { $regex: escaped, $options: "i" } }] }]
+        : []),
+    ],
+  };
+  const total = await BrandInquiry.countDocuments(query as never);
+  const normalized = normalizePageRequest(filters, total);
+  const direction = filters.sort === "oldest" ? 1 : -1;
+  const docs = await BrandInquiry.find(query as never)
+    .sort({ createdAt: direction, _id: direction })
+    .skip(normalized.skip)
+    .limit(normalized.limit)
+    .exec();
+  const [activeCount, completedCount, declinedCount] = await Promise.all([
+    BrandInquiry.countDocuments({ $and: [{ $or: ownership }, { status: { $in: active } }] } as never),
+    BrandInquiry.countDocuments({ $and: [{ $or: ownership }, { status: "COMPLETED" }] } as never),
+    BrandInquiry.countDocuments({ $and: [{ $or: ownership }, { status: { $in: ["DECLINED", "CANCELLED"] } }] } as never),
+  ]);
+  return {
+    user: { id: user._id.toString(), username: user.username, name: user.name, role: user.role },
+    records: pageResult(docs.map((doc) => mapCollaboration(doc as unknown as CollaborationDocument)), filters, total),
+    counts: { active: activeCount, completed: completedCount, declined: declinedCount },
+  };
+}
+
 export async function getCreatorCollaborationHistorySummary(username: string): Promise<CollaborationHistorySummaryData> {
   const creatorUsername = username.trim().toLowerCase();
   if (!hasMongoUri() || !creatorUsername) return { active: 0, completed: 0, declined: 0 };
@@ -456,9 +523,9 @@ export async function getCreatorCollaborationHistorySummary(username: string): P
     await connectDB();
     const baseFilter = { creatorUsername };
     [active, completed, declined] = await Promise.all([
-      BrandInquiry.countDocuments({ ...baseFilter, status: { $in: ACTIVE_HISTORY_QUERY_STATUSES } }).exec(),
-      BrandInquiry.countDocuments({ ...baseFilter, status: { $in: COMPLETED_HISTORY_QUERY_STATUSES } }).exec(),
-      BrandInquiry.countDocuments({ ...baseFilter, status: { $in: DECLINED_HISTORY_QUERY_STATUSES } }).exec(),
+      BrandInquiry.countDocuments({ ...baseFilter, status: { $in: ACTIVE_HISTORY_QUERY_STATUSES } }).maxTimeMS(MONGO_QUERY_TIMEOUT_MS).exec(),
+      BrandInquiry.countDocuments({ ...baseFilter, status: { $in: COMPLETED_HISTORY_QUERY_STATUSES } }).maxTimeMS(MONGO_QUERY_TIMEOUT_MS).exec(),
+      BrandInquiry.countDocuments({ ...baseFilter, status: { $in: DECLINED_HISTORY_QUERY_STATUSES } }).maxTimeMS(MONGO_QUERY_TIMEOUT_MS).exec(),
     ]);
   } catch (error) {
     console.warn("Creator collaboration history unavailable; using public fallback counts.", error);

@@ -19,7 +19,27 @@ function matchesPattern(value: string, pattern: ErrorPattern): boolean {
 }
 
 function isHarmlessAbort(request: Request, reason: string): boolean {
-  return reason.includes('ERR_ABORTED') && ['document', 'image'].includes(request.resourceType());
+  if (!reason.includes('ERR_ABORTED')) return false;
+  if (['document', 'image'].includes(request.resourceType())) return true;
+  try {
+    const url = new URL(request.url());
+    return (
+      request.resourceType() === 'fetch' &&
+      (
+        (url.hostname.endsWith('.clerk.accounts.dev') &&
+          (url.pathname === '/v1/client' || url.pathname === '/v1/environment')) ||
+        // Next.js cancels speculative RSC prefetches when a page/context closes
+        // or a responsive check changes navigation. The document request and
+        // any real 5xx response remain monitored.
+        url.searchParams.has('_rsc') ||
+        // The admin notification badge refresh is intentionally cancelled
+        // when its shell unmounts during route/context teardown.
+        (url.pathname === '/api/notifications' && url.searchParams.get('limit') === '10')
+      )
+    );
+  } catch {
+    return false;
+  }
 }
 
 export function monitorNetwork(page: Page, options: NetworkMonitorOptions = {}) {

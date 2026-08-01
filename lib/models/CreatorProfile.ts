@@ -68,6 +68,16 @@ export interface ICreatorProfile extends Document {
   bankAccountNumber?: string;
   ifsc?: string;
   preferredPaymentNote?: string;
+  paymentDetails?: {
+    preferredMethod: "upi" | "bank";
+    upiId?: string;
+    accountHolderName?: string;
+    bankName?: string;
+    accountNumber?: string;
+    ifscCode?: string;
+    paymentNote?: string;
+    updatedAt?: Date;
+  };
   profileViews: number;
   completedCampaigns: number;
   totalDeals: number;
@@ -139,12 +149,22 @@ const CreatorProfileSchema = new Schema<ICreatorProfile>(
       default: "open_to_deals",
       index: true,
     },
-    upiId: { type: String, trim: true, maxlength: 120, default: "" },
+    upiId: { type: String, trim: true, maxlength: 120, default: "", select: false },
     paypalEmail: { type: String, trim: true, lowercase: true, maxlength: 160, default: "" },
     bankAccountName: { type: String, trim: true, maxlength: 120, default: "" },
-    bankAccountNumber: { type: String, trim: true, maxlength: 40, default: "" },
+    bankAccountNumber: { type: String, trim: true, maxlength: 40, default: "", select: false },
     ifsc: { type: String, trim: true, uppercase: true, maxlength: 20, default: "" },
     preferredPaymentNote: { type: String, trim: true, maxlength: 500, default: "" },
+    paymentDetails: {
+      preferredMethod: { type: String, enum: ["upi", "bank"], default: "upi" },
+      upiId: { type: String, trim: true, maxlength: 120, default: "", select: false },
+      accountHolderName: { type: String, trim: true, maxlength: 120, default: "" },
+      bankName: { type: String, trim: true, maxlength: 120, default: "" },
+      accountNumber: { type: String, trim: true, maxlength: 34, default: "", select: false },
+      ifscCode: { type: String, trim: true, uppercase: true, maxlength: 11, default: "" },
+      paymentNote: { type: String, trim: true, maxlength: 500, default: "" },
+      updatedAt: { type: Date, default: null },
+    },
     profileViews: { type: Number, default: 0, min: 0 },
     completedCampaigns: { type: Number, default: 0, min: 0 },
     totalDeals: { type: Number, default: 0, min: 0 },
@@ -160,6 +180,7 @@ CreatorProfileSchema.index(
   },
 );
 CreatorProfileSchema.index({ verificationStatus: 1, availabilityStatus: 1, createdAt: -1 });
+CreatorProfileSchema.index({ verificationStatus: 1, updatedAt: -1, _id: -1 });
 CreatorProfileSchema.index({ country: 1, languages: 1 });
 CreatorProfileSchema.index({ niche: 1, availabilityStatus: 1 });
 CreatorProfileSchema.index({ verificationPlatform: 1 });

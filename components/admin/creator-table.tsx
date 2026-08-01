@@ -1,12 +1,11 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import Link from "next/link";
-import { BadgeCheck, Ban, ExternalLink, EyeOff, Loader2, RotateCcw, XCircle } from "lucide-react";
+import { BadgeCheck, Ban, ChevronDown, ExternalLink, EyeOff, Loader2, MoreHorizontal, RotateCcw, XCircle } from "lucide-react";
 
 import { Badge } from "@/components/shared/badge";
 import { InitialsAvatar } from "@/components/shared/initials-avatar";
-import { AdminPagination, useAdminPagination } from "@/components/admin/admin-pagination";
 import { formatDate } from "@/lib/format-date";
 import { type AdminCreatorData } from "@/lib/types";
 
@@ -15,15 +14,6 @@ type CreatorTableProps = {
 };
 
 type CreatorAction = "approve_verification" | "reject_verification" | "hide_profile" | "suspend" | "restore";
-type CreatorFilter = "all" | "verified" | "pending" | "suspended";
-
-const filters: { value: CreatorFilter; label: string }[] = [
-  { value: "all", label: "All" },
-  { value: "verified", label: "Verified" },
-  { value: "pending", label: "Pending" },
-  { value: "suspended", label: "Suspended" },
-];
-
 function dateLabel(value?: string) {
   return formatDate(value);
 }
@@ -34,35 +24,30 @@ function verificationTone(status: AdminCreatorData["verificationStatus"]) {
   return "neutral";
 }
 
-function isVerifiedStatus(status: AdminCreatorData["verificationStatus"]) {
-  return verificationTone(status) === "green";
-}
-
 function accountTone(status: AdminCreatorData["accountStatus"]) {
   if (status === "active") return "green";
   if (status === "suspended") return "yellow";
   return "neutral";
 }
 
-function matchesFilter(creator: AdminCreatorData, filter: CreatorFilter) {
-  if (filter === "verified") return verificationTone(creator.verificationStatus) === "green";
-  if (filter === "pending") return verificationTone(creator.verificationStatus) === "yellow";
-  if (filter === "suspended") return creator.accountStatus === "suspended";
-  return true;
-}
-
 export function CreatorTable({ creators }: CreatorTableProps) {
   const [rows, setRows] = useState(creators);
-  const [filter, setFilter] = useState<CreatorFilter>("all");
   const [savingKey, setSavingKey] = useState("");
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
-  const filteredRows = useMemo(() => rows.filter((creator) => matchesFilter(creator, filter)), [rows, filter]);
-  const pagination = useAdminPagination(filteredRows);
 
   async function updateCreator(creator: AdminCreatorData, action: CreatorAction) {
     setError("");
     setSuccess("");
+    const destructiveLabel =
+      action === "reject_verification"
+        ? "reject verification for"
+        : action === "hide_profile"
+          ? "hide the profile for"
+          : action === "suspend"
+            ? "suspend the account for"
+            : "";
+    if (destructiveLabel && !window.confirm(`Are you sure you want to ${destructiveLabel} ${creator.name}?`)) return;
     const note =
       action === "reject_verification"
         ? window.prompt("Rejection reason")?.trim()
@@ -115,14 +100,11 @@ export function CreatorTable({ creators }: CreatorTableProps) {
   }
 
   function ActionButtons({ creator }: { creator: AdminCreatorData }) {
-    const isVerified = isVerifiedStatus(creator.verificationStatus);
     const isRejected = creator.verificationStatus === "rejected";
     const isHidden = creator.accountStatus === "hidden";
     const isSuspended = creator.accountStatus === "suspended";
+    const isPending = verificationTone(creator.verificationStatus) === "yellow";
     const actions: { action: CreatorAction; label: string; icon: typeof BadgeCheck; className: string }[] = [
-      ...(!isVerified
-        ? [{ action: "approve_verification" as const, label: "Approve Verification", icon: BadgeCheck, className: "border-emerald-800 text-emerald-200" }]
-        : []),
       ...(!isRejected
         ? [{ action: "reject_verification" as const, label: "Reject Verification", icon: XCircle, className: "border-red-900 text-red-200" }]
         : []),
@@ -138,7 +120,7 @@ export function CreatorTable({ creators }: CreatorTableProps) {
     ];
 
     return (
-      <div className="flex flex-wrap gap-2">
+      <div className="flex flex-nowrap items-start gap-2">
         <Link
           href={`/creators/${creator.username}`}
           className="bridge-action-button border-[var(--border)] text-[var(--text-secondary)]"
@@ -146,50 +128,63 @@ export function CreatorTable({ creators }: CreatorTableProps) {
           View
           <ExternalLink size={14} />
         </Link>
-        {isVerified ? (
-          <button type="button" disabled className="bridge-action-button border-emerald-800 text-emerald-200">
-            <BadgeCheck size={14} />
-            Verified
+        {isPending ? (
+          <button
+            type="button"
+            onClick={() => updateCreator(creator, "approve_verification")}
+            disabled={savingKey === `${creator.username}:approve_verification`}
+            className="bridge-action-button whitespace-nowrap border-emerald-800 text-emerald-200"
+          >
+            {savingKey === `${creator.username}:approve_verification` ? <Loader2 size={14} className="animate-spin" /> : <BadgeCheck size={14} />}
+            Approve
           </button>
         ) : null}
-        {actions.map(({ action, label, icon: Icon, className }) => {
-          const key = `${creator.username}:${action}`;
-          return (
-            <button
-              key={action}
-              type="button"
-              onClick={() => updateCreator(creator, action)}
-              disabled={savingKey === key}
-              className={`bridge-action-button ${className}`}
+        {actions.length ? (
+          <details
+            className="group relative"
+            onKeyDown={(event) => {
+              if (event.key !== "Escape") return;
+              const details = event.currentTarget;
+              details.open = false;
+              details.querySelector<HTMLElement>("summary")?.focus();
+            }}
+          >
+            <summary
+              aria-label={`More actions for ${creator.name}`}
+              className="bridge-action-button cursor-pointer list-none whitespace-nowrap border-[var(--border)] text-[var(--text-secondary)]"
             >
-              {savingKey === key ? <Loader2 size={14} className="animate-spin" /> : <Icon size={14} />}
-              {label}
-            </button>
-          );
-        })}
+              <MoreHorizontal size={14} />
+              More
+              <ChevronDown size={12} className="group-open:rotate-180" />
+            </summary>
+            <div className="absolute right-0 z-30 mt-2 w-56 rounded-[8px] border border-[var(--border)] bg-[#15151f] p-2 shadow-2xl">
+              {actions.map(({ action, label, icon: Icon, className }) => {
+                const key = `${creator.username}:${action}`;
+                return (
+                  <button
+                    key={action}
+                    type="button"
+                    onClick={(event) => {
+                      event.currentTarget.closest("details")?.removeAttribute("open");
+                      void updateCreator(creator, action);
+                    }}
+                    disabled={savingKey === key}
+                    className={`focus-ring flex w-full items-center gap-2 rounded-[6px] px-3 py-2 text-left text-xs font-semibold hover:bg-white/5 ${className}`}
+                  >
+                    {savingKey === key ? <Loader2 size={14} className="animate-spin" /> : <Icon size={14} />}
+                    {label}
+                  </button>
+                );
+              })}
+            </div>
+          </details>
+        ) : null}
       </div>
     );
   }
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap gap-2">
-        {filters.map((item) => (
-          <button
-            key={item.value}
-            type="button"
-            onClick={() => setFilter(item.value)}
-            className={`focus-ring rounded-[8px] border px-3 py-2 text-xs font-semibold ${
-              filter === item.value
-                ? "border-violet-500 bg-violet-950/50 text-violet-100"
-                : "border-[var(--border)] text-[var(--text-secondary)]"
-            }`}
-          >
-            {item.label}
-          </button>
-        ))}
-      </div>
-
       <div className="bridge-card overflow-hidden">
         {error ? (
           <div role="alert" className="border-b border-red-900 bg-red-950/40 px-4 py-3 text-sm text-red-200">
@@ -201,12 +196,6 @@ export function CreatorTable({ creators }: CreatorTableProps) {
             {success}
           </div>
         ) : null}
-        {filteredRows.length === 0 ? (
-          <div className="border-b border-[var(--border)] px-4 py-6 text-sm text-[var(--text-secondary)]">
-            No creators match this filter.
-          </div>
-        ) : null}
-
         <div className="hidden overflow-x-auto md:block">
           <table className="w-full min-w-[1080px] text-left text-sm">
             <thead className="border-b border-[var(--border)] text-xs uppercase text-[var(--text-secondary)]">
@@ -222,22 +211,24 @@ export function CreatorTable({ creators }: CreatorTableProps) {
               </tr>
             </thead>
             <tbody>
-              {pagination.pageItems.map((creator) => (
-                <tr key={creator.userId} className="border-b border-[var(--border)] align-top last:border-b-0">
-                  <td className="px-4 py-4">
+              {rows.map((creator) => (
+                <tr key={creator.userId} className="h-auto border-b border-[var(--border)] align-middle last:border-b-0">
+                  <td className="px-4 py-3">
                     <Avatar creator={creator} />
                   </td>
-                  <td className="px-4 py-4 font-semibold text-[var(--text-primary)]">{creator.name}</td>
-                  <td className="px-4 py-4 text-[var(--text-secondary)]">@{creator.username}</td>
-                  <td className="px-4 py-4 text-[var(--text-secondary)]">{creator.email}</td>
-                  <td className="px-4 py-4">
+                  <td className="px-4 py-3 font-semibold text-[var(--text-primary)]">{creator.name}</td>
+                  <td className="px-4 py-3 text-[var(--text-secondary)]">@{creator.username}</td>
+                  <td className="max-w-[220px] px-4 py-3 text-[var(--text-secondary)]">
+                    <span className="block truncate" title={creator.email} aria-label={`Email ${creator.email}`}>{creator.email}</span>
+                  </td>
+                  <td className="px-4 py-3">
                     <Badge tone={verificationTone(creator.verificationStatus)}>{creator.verificationStatus.replaceAll("_", " ")}</Badge>
                   </td>
-                  <td className="px-4 py-4">
+                  <td className="px-4 py-3">
                     <Badge tone={accountTone(creator.accountStatus)}>{creator.accountStatus}</Badge>
                   </td>
-                  <td className="px-4 py-4 text-[var(--text-secondary)]">{dateLabel(creator.joinedDate)}</td>
-                  <td className="px-4 py-4">
+                  <td className="px-4 py-3 text-[var(--text-secondary)]">{dateLabel(creator.joinedDate)}</td>
+                  <td className="px-4 py-3">
                     <ActionButtons creator={creator} />
                   </td>
                 </tr>
@@ -247,14 +238,14 @@ export function CreatorTable({ creators }: CreatorTableProps) {
         </div>
 
         <div className="divide-y divide-[var(--border)] md:hidden">
-          {pagination.pageItems.map((creator) => (
+          {rows.map((creator) => (
             <article key={creator.userId} className="p-4">
               <div className="flex items-start gap-3">
                 <Avatar creator={creator} />
                 <div className="min-w-0">
                   <h2 className="truncate font-semibold text-[var(--text-primary)]">{creator.name}</h2>
                   <p className="text-xs text-[var(--text-secondary)]">@{creator.username}</p>
-                  <p className="mt-1 break-all text-xs text-[var(--text-secondary)]">{creator.email}</p>
+                  <p className="mt-1 text-xs text-[var(--text-secondary)] [overflow-wrap:anywhere]">{creator.email}</p>
                 </div>
               </div>
               <div className="mt-4 flex flex-wrap gap-2">
@@ -268,13 +259,6 @@ export function CreatorTable({ creators }: CreatorTableProps) {
             </article>
           ))}
         </div>
-        <AdminPagination
-          page={pagination.page}
-          pageCount={pagination.pageCount}
-          pageSize={pagination.pageSize}
-          total={pagination.total}
-          onPageChange={pagination.setPage}
-        />
       </div>
     </div>
   );

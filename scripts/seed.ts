@@ -77,11 +77,15 @@ async function getOrCreateClerkUser(
 async function seed() {
   loadLocalEnv();
   if (!process.env.MONGODB_URI) throw new Error("Add MONGODB_URI to .env.local before running npm run seed.");
-  if (process.env.NODE_ENV === "production" && process.env.SEED_ALLOW_PRODUCTION !== "true") {
-    throw new Error("Production seeding is disabled. Set SEED_ALLOW_PRODUCTION=true only after confirming the target database.");
-  }
+  if (process.env.NODE_ENV === "production") throw new Error("Production seeding is permanently disabled.");
   if (!process.env.CLERK_SECRET_KEY) {
     throw new Error("Add CLERK_SECRET_KEY to .env.local before running npm run seed.");
+  }
+  if (!process.env.CLERK_SECRET_KEY.startsWith("sk_test_")) {
+    throw new Error("Seeded Clerk users require an isolated Clerk development instance (sk_test_).");
+  }
+  if (process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY && !process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY.startsWith("pk_test_")) {
+    throw new Error("Seeded Clerk users cannot be used with a production publishable key.");
   }
   if (!process.env.SEED_TEST_PASSWORD) {
     throw new Error("Add SEED_TEST_PASSWORD to the environment before running npm run seed.");
@@ -97,6 +101,13 @@ async function seed() {
   }
 
   await connectDB();
+  // Seeded workflow records are intentionally recreated so prior QA actions cannot
+  // make subsequent runs non-deterministic. The prefix prevents touching non-seed data.
+  await Promise.all([
+    BrandInquiry.deleteMany({ seedKey: { $regex: `^${SEED_PREFIX}:collaboration:` } }),
+    InAppNotification.deleteMany({ seedKey: { $regex: `^${SEED_PREFIX}:notification:` } }),
+    Review.deleteMany({ seedKey: { $regex: `^${SEED_PREFIX}:review:` } }),
+  ]);
   const users = new Map<string, InstanceType<typeof User>>();
 
   for (const account of accounts) {
@@ -137,8 +148,7 @@ async function seed() {
     await BrandProfile.updateOne(
       { userId: user._id },
       {
-        $setOnInsert: { userId: user._id, companyName: brand.companyName, contactName: brand.contactName, contactRole: "Creator Partnerships Manager", website: brand.website, industry: brand.industry, companySize: brand.size, country: "India", notes: "Seeded brand profile for campaign workflow demonstrations.", verificationStatus: "verified", verificationMethod: "manual", verificationNote: "Demo profile verified by Branzzo." },
-        $set: { contactEmail: user.email },
+        $set: { userId: user._id, companyName: brand.companyName, contactName: brand.contactName, contactRole: "Creator Partnerships Manager", contactEmail: user.email, website: brand.website, industry: brand.industry, companySize: brand.size, country: "India", notes: "Seeded brand profile for campaign workflow demonstrations.", verificationStatus: "verified", verificationMethod: "manual", verificationNote: "Demo profile verified by Branzzo." },
       },
       { upsert: true, runValidators: true },
     );
@@ -148,7 +158,7 @@ async function seed() {
     const user = users.get(creator.username)!;
     await CreatorProfile.updateOne(
       { userId: user._id },
-      { $setOnInsert: { userId: user._id, bio: creator.bio, niche: creator.niche, country: creator.country, languages: ["English", "Hindi"], youtubeUrl: `https://youtube.com/@${creator.username}`, instagramUrl: `https://instagram.com/${creator.username}`, subscribers: creator.followers, instagramFollowers: Math.round(creator.followers * 0.72), avgViews: creator.avgViews, claimedSubscribers: creator.followers, claimedAverageViews: creator.avgViews, claimedEngagementRate: creator.engagement, verificationStatus: "pending", statsVerificationStatus: "pending", verificationPlatform: creator.platform, verificationProfileUrl: creator.platform === "youtube" ? `https://youtube.com/@${creator.username}` : `https://instagram.com/${creator.username}`, verificationSubmittedNote: "Please review my public profile and audience metrics.", verificationSubmittedAt: new Date(BASE_DATE.getTime() - 2 * DAY), sponsorshipRate: creator.rate, rateNegotiable: true, rateType: "per_campaign", isOpenToDeals: true, availabilityStatus: "open_to_deals", pastBrands: ["Urban Company", "Myntra"], sampleWorkUrls: [`https://example.com/portfolio/${creator.username}`], profileViews: Math.round(creator.followers / 18), completedCampaigns: 3, totalDeals: 7 } },
+      { $set: { userId: user._id, bio: creator.bio, niche: creator.niche, country: creator.country, languages: ["English", "Hindi"], youtubeUrl: `https://youtube.com/@${creator.username}`, instagramUrl: `https://instagram.com/${creator.username}`, subscribers: creator.followers, instagramFollowers: Math.round(creator.followers * 0.72), avgViews: creator.avgViews, claimedSubscribers: creator.followers, claimedAverageViews: creator.avgViews, claimedEngagementRate: creator.engagement, verificationStatus: "pending", statsVerificationStatus: "pending", verificationPlatform: creator.platform, verificationProfileUrl: creator.platform === "youtube" ? `https://youtube.com/@${creator.username}` : `https://instagram.com/${creator.username}`, verificationSubmittedNote: "Please review my public profile and audience metrics.", verificationSubmittedAt: new Date(BASE_DATE.getTime() - 2 * DAY), sponsorshipRate: creator.rate, rateNegotiable: true, rateType: "per_campaign", isOpenToDeals: true, availabilityStatus: "open_to_deals", pastBrands: ["Urban Company", "Myntra"], sampleWorkUrls: [`https://example.com/portfolio/${creator.username}`], profileViews: Math.round(creator.followers / 18), completedCampaigns: 3, totalDeals: 7 } },
       { upsert: true, runValidators: true },
     );
   }
@@ -169,16 +179,17 @@ async function seed() {
     const creator = creatorData[index % creatorData.length];
     const brandUser = users.get(brandName)!;
     const creatorUser = users.get(creator.username)!;
-    const status = index < 10 ? "ACCEPTED" : index < 15 ? "PENDING_CREATOR_RESPONSE" : "COMPLETED";
+    const status = index < 10 ? "ACCEPTED" : index === 10 ? "CANCELLED" : index < 15 ? "PENDING_CREATOR_RESPONSE" : "COMPLETED";
     const amount = 45000 + index * 2500;
     const seedKey = `${SEED_PREFIX}:collaboration:${number}`;
+    const accepted = status === "ACCEPTED" || status === "COMPLETED";
     const statusHistory = [{ event: "CREATED", status: "NEW", actor: "brand", note: "Campaign request created.", createdAt: new Date(BASE_DATE.getTime() + index * DAY) }];
     if (status === "ACCEPTED" || status === "COMPLETED") statusHistory.push({ event: "ACCEPTED", status: "ACCEPTED", actor: "creator", note: "Creator accepted the collaboration.", createdAt: new Date(BASE_DATE.getTime() + index * DAY + DAY / 2) });
     if (status === "COMPLETED") statusHistory.push({ event: "COMPLETED", status: "COMPLETED", actor: "brand", note: "Deliverables approved and campaign completed.", createdAt: new Date(BASE_DATE.getTime() + index * DAY + DAY) });
     const collaboration = await BrandInquiry.findOneAndUpdate(
       { seedKey },
       {
-        $setOnInsert: { seedKey, brandUserId: brandUser._id, brandProfileId: brandProfiles.get(brandName)!._id, creatorUserId: creatorUser._id, creatorProfileId: creatorProfiles.get(creator.username)!._id, companyName: brandName === "nike" ? "Nike India" : "Samsung India", contactName: brandName === "nike" ? "Aarav Sharma" : "Isha Menon", website: brandName === "nike" ? "https://www.nike.com/in" : "https://www.samsung.com/in", campaignGoal: `${["New product launch", "Seasonal awareness", "Community education", "Performance campaign"][index % 4]} for an engaged ${creator.niche[0].toLowerCase()} audience.`, deliverables: ["One dedicated video", "Two short-form posts", "Usage analytics report"], targetNiches: creator.niche, targetPlatforms: [creator.platform], budgetRange: `Rs. ${amount.toLocaleString("en-IN")} - Rs. ${(amount + 20000).toLocaleString("en-IN")}`, initialOfferAmount: amount, currentOfferAmount: amount, currency: "INR", isNegotiable: true, offerHistory: [{ actor: "brand", action: "offer_sent", amount, currency: "INR", note: "Initial campaign offer", createdAt: new Date(BASE_DATE.getTime() + index * DAY) }], timeline: "Delivery within 30 days of acceptance", message: "We value authentic creative direction and clear disclosure.", creatorUsername: creator.username, source: "creator_profile", status, statusHistory, creatorResponseAt: status === "PENDING_CREATOR_RESPONSE" ? null : new Date(BASE_DATE.getTime() + index * DAY + DAY / 2), firstCreatorViewedAt: status === "PENDING_CREATOR_RESPONSE" ? null : new Date(BASE_DATE.getTime() + index * DAY + DAY / 4), firstCreatorResponseAt: status === "PENDING_CREATOR_RESPONSE" ? null : new Date(BASE_DATE.getTime() + index * DAY + DAY / 2), acceptedAt: status === "PENDING_CREATOR_RESPONSE" ? null : new Date(BASE_DATE.getTime() + index * DAY + DAY / 2), completedAt: status === "COMPLETED" ? new Date(BASE_DATE.getTime() + index * DAY + DAY) : null, lastMeaningfulActivityAt: new Date(BASE_DATE.getTime() + index * DAY + (status === "COMPLETED" ? DAY : status === "ACCEPTED" ? DAY / 2 : 0)), closedAt: status === "COMPLETED" ? new Date(BASE_DATE.getTime() + index * DAY + DAY) : null, paymentStatus: status === "COMPLETED" ? "payment_received" : "payment_pending" },
+        $setOnInsert: { seedKey, brandUserId: brandUser._id, brandProfileId: brandProfiles.get(brandName)!._id, creatorUserId: creatorUser._id, creatorProfileId: creatorProfiles.get(creator.username)!._id, companyName: brandName === "nike" ? "Nike India" : "Samsung India", contactName: brandName === "nike" ? "Aarav Sharma" : "Isha Menon", website: brandName === "nike" ? "https://www.nike.com/in" : "https://www.samsung.com/in", campaignGoal: `${["New product launch", "Seasonal awareness", "Community education", "Performance campaign"][index % 4]} for an engaged ${creator.niche[0].toLowerCase()} audience.`, deliverables: ["One dedicated video", "Two short-form posts", "Usage analytics report"], targetNiches: creator.niche, targetPlatforms: [creator.platform], budgetRange: `Rs. ${amount.toLocaleString("en-IN")} - Rs. ${(amount + 20000).toLocaleString("en-IN")}`, initialOfferAmount: amount, currentOfferAmount: amount, currency: "INR", isNegotiable: true, offerHistory: [{ actor: "brand", action: "offer_sent", amount, currency: "INR", note: "Initial campaign offer", createdAt: new Date(BASE_DATE.getTime() + index * DAY) }], timeline: "Delivery within 30 days of acceptance", message: "We value authentic creative direction and clear disclosure.", creatorUsername: creator.username, source: "creator_profile", status, statusHistory, creatorResponseAt: accepted ? new Date(BASE_DATE.getTime() + index * DAY + DAY / 2) : null, firstCreatorViewedAt: accepted ? new Date(BASE_DATE.getTime() + index * DAY + DAY / 4) : null, firstCreatorResponseAt: accepted ? new Date(BASE_DATE.getTime() + index * DAY + DAY / 2) : null, acceptedAt: accepted ? new Date(BASE_DATE.getTime() + index * DAY + DAY / 2) : null, completedAt: status === "COMPLETED" ? new Date(BASE_DATE.getTime() + index * DAY + DAY) : null, lastMeaningfulActivityAt: new Date(BASE_DATE.getTime() + index * DAY + (status === "COMPLETED" ? DAY : status === "ACCEPTED" ? DAY / 2 : 0)), closedAt: status === "COMPLETED" || status === "CANCELLED" ? new Date(BASE_DATE.getTime() + index * DAY) : null, paymentStatus: status === "COMPLETED" ? "payment_received" : "payment_pending" },
         $set: { email: brandUser.email, createdByClerkId: brandUser.clerkId },
       },
       { upsert: true, new: true, runValidators: true },
@@ -231,10 +242,10 @@ async function seed() {
     InAppNotification.countDocuments({ seedKey: { $regex: `^${SEED_PREFIX}:notification:` } }),
     Review.countDocuments({ seedKey: { $regex: `^${SEED_PREFIX}:review:` } }),
   ]);
-  if (collaborationCount !== 20 || acceptedCount !== 10 || pendingCount !== 5 || verificationCount !== 5) {
+  if (collaborationCount !== 20 || acceptedCount !== 10 || pendingCount !== 4 || verificationCount !== 5) {
     throw new Error(`Seed verification failed: collaborations=${collaborationCount}, accepted=${acceptedCount}, pending=${pendingCount}, verifications=${verificationCount}`);
   }
-  console.log(`Seed complete: ${accounts.length} MongoDB users synced to Clerk (${clerkUsersCreated} Clerk users created, ${accounts.length - clerkUsersCreated} reused), 20 collaborations (10 accepted, 5 pending, 5 completed), 5 verification requests, ${notificationCount} notifications, and ${reviewCount} reviews.`);
+  console.log(`Seed complete: ${accounts.length} MongoDB users synced to Clerk (${clerkUsersCreated} Clerk users created, ${accounts.length - clerkUsersCreated} reused), 20 collaborations (10 accepted, 4 pending, 1 cancelled, 5 completed), 5 verification requests, ${notificationCount} notifications, and ${reviewCount} reviews.`);
 }
 
 seed()

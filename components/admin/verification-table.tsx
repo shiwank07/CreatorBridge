@@ -38,7 +38,7 @@ export function VerificationTable() {
     setLoading(true);
     setMessage(null);
     try {
-      const params = new URLSearchParams({ status, q: search, page: String(page), pageSize: "20" });
+      const params = new URLSearchParams({ status, q: search, page: String(page), pageSize: "30" });
       const response = await fetch(`/api/admin/verifications?${params}`, { cache: "no-store" });
       const result = await response.json();
       if (!response.ok) throw new Error(result.error || "Could not load verification requests.");
@@ -139,14 +139,14 @@ export function VerificationTable() {
         </div>
       )}
 
-      <div className="flex items-center justify-between gap-3 text-sm">
+      {!loading && !message?.text ? <nav aria-label="Verification pagination" className="flex items-center justify-between gap-3 text-sm">
         <span className="text-[var(--text-secondary)]">{total} request{total === 1 ? "" : "s"}</span>
         <div className="flex items-center gap-2">
           <button type="button" disabled={page <= 1} onClick={() => setPage((value) => value - 1)} className="bridge-button-secondary px-3 py-2 text-xs">Previous</button>
           <span>Page {page} of {pages}</span>
           <button type="button" disabled={page >= pages} onClick={() => setPage((value) => value + 1)} className="bridge-button-secondary px-3 py-2 text-xs">Next</button>
         </div>
-      </div>
+      </nav> : null}
     </section>
   );
 }

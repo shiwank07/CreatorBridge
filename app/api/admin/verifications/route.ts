@@ -15,7 +15,7 @@ const listSchema = z.object({
   status: z.enum(["pending", "approved", "rejected"]).default("pending"),
   q: z.string().trim().max(100).default(""),
   page: z.coerce.number().int().min(1).default(1),
-  pageSize: z.coerce.number().int().min(1).max(50).default(20),
+  pageSize: z.coerce.number().int().min(1).max(50).default(30),
 });
 
 const updateSchema = z.object({
@@ -153,9 +153,9 @@ export async function PATCH(req: Request) {
     await User.updateOne({ _id: user._id }, { $set: { isVerified: approved } });
 
     if (approved) {
-      await notificationService.notifyVerificationApproved({ user, accountType: "creator", note: parsed.data.note, statusLabel: "Verified Creator" });
+      await notificationService.notifyVerificationApproved({ user, accountType: "creator", note: parsed.data.note, statusLabel: "Verified Creator", eventId: request._id.toString() });
     } else {
-      await notificationService.notifyVerificationRejected({ user, accountType: "creator", note: parsed.data.note });
+      await notificationService.notifyVerificationRejected({ user, accountType: "creator", note: parsed.data.note, eventId: request._id.toString() });
     }
     return NextResponse.json({ ok: true, status: approved ? "approved" : "rejected" });
   } catch (error) {

@@ -2,11 +2,9 @@ import Link from "next/link";
 import { AlertTriangle, BadgeCheck, FileSearch } from "lucide-react";
 
 import { CONTACT_EMAILS, LEGAL_LAST_UPDATED } from "@/lib/constants";
+import { publicPageMetadata } from "@/lib/seo";
 
-export const metadata = {
-  title: "Trust & Safety",
-  description: "How Branzzo approaches verification, reporting, fraud prevention, and platform safety.",
-};
+export const metadata = publicPageMetadata("Trust & Safety", "How Branzzo approaches creator and brand verification, reporting, fraud prevention, and safe collaborations.", "/trust-safety");
 
 const trustLayers = [
   {

@@ -1,13 +1,13 @@
 import { NextResponse } from "next/server";
 
-import { hasMongoUri, verifyDBConnection } from "@/lib/db";
+import { classifyMongoError, hasMongoUri, verifyDBConnection } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
 
 export async function GET() {
   if (!hasMongoUri()) {
     return NextResponse.json(
-      { ok: false, status: "unavailable" },
+      { ok: false, status: "unavailable", reason: "configuration" },
       { status: 503, headers: { "Cache-Control": "no-store" } },
     );
   }
@@ -20,9 +20,12 @@ export async function GET() {
       { ok: true, status: "ready", latencyMs: Date.now() - startedAt },
       { headers: { "Cache-Control": "no-store" } },
     );
-  } catch {
+  } catch (error) {
+    const kind = classifyMongoError(error);
     return NextResponse.json(
-      { ok: false, status: "unavailable" },
+      kind === "connecting"
+        ? { ok: false, status: "connecting", retryable: true }
+        : { ok: false, status: "unavailable", reason: kind },
       { status: 503, headers: { "Cache-Control": "no-store" } },
     );
   }

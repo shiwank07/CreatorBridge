@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 import { Check, Loader2, UserPlus } from "lucide-react";
 
 import { Badge } from "@/components/shared/badge";
+import { ProfileImageUpload } from "@/components/shared/profile-image-upload";
+import { submitOnboardingWithBusyRetry } from "@/lib/onboarding-request";
 import { NICHES, PLATFORMS, RATE_TYPES } from "@/lib/constants";
 import { splitList } from "@/lib/slug";
 
@@ -180,13 +182,7 @@ export function CreatorOnboardingForm({
     };
 
     try {
-      const response = await fetch("/api/onboarding/creator", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-
-      const result = (await response.json().catch(() => ({}))) as { error?: string };
+      const { response, result } = await submitOnboardingWithBusyRetry("/api/onboarding/creator", payload);
 
       if (!response.ok) {
         setError(result.error ?? "Could not save your creator profile.");
@@ -233,14 +229,12 @@ export function CreatorOnboardingForm({
               required
             />
           </label>
-          <label className="lg:col-span-2">
-            <span className="bridge-label">Profile photo image URL</span>
-            {/* TODO: Replace URL-only profile photos with Cloudflare R2 or UploadThing uploads. Do not store image files in MongoDB. */}
-            <input value={form.avatar} onChange={(event) => setField("avatar", event.target.value)} className="bridge-input mt-2" placeholder="https://example.com/photo.jpg" />
-            <span className="mt-2 block text-xs leading-5 text-[var(--text-secondary)]">
-              Paste a public image URL for now. Direct image uploads are not configured for this MVP.
-            </span>
-          </label>
+          <ProfileImageUpload
+            accountType="creator"
+            name={form.name}
+            initialImageUrl={form.avatar}
+            onImageChange={(imageUrl) => setField("avatar", imageUrl)}
+          />
           <label className="lg:col-span-2">
             <span className="bridge-label">Bio</span>
             <textarea
@@ -379,43 +373,6 @@ export function CreatorOnboardingForm({
         </label>
       </section>
 
-      <section className="bridge-card p-5">
-        <h2 className="font-display text-xl font-bold">Private payment details</h2>
-        <p className="mt-2 text-sm leading-6 text-[var(--text-secondary)]">
-          These details stay private and are shown only to a brand after you accept their collaboration request.
-        </p>
-        <div className="mt-5 grid gap-4 lg:grid-cols-2">
-          <label>
-            <span className="bridge-label">UPI ID</span>
-            <input value={form.upiId} onChange={(event) => setField("upiId", event.target.value)} className="bridge-input mt-2" placeholder="name@bank" />
-          </label>
-          <label>
-            <span className="bridge-label">PayPal email</span>
-            <input type="email" value={form.paypalEmail} onChange={(event) => setField("paypalEmail", event.target.value)} className="bridge-input mt-2" placeholder="name@example.com" />
-          </label>
-          <label>
-            <span className="bridge-label">Bank account name</span>
-            <input value={form.bankAccountName} onChange={(event) => setField("bankAccountName", event.target.value)} className="bridge-input mt-2" />
-          </label>
-          <label>
-            <span className="bridge-label">Bank account number</span>
-            <input value={form.bankAccountNumber} onChange={(event) => setField("bankAccountNumber", event.target.value)} className="bridge-input mt-2" inputMode="numeric" />
-          </label>
-          <label>
-            <span className="bridge-label">IFSC</span>
-            <input value={form.ifsc} onChange={(event) => setField("ifsc", event.target.value.toUpperCase())} className="bridge-input mt-2" />
-          </label>
-          <label>
-            <span className="bridge-label">Preferred payment note</span>
-            <textarea
-              value={form.preferredPaymentNote}
-              onChange={(event) => setField("preferredPaymentNote", event.target.value)}
-              className="bridge-input mt-2 min-h-24"
-              placeholder="Example: 50% advance before production, balance after approval."
-            />
-          </label>
-        </div>
-      </section>
       </fieldset>
 
       <button

@@ -2,11 +2,9 @@ import { BriefcaseBusiness, Clock, LifeBuoy, Scale } from "lucide-react";
 
 import { ContactUsForm } from "@/components/forms/contact-us-form";
 import { CONTACT_EMAILS } from "@/lib/constants";
+import { publicPageMetadata } from "@/lib/seo";
 
-export const metadata = {
-  title: "Contact Us",
-  description: "Contact Branzzo support, partnerships, or legal.",
-};
+export const metadata = publicPageMetadata("Contact Us", "Contact Branzzo for marketplace support, brand partnerships, creator assistance, or legal questions.", "/contact");
 
 const contactRoutes = [
   {
@@ -17,13 +15,13 @@ const contactRoutes = [
   },
   {
     title: "Business partnerships",
-    email: CONTACT_EMAILS.partnerships,
+    email: CONTACT_EMAILS.support,
     description: "Brand partnerships, strategic collaborations, media inquiries, and commercial conversations.",
     icon: BriefcaseBusiness,
   },
   {
     title: "Legal contact",
-    email: CONTACT_EMAILS.legal,
+    email: CONTACT_EMAILS.support,
     description: "Legal notices, policy questions, intellectual property issues, and formal rights requests.",
     icon: Scale,
   },

@@ -4,12 +4,14 @@ import { NextResponse } from "next/server";
 import { handleRouteError, parseJsonBody } from "@/lib/api-errors";
 import { getClerkEmailVerificationState } from "@/lib/clerk-verification";
 import { connectDB, hasMongoUri } from "@/lib/db";
+import { sendCreatorWelcomeOnce } from "@/lib/email/welcome-emails";
 import { hasClerkKeys } from "@/lib/clerk-config";
 import { CreatorProfile } from "@/lib/models/CreatorProfile";
 import { User } from "@/lib/models/User";
 import { creatorOnboardingSchema } from "@/lib/validators/creator";
 import { isCreatorVerifiedStatus } from "@/lib/verification";
 import { normalizeYoutubeChannelKey } from "@/lib/verification-helpers";
+import { onboardingRoleFilter } from "@/lib/onboarding-role";
 
 function hasNumberChanged(previous?: number | null, next?: number | null) {
   return Number(previous ?? 0) !== Number(next ?? 0);
@@ -56,8 +58,10 @@ export async function POST(req: Request) {
       `${userId}@branzzo.local`;
     const emailVerified = Boolean(getClerkEmailVerificationState(clerkUser, email)?.verified);
 
-    const user = await User.findOneAndUpdate(
-      { clerkId: userId },
+    let user;
+    try {
+      user = await User.findOneAndUpdate(
+      onboardingRoleFilter(userId, "creator"),
       {
         $set: {
           email,
@@ -67,8 +71,8 @@ export async function POST(req: Request) {
           phoneNumber: parsed.data.phoneNumber,
           phoneVerified,
           phoneVerifiedAt,
-          // TODO: Add Cloudflare R2 or UploadThing upload support. Keep MongoDB storage to the image URL only.
-          avatar: parsed.data.avatar || existingUser?.avatar || clerkUser?.imageUrl || "",
+          // Clerk owns the image; MongoDB keeps only its current URL for public queries.
+          avatar: clerkUser?.imageUrl ?? parsed.data.avatar,
           role: "creator",
           onboardingComplete: true,
         },
@@ -80,7 +84,14 @@ export async function POST(req: Request) {
         },
       },
       { upsert: true, new: true },
-    );
+      );
+    } catch (error) {
+      if (typeof error === "object" && error && "code" in error && error.code === 11000) {
+        return NextResponse.json({ error: "This account already has a different completed role." }, { status: 403 });
+      }
+      throw error;
+    }
+    if (!user) return NextResponse.json({ error: "This account cannot complete creator onboarding." }, { status: 403 });
 
     const existingProfile = await CreatorProfile.findOne({ userId: user._id });
     const platformChanged = Boolean(
@@ -180,6 +191,13 @@ export async function POST(req: Request) {
     if (platformChanged) {
       await User.updateOne({ _id: user._id }, { $set: { isVerified: false } });
     }
+
+    await sendCreatorWelcomeOnce({
+      to: user.email,
+      firstName: user.name.split(/\s+/)[0],
+      userId: user._id.toString(),
+      idempotencyKey: `welcome:creator:${user._id}`,
+    }).catch(() => console.error("[email] Creator welcome delivery could not be recorded."));
 
     return NextResponse.json({
       ok: true,

@@ -3,41 +3,50 @@ import { ClerkProvider } from "@clerk/nextjs";
 
 import "@/app/globals.css";
 import { hasClerkKeys } from "@/lib/clerk-config";
+import { absoluteUrl, safeJsonLd, SITE_DESCRIPTION, SITE_NAME, SITE_TITLE, SITE_URL, SOCIAL_IMAGE } from "@/lib/seo";
+
+export const viewport = {
+  themeColor: "#05050d",
+  colorScheme: "dark",
+};
 
 export const metadata: Metadata = {
-  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL?.trim() || "https://branzzo.com"),
-  applicationName: "Branzzo",
-  title: {
-    default: "Branzzo | Where Brands Meet Creators",
-    template: "%s | Branzzo",
+  metadataBase: new URL(SITE_URL),
+  applicationName: SITE_NAME,
+  category: "business",
+  creator: SITE_NAME,
+  publisher: SITE_NAME,
+  title: { default: SITE_TITLE, template: "%s | Branzzo" },
+  description: SITE_DESCRIPTION,
+  alternates: { canonical: "/" },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: { index: true, follow: true, "max-image-preview": "large", "max-snippet": -1, "max-video-preview": -1 },
   },
-  description:
-    "India's creator economy marketplace for discovering creators, building creator profiles, and collecting collaboration requests.",
   icons: {
     icon: [
-      { url: "/favicon.ico", sizes: "any" },
+      { url: "/favicon.ico", sizes: "16x16 32x32 48x48" },
+      { url: "/icons/icon-48.png", type: "image/png", sizes: "48x48" },
+      { url: "/icons/icon-192.png", type: "image/png", sizes: "192x192" },
       { url: "/icon.png", type: "image/png", sizes: "512x512" },
     ],
     apple: [{ url: "/apple-icon.png", type: "image/png", sizes: "180x180" }],
+    other: [{ rel: "mask-icon", url: "/safari-pinned-tab.svg", color: "#8b5cf6" }],
   },
-  appleWebApp: {
-    title: "Branzzo",
-    capable: true,
-    statusBarStyle: "black-translucent",
-  },
+  appleWebApp: { title: SITE_NAME, capable: true, statusBarStyle: "black-translucent" },
   openGraph: {
-    title: "Branzzo | Where Brands Meet Creators",
-    description: "Discover creators, build trusted partnerships, and manage brand collaborations in one place.",
-    siteName: "Branzzo",
+    title: SITE_TITLE,
+    description: SITE_DESCRIPTION,
+    url: "/",
+    siteName: SITE_NAME,
+    locale: "en_US",
     type: "website",
-    images: [{ url: "/branding/branzzo-og.png", width: 1200, height: 630, alt: "Branzzo — Where Brands Meet Creators" }],
+    images: [{ url: SOCIAL_IMAGE, width: 1200, height: 630, alt: "Branzzo creator marketplace for brands and creators" }],
   },
-  twitter: {
-    card: "summary_large_image",
-    title: "Branzzo | Where Brands Meet Creators",
-    description: "Discover creators, build trusted partnerships, and manage brand collaborations in one place.",
-    images: ["/branding/branzzo-og.png"],
-  },
+  twitter: { card: "summary_large_image", title: SITE_TITLE, description: SITE_DESCRIPTION, images: [SOCIAL_IMAGE] },
+  manifest: "/manifest.webmanifest",
+  other: { "msapplication-config": "/browserconfig.xml", "msapplication-TileColor": "#05050d" },
 };
 
 export default function RootLayout({
@@ -48,6 +57,19 @@ export default function RootLayout({
   const html = (
     <html lang="en" className="dark">
       <body>
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: safeJsonLd({
+              "@context": "https://schema.org",
+              "@graph": [
+                { "@type": "Organization", "@id": `${SITE_URL}/#organization`, name: SITE_NAME, url: SITE_URL, logo: { "@type": "ImageObject", url: absoluteUrl("/icon.png"), width: 512, height: 512 }, email: "support@branzzo.com" },
+                { "@type": "WebSite", "@id": `${SITE_URL}/#website`, name: SITE_NAME, url: SITE_URL, description: SITE_DESCRIPTION, publisher: { "@id": `${SITE_URL}/#organization` }, potentialAction: { "@type": "SearchAction", target: { "@type": "EntryPoint", urlTemplate: `${SITE_URL}/creators?q={search_term_string}` }, "query-input": "required name=search_term_string" } },
+                { "@type": "WebApplication", "@id": `${SITE_URL}/#application`, name: SITE_NAME, url: SITE_URL, description: SITE_DESCRIPTION, applicationCategory: "BusinessApplication", operatingSystem: "Web", browserRequirements: "Requires JavaScript and a modern web browser", publisher: { "@id": `${SITE_URL}/#organization` } },
+              ],
+            }),
+          }}
+        />
         <div aria-hidden="true" className="ambient-noise" />
         {children}
       </body>
@@ -58,6 +80,28 @@ export default function RootLayout({
 
   return (
     <ClerkProvider
+      localization={{
+        signIn: {
+          start: {
+            title: "Sign in to Branzzo",
+          },
+        },
+        signUp: {
+          start: {
+            title: "Create your Branzzo account",
+          },
+        },
+        unstable__errors: {
+          form_password_length_too_short: "Use at least 8 characters.",
+          form_password_not_strong_enough:
+            "Choose a less predictable password that does not use your name, email, common words, or familiar patterns.",
+          form_password_pwned:
+            "This password appears in a known data breach. Choose a unique password you do not use elsewhere.",
+          form_password_validation_failed:
+            "This password does not meet the security requirements. Avoid personal information, common passwords, and predictable patterns.",
+          form_password_incorrect: "The password is incorrect. Try again or reset your password.",
+        },
+      }}
       appearance={{
         elements: {
           cardBox:

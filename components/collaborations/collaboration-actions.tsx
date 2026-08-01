@@ -3,7 +3,7 @@
 import { type FormEvent, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { AlertTriangle, Check, CreditCard, ExternalLink, Flag, Loader2, PlayCircle, RotateCcw, Upload, XCircle } from "lucide-react";
+import { AlertTriangle, Check, Copy, CreditCard, Eye, EyeOff, ExternalLink, Flag, Loader2, PlayCircle, RotateCcw, Upload, XCircle } from "lucide-react";
 
 import { formatINR } from "@/lib/format";
 import { type BrandInquiryData } from "@/lib/types";
@@ -24,7 +24,8 @@ type ProofState = {
 
 type PaymentState = {
   paymentNote: string;
-  paymentScreenshotUrl: string;
+  transactionId: string;
+  proofId: string;
 };
 
 function canCreatorSubmitProof(status: BrandInquiryData["status"]) {
@@ -82,15 +83,19 @@ function OfferSummary({ collaboration }: { collaboration: BrandInquiryData }) {
 }
 
 function PaymentDetailsList({ collaboration }: { collaboration: BrandInquiryData }) {
+  const [revealed, setRevealed] = useState(false);
+  const [copied, setCopied] = useState("");
   const details = collaboration.creatorPaymentDetails;
   const rows = [
     ["UPI ID", details?.upiId],
-    ["PayPal email", details?.paypalEmail],
-    ["Bank account name", details?.bankAccountName],
+    ["Account-holder name", details?.accountHolderName],
+    ["Bank name", details?.bankName],
     ["Bank account number", details?.bankAccountNumber],
-    ["IFSC", details?.ifsc],
-    ["Preferred payment note", details?.preferredPaymentNote],
+    ["IFSC", details?.ifscCode],
+    ["Payment note", details?.paymentNote],
   ].filter(([, value]) => value && String(value).trim());
+
+  async function copy(label: string, value: string) { try { await navigator.clipboard.writeText(value); setCopied(label); window.setTimeout(() => setCopied(""), 2000); } catch { setCopied("Copy failed"); window.setTimeout(() => setCopied(""), 2000); } }
 
   if (!rows.length) {
     return <p className="text-xs leading-5 text-[var(--text-secondary)]">Creator payment details have not been added yet.</p>;
@@ -101,7 +106,8 @@ function PaymentDetailsList({ collaboration }: { collaboration: BrandInquiryData
       {rows.map(([label, value]) => (
         <div key={label} className="rounded-[8px] border border-white/10 bg-black/20 px-3 py-2 text-xs leading-5">
           <p className="font-semibold uppercase text-[var(--text-muted)]">{label}</p>
-          <p className="mt-1 break-words text-[var(--text-primary)]">{value}</p>
+          <div className="mt-1 flex items-center justify-between gap-2"><p className="break-words text-[var(--text-primary)]">{label === "Bank account number" && !revealed ? `••••••${String(value).slice(-4)}` : value}</p><div className="flex gap-1">{label === "Bank account number" ? <button type="button" aria-label={revealed ? "Hide account number" : "Reveal account number"} onClick={() => setRevealed((v) => !v)}>{revealed ? <EyeOff size={14}/> : <Eye size={14}/>}</button> : null}<button type="button" aria-label={`Copy ${label}`} onClick={() => copy(String(label), String(value ?? ""))}><Copy size={14}/></button></div></div>
+          {copied === label ? <p role="status" className="text-emerald-300">Copied</p> : null}{copied === "Copy failed" ? <p role="alert" className="text-red-300">Copy failed</p> : null}
         </div>
       ))}
     </div>
@@ -120,7 +126,8 @@ export function CollaborationActions({ collaboration, mode }: CollaborationActio
   const [counterNote, setCounterNote] = useState("");
   const [paymentForm, setPaymentForm] = useState<PaymentState>({
     paymentNote: collaboration.paymentNote ?? "",
-    paymentScreenshotUrl: collaboration.paymentScreenshotUrl ?? "",
+    transactionId: "",
+    proofId: "",
   });
   const [proofForm, setProofForm] = useState<ProofState>({
     videoUrl: proof?.videoUrl ?? "",
@@ -237,13 +244,7 @@ export function CollaborationActions({ collaboration, mode }: CollaborationActio
       ) : null}
 
       <div className="mt-3 grid gap-2">
-        <input
-          aria-label="Payment screenshot URL"
-          value={paymentForm.paymentScreenshotUrl}
-          onChange={(event) => setPaymentField("paymentScreenshotUrl", event.target.value)}
-          className="bridge-input px-3 py-2 text-xs"
-          placeholder="Optional payment screenshot URL"
-        />
+        {mode === "brand" ? <><input aria-label="Transaction reference ID" value={paymentForm.transactionId} onChange={(event) => setPaymentField("transactionId", event.target.value)} className="bridge-input px-3 py-2 text-xs" placeholder="Optional transaction/reference ID"/><input aria-label="Payment screenshot" type="file" accept="image/jpeg,image/png,image/webp" className="bridge-input px-3 py-2 text-xs" onChange={async (event) => { const file=event.target.files?.[0]; if (!file) return; if (file.size > 1024*1024) { setError("Payment screenshot must be 1 MB or smaller."); return; } const data=new FormData(); data.set("proofType","payment"); data.set("files",file); data.set("transactionId",paymentForm.transactionId); data.set("note",paymentForm.paymentNote); const response=await fetch(`/api/collaborations/${collaboration.id}/proofs`,{method:"POST",body:data}); const result=await response.json(); if (!response.ok) setError(result.error ?? "Could not upload payment proof."); else { setPaymentField("proofId",result.proofIds[0]); setSuccess("Payment proof uploaded securely."); } }} />{paymentForm.proofId ? <p className="text-xs text-emerald-300">Screenshot ready</p> : null}</> : null}
         <textarea
           aria-label="Payment note"
           value={paymentForm.paymentNote}
@@ -267,6 +268,11 @@ export function CollaborationActions({ collaboration, mode }: CollaborationActio
           Mark Payment Disputed
         </button>
       </div>
+    </div>
+  ) : mode === "brand" ? (
+    <div className="min-w-0 rounded-[8px] border border-white/10 bg-white/[0.035] p-3">
+      <p className="text-xs font-bold uppercase text-cyan-100">Creator Payment Details</p>
+      <p className="mt-2 text-xs leading-5 text-[var(--text-secondary)]">Available after the creator accepts this collaboration.</p>
     </div>
   ) : null;
 

@@ -59,6 +59,7 @@ export default async function BrandProfileEditPage() {
             country: brand?.country ?? "India",
             companyRegistrationText: brand?.companyRegistrationText ?? "",
             notes: brand?.notes ?? "",
+            displayPublicly: brand?.displayPublicly ?? false,
           }}
           redirectHref={null}
           submitLabel="Save Brand Profile"

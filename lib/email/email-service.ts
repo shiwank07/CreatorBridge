@@ -1,8 +1,12 @@
+import "server-only";
+
 import type { ReactNode } from "react";
 import { Resend } from "resend";
 
+import { isValidEmailAddress, normalizedEmailError, readEmailEnvironment, type EmailEnvironmentInput } from "./email-config";
+
 export type EmailSendResult = {
-  status: "sent" | "skipped";
+  status: "sent" | "failed" | "skipped";
   providerId: string | null;
   error: string | null;
 };
@@ -12,47 +16,60 @@ export type SendEmailInput = {
   subject: string;
   react: ReactNode;
   text?: string;
+  idempotencyKey?: string;
+  sender?: "product" | "security";
 };
 
-let resendClient: Resend | null = null;
+export type EmailProvider = {
+  send(input: {
+    from: string;
+    to: string;
+    subject: string;
+    react: ReactNode;
+    text?: string;
+    replyTo: string;
+    headers?: Record<string, string>;
+  }): Promise<{ data: { id: string } | null; error: { message?: string } | null }>;
+};
 
-function getResendClient(apiKey: string) {
-  resendClient ??= new Resend(apiKey);
-  return resendClient;
+export type EmailServiceDependencies = {
+  env?: EmailEnvironmentInput;
+  provider?: EmailProvider;
+};
+
+function providerFor(apiKey: string): EmailProvider {
+  const resend = new Resend(apiKey);
+  return { send: (input) => resend.emails.send(input) };
 }
 
-function missingEmailConfig() {
-  const missing: string[] = [];
-  if (!process.env.RESEND_API_KEY?.trim()) missing.push("RESEND_API_KEY");
-  if (!process.env.EMAIL_FROM?.trim()) missing.push("EMAIL_FROM");
-  return missing;
-}
-
-export async function sendEmail({ to, subject, react, text }: SendEmailInput): Promise<EmailSendResult> {
-  const missing = missingEmailConfig();
-  if (missing.length) {
-    const error = `Email skipped because ${missing.join(", ")} is not configured.`;
-    console.warn(`[email] ${error}`);
-    return { status: "skipped", providerId: null, error };
+export async function sendEmail(
+  { to, subject, react, text, idempotencyKey, sender = "product" }: SendEmailInput,
+  dependencies: EmailServiceDependencies = {},
+): Promise<EmailSendResult> {
+  const recipient = to.trim().toLowerCase();
+  if (!isValidEmailAddress(recipient)) {
+    return { status: "failed", providerId: null, error: "A valid recipient email address is required." };
   }
 
-  const apiKey = process.env.RESEND_API_KEY?.trim() ?? "";
-  const from = process.env.EMAIL_FROM?.trim() ?? "";
-  const result = await getResendClient(apiKey).emails.send({
-    from,
-    to,
-    subject,
-    react,
-    text,
-  });
-
-  if (result.error) {
-    throw new Error(result.error.message || "Resend email send failed.");
+  try {
+    const config = readEmailEnvironment(dependencies.env);
+    if (!config.apiKey && !dependencies.provider) {
+      return { status: "skipped", providerId: null, error: "Email delivery is not configured." };
+    }
+    const result = await (dependencies.provider ?? providerFor(config.apiKey)).send({
+      from: sender === "security" ? config.securityFrom : config.from,
+      to: recipient,
+      subject,
+      react,
+      text,
+      replyTo: config.replyTo,
+      headers: idempotencyKey ? { "Idempotency-Key": idempotencyKey } : undefined,
+    });
+    if (result.error || !result.data?.id) {
+      return { status: "failed", providerId: null, error: normalizedEmailError(result.error) };
+    }
+    return { status: "sent", providerId: result.data.id, error: null };
+  } catch (error) {
+    return { status: "failed", providerId: null, error: normalizedEmailError(error) };
   }
-
-  return {
-    status: "sent",
-    providerId: result.data?.id ?? null,
-    error: null,
-  };
 }

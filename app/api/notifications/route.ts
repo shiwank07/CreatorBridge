@@ -12,7 +12,7 @@ export async function GET(req: Request) {
     if (access.response) return access.response;
 
     const url = new URL(req.url);
-    const pageSize = Math.min(50, Math.max(1, Math.trunc(Number(url.searchParams.get("limit") ?? 20) || 20)));
+    const pageSize = Math.min(50, Math.max(1, Math.trunc(Number(url.searchParams.get("limit") ?? 30) || 30)));
     const page = Math.max(1, Math.trunc(Number(url.searchParams.get("page") ?? 1) || 1));
     const status = url.searchParams.get("status");
     const type = url.searchParams.get("type")?.trim().slice(0, 80);

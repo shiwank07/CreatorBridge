@@ -23,6 +23,20 @@ function getInitials(name?: string, username?: string) {
   return source.slice(0, 2).toUpperCase();
 }
 
+function isClerkGeneratedDefault(url?: string) {
+  if (!url) return false;
+  try {
+    const parsed = new URL(url);
+    if (parsed.hostname !== "img.clerk.com") return false;
+    const token = parsed.pathname.split("/").filter(Boolean)[0];
+    if (!token) return false;
+    const decoded = JSON.parse(atob(token.replace(/-/g, "+").replace(/_/g, "/"))) as { type?: string };
+    return decoded.type === "default";
+  } catch {
+    return false;
+  }
+}
+
 export function InitialsAvatar({
   name,
   username,
@@ -34,7 +48,7 @@ export function InitialsAvatar({
 }: InitialsAvatarProps) {
   const initials = getInitials(name, username);
   const [imageFailed, setImageFailed] = useState(false);
-  const showImage = Boolean(imageUrl && !imageFailed);
+  const showImage = Boolean(imageUrl && !imageFailed && !isClerkGeneratedDefault(imageUrl));
 
   useEffect(() => {
     setImageFailed(false);
@@ -55,7 +69,12 @@ export function InitialsAvatar({
           fill
           sizes={sizes}
           className="object-cover"
-          onError={() => setImageFailed(true)}
+          onError={(event) => {
+            // Hide the failed bitmap synchronously so the initials fallback is
+            // never preceded by a visibly broken image while React rerenders.
+            event.currentTarget.style.display = "none";
+            setImageFailed(true);
+          }}
         />
       ) : (
         <>

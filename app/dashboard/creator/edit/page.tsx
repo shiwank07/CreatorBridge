@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 
 import { CreatorOnboardingForm } from "@/components/forms/creator-onboarding-form";
+import { CreatorPaymentDetailsForm } from "@/components/creators/creator-payment-details-form";
 import { Navbar } from "@/components/shared/navbar";
 import { getCurrentAppUser, getCurrentClerkUserId } from "@/lib/current-user";
 import { getCreatorPrivateProfileByUsername } from "@/lib/queries/creators";
@@ -86,6 +87,7 @@ export default async function CreatorProfileEditPage() {
           submitLabel="Save Creator Profile"
           successMessage="Creator profile updated."
         />
+        <CreatorPaymentDetailsForm />
       </main>
     </>
   );

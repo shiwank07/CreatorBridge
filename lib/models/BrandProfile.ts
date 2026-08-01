@@ -29,6 +29,7 @@ export interface IBrandProfile extends Document {
   verificationNote?: string;
   rejectionReason?: string;
   completedCampaigns: number;
+  displayPublicly: boolean;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -69,11 +70,14 @@ const BrandProfileSchema = new Schema<IBrandProfile>(
     verificationNote: { type: String, trim: true, maxlength: 500, default: "" },
     rejectionReason: { type: String, trim: true, maxlength: 500, default: "" },
     completedCampaigns: { type: Number, default: 0, min: 0 },
+    displayPublicly: { type: Boolean, default: false, index: true },
   },
   { timestamps: true },
 );
 
 BrandProfileSchema.index({ companyName: 1 });
+BrandProfileSchema.index({ verificationStatus: 1, updatedAt: -1, _id: -1 });
+BrandProfileSchema.index({ displayPublicly: 1, verificationStatus: -1, updatedAt: -1 });
 BrandProfileSchema.index(
   { verificationCode: 1 },
   {

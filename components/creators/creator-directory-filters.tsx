@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Filter, RotateCcw, Search, X } from "lucide-react";
@@ -34,6 +34,44 @@ export function CreatorDirectoryFilters(props: CreatorDirectoryFilterValues) {
   const currentParams = useSearchParams();
   const [search, setSearch] = useState(props.search ?? "");
   const [mobileOpen, setMobileOpen] = useState(false);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const drawerRef = useRef<HTMLDivElement>(null);
+  const activeCount = [
+    props.search, props.niche, props.platform, props.verification, props.availability, props.country,
+    props.language, props.subscriberRange, props.viewsRange, props.priceRange, props.engagementRange,
+    props.sort && props.sort !== "featured" ? props.sort : "",
+  ].filter(Boolean).length;
+
+  useEffect(() => {
+    if (!mobileOpen) return;
+    const trigger = triggerRef.current;
+    const priorOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    drawerRef.current?.querySelector<HTMLElement>("input,select,button,a")?.focus();
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setMobileOpen(false);
+        return;
+      }
+      if (event.key !== "Tab" || !drawerRef.current) return;
+      const focusable = [...drawerRef.current.querySelectorAll<HTMLElement>("input,select,button:not([disabled]),a[href]")];
+      const first = focusable[0];
+      const last = focusable.at(-1);
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last?.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first?.focus();
+      }
+    };
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.body.style.overflow = priorOverflow;
+      document.removeEventListener("keydown", onKeyDown);
+      trigger?.focus();
+    };
+  }, [mobileOpen]);
 
   useEffect(() => {
     if (search === (currentParams.get("q") ?? "")) return;
@@ -67,9 +105,33 @@ export function CreatorDirectoryFilters(props: CreatorDirectoryFilterValues) {
 
   return (
     <>
-      <button type="button" onClick={() => setMobileOpen(true)} className="bridge-button-secondary w-full md:hidden"><Filter size={17} />Open filters</button>
+      <button ref={triggerRef} type="button" aria-expanded={mobileOpen} aria-controls="creator-filter-drawer" onClick={() => setMobileOpen(true)} className="bridge-button-secondary w-full md:hidden"><Filter size={17} />Filters{activeCount ? ` (${activeCount})` : ""}</button>
       <form action="/creators" className="creator-search-console hidden p-5 md:block"><div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">{fields}</div></form>
-      {mobileOpen ? <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm md:hidden"><form action="/creators" className="ml-auto h-full w-[min(92vw,390px)] overflow-y-auto border-l border-white/10 bg-[#090b12] p-4"><div className="mb-4 flex items-center justify-between"><h2 className="font-display text-xl font-bold">Discovery filters</h2><button type="button" onClick={() => setMobileOpen(false)} aria-label="Close filters" className="bridge-button-secondary p-2"><X size={18} /></button></div><div className="grid gap-3">{fields}</div></form></div> : null}
+      {mobileOpen ? (
+        <div className="fixed inset-0 z-50 md:hidden">
+          <button type="button" aria-label="Close filters" className="absolute inset-0 bg-black/75 backdrop-blur-sm" onClick={() => setMobileOpen(false)} />
+          <div ref={drawerRef} id="creator-filter-drawer" role="dialog" aria-modal="true" aria-label="Creator filters" className="absolute inset-y-0 right-0 h-full w-[min(92vw,390px)] overflow-y-auto border-l border-white/10 bg-[#090b12] p-4">
+            <form
+              action="/creators"
+              onSubmit={(event) => {
+                event.preventDefault();
+                const next = new URLSearchParams();
+                for (const [key, value] of new FormData(event.currentTarget).entries()) {
+                  const normalized = String(value).trim();
+                  if (normalized && key !== "page") next.set(key, normalized);
+                }
+                next.set("page", "1");
+                setMobileOpen(false);
+                router.push(`/creators?${next.toString()}`);
+              }}
+            >
+              <div className="mb-4 flex items-center justify-between"><h2 className="font-display text-xl font-bold">Discovery filters</h2><button type="button" onClick={() => setMobileOpen(false)} aria-label="Close filters" className="bridge-button-secondary p-2"><X size={18} /></button></div>
+              <input type="hidden" name="page" value="1" />
+              <div className="grid gap-3">{fields}</div>
+            </form>
+          </div>
+        </div>
+      ) : null}
     </>
   );
 }

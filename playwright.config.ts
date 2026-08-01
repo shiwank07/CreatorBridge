@@ -71,7 +71,8 @@ export default defineConfig({
     },
     {
       name: 'chromium',
-      testIgnore: /.*\.setup\.ts/,
+      testMatch: [/public\/.*\.spec\.ts/, /auth\/creator-login\.spec\.ts/],
+      testIgnore: [/.*\.setup\.ts/, /.*\.integration\.spec\.ts/],
       use: {
         ...devices['Desktop Chrome'],
       },
@@ -109,10 +110,12 @@ export default defineConfig({
   ],
 
   webServer: {
-    command: `npm run dev -- --port ${webServerPort}`,
-    url: baseURL,
-    reuseExistingServer: !process.env.CI,
-    timeout: 120_000,
+    // A production server avoids long-run dev-compiler resets and hydration
+    // timing drift. Never attach to an unknown stale process on the test port.
+    command: `npm run build && npm run start:e2e -- --port ${webServerPort}`,
+    url: `${baseURL}/api/health`,
+    reuseExistingServer: false,
+    timeout: 240_000,
     stdout: 'ignore',
     stderr: 'pipe',
   },

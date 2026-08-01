@@ -2,11 +2,9 @@ import Link from "next/link";
 import { ArrowRight, Sparkles } from "lucide-react";
 
 import { Navbar } from "@/components/shared/navbar";
+import { publicPageMetadata } from "@/lib/seo";
 
-export const metadata = {
-  title: "Pricing",
-  description: "Branzzo pricing placeholder.",
-};
+export const metadata = publicPageMetadata("Pricing", "Explore how Branzzo supports creator discovery and structured paid collaboration requests for brands and creators.", "/pricing");
 
 export default function PricingPage() {
   return (
@@ -19,7 +17,7 @@ export default function PricingPage() {
           <div className="max-w-2xl text-center">
             <div className="mx-auto inline-flex items-center gap-2 rounded-full border border-cyan-300/20 bg-white/[0.06] px-4 py-2 text-sm font-semibold text-cyan-100">
               <Sparkles size={15} />
-              Pricing placeholder
+              Branzzo pricing
             </div>
             <h1 className="mt-6 font-display text-5xl font-black sm:text-6xl">
               Plans are coming soon.

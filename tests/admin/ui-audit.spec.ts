@@ -12,7 +12,6 @@ const adminPages = [
   ['email-logs', '/admin/email-logs'],
   ['users', '/admin/users'],
   ['contacts', '/admin/contacts'],
-  ['inquiries', '/admin/inquiries'],
 ] as const;
 
 test.describe('admin UI audit', () => {
@@ -25,6 +24,11 @@ test.describe('admin UI audit', () => {
       });
     });
   }
+
+  test('legacy inquiries route redirects to collaborations', async ({ page }) => {
+    await page.goto('/admin/inquiries');
+    await page.waitForURL(/\/admin\/collaborations(?:[/?#]|$)/);
+  });
 
   test('collaboration detail', async ({ page }) => {
     await page.goto('/admin/collaborations');

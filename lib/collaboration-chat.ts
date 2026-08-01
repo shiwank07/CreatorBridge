@@ -12,6 +12,7 @@ export const CHAT_ELIGIBLE_STATUSES: CollaborationStatus[] = [
   "IN_PROGRESS",
   "REVISION_REQUESTED",
   "PROOF_SUBMITTED",
+  "COMPLETED",
 ];
 
 export const CHAT_MESSAGE_LIMIT = 2000;

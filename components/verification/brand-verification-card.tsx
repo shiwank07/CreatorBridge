@@ -54,7 +54,7 @@ export function BrandVerificationCard({ brand }: BrandVerificationCardProps) {
       <div className="flex items-start justify-between gap-3">
         <div>
           <p className="bridge-eyebrow">Branzzo</p>
-          <h2 className="mt-2 font-display text-2xl font-bold">Brand verification</h2>
+          <h2 className="mt-2 font-display text-2xl font-bold">Company trust details</h2>
           <p className="mt-2 text-sm leading-6 text-[var(--text-secondary)]">
             Submit company identity details for manual admin review.
           </p>

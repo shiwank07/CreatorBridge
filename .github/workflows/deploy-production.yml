@@ -40,6 +40,11 @@ jobs:
       - name: Integration tests
         if: env.ANALYTICS_TEST_MONGODB_URI != ''
         run: npm run test:integration
+      - name: Require isolated integration database
+        if: env.ANALYTICS_TEST_MONGODB_URI == ''
+        run: |
+          echo "Production validation requires ANALYTICS_TEST_MONGODB_URI."
+          exit 1
       - run: npm run build
       - run: npx opennextjs-cloudflare build --skipNextBuild
       - name: Verify deployment credentials and output

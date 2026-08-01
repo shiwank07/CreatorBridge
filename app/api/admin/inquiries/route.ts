@@ -10,7 +10,7 @@ import {
 } from "@/lib/collaborations";
 import { connectDB, hasMongoUri } from "@/lib/db";
 import { BrandInquiry } from "@/lib/models/BrandInquiry";
-import { getAdminInquiries } from "@/lib/queries/admin";
+import { getAdminCollaborationsPage } from "@/lib/queries/admin";
 import { inquiryStatusSchema } from "@/lib/validators/brand-inquiry";
 
 const ADMIN_STATUS_EVENT_MAP: Record<CollaborationStatus, CollaborationTimelineEvent> = {
@@ -27,12 +27,18 @@ const ADMIN_STATUS_EVENT_MAP: Record<CollaborationStatus, CollaborationTimelineE
   CANCELLED: "CANCELLED",
 };
 
-export async function GET() {
+export async function GET(req: Request) {
   const admin = await getAdminState();
   if (!admin.isAdmin) return NextResponse.json({ error: "Admin access required." }, { status: 403 });
 
-  const inquiries = await getAdminInquiries();
-  return NextResponse.json({ inquiries });
+  const url = new URL(req.url);
+  return NextResponse.json(await getAdminCollaborationsPage({
+    page: Number(url.searchParams.get("page") ?? 1),
+    limit: Number(url.searchParams.get("limit") ?? 30),
+    status: url.searchParams.get("status") ?? undefined,
+    search: url.searchParams.get("search") ?? undefined,
+    sort: url.searchParams.get("sort") ?? undefined,
+  }));
 }
 
 export async function PATCH(req: Request) {
