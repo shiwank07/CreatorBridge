@@ -58,7 +58,7 @@
     "lucide-react": "1.21.0",
     "mongodb": "7.3.0",
     "mongoose": "9.7.2",
-    "next": "15.5.22",
+    "next": "16.2.12",
     "react": "19.2.7",
     "react-dom": "19.2.7",
     "resend": "6.16.0",
