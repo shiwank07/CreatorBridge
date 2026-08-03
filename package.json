@@ -74,7 +74,7 @@
     "@types/react": "19.2.17",
     "@types/react-dom": "19.2.3",
     "autoprefixer": "10.5.2",
-    "eslint": "9.39.4",
+    "eslint": "10.8.0",
     "eslint-config-next": "15.5.22",
     "postcss": "8.5.23",
     "sharp": "0.35.3",
