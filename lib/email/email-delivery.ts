@@ -13,9 +13,11 @@ type DeliverOnceInput = {
   preferences?: EmailPreferenceSnapshot;
   preference?: TransactionalPreference;
   retryFailed?: boolean;
+  notificationModel?: typeof EmailNotification;
 };
 
 export async function deliverEmailOnce(input: DeliverOnceInput): Promise<EmailSendResult & { duplicate?: boolean }> {
+  const NotificationModel = input.notificationModel ?? EmailNotification;
   if (!preferenceAllowsEmail(input.preferences, input.preference)) {
     return { status: "skipped", providerId: null, error: "Disabled by email preference." };
   }
@@ -23,7 +25,7 @@ export async function deliverEmailOnce(input: DeliverOnceInput): Promise<EmailSe
   const now = new Date();
   let claim;
   try {
-    claim = await EmailNotification.findOneAndUpdate(
+    claim = await NotificationModel.findOneAndUpdate(
       input.retryFailed
         ? { deliveryKey: input.deliveryKey, status: "failed", retryable: true, attempts: { $lt: EMAIL_MAX_ATTEMPTS }, nextRetryAt: { $lte: now } }
         : { deliveryKey: input.deliveryKey, status: { $exists: false } },
@@ -51,7 +53,7 @@ export async function deliverEmailOnce(input: DeliverOnceInput): Promise<EmailSe
   }
   const status = isPermanentRecipientFailure(result) ? "permanent_failed" : result.status;
   const retryable = result.status === "failed" && !isPermanentRecipientFailure(result) && claim.attempts < EMAIL_MAX_ATTEMPTS;
-  await EmailNotification.updateOne(
+  await NotificationModel.updateOne(
     { _id: claim._id, status: "processing" },
     { $set: {
       status, providerId: result.providerId, error: result.error, retryable,

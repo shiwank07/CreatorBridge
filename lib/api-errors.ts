@@ -49,11 +49,14 @@ function isMongoUnavailableError(error: unknown) {
   return (
     message.includes("MONGODB_URI") ||
     name.includes("MongoNetworkError") ||
+    name.includes("MongoWaitQueueTimeoutError") ||
     name.includes("MongoParseError") ||
     name.includes("MongooseServerSelectionError") ||
     message.includes("ECONNREFUSED") ||
     message.includes("ENOTFOUND") ||
     message.includes("ETIMEOUT") ||
+    message.toLowerCase().includes("checking out") ||
+    message.toLowerCase().includes("wait queue") ||
     message.toLowerCase().includes("authentication failed") ||
     message.toLowerCase().includes("bad auth")
   );
@@ -65,7 +68,8 @@ export function handleRouteError(error: unknown, context: string, fallbackMessag
   }
 
   if (isDuplicateKeyError(error)) {
-    return NextResponse.json({ error: duplicateKeyMessage(error) }, { status: 409 });
+    const message = duplicateKeyMessage(error);
+    return NextResponse.json({ error: message, code: message.includes("username") ? "USERNAME_TAKEN" : "VALIDATION_ERROR" }, { status: 409 });
   }
 
   if (error instanceof MongoTemporaryUnavailableError) {
@@ -76,15 +80,20 @@ export function handleRouteError(error: unknown, context: string, fallbackMessag
   }
 
   if (isMongoUnavailableError(error)) {
-    console.error(context, error);
     const kind = classifyMongoError(error);
+    console.error("[database-route-error]", {
+      operation: context,
+      errorClass: error instanceof Error ? error.name : "UnknownError",
+      retryable: kind !== "authentication" && kind !== "configuration",
+      phase: error instanceof MongoTemporaryUnavailableError ? error.reason : kind,
+    });
     const message = kind === "configuration"
       ? "MongoDB is not configured yet."
       : "Database is unavailable. Check MongoDB Atlas configuration and network access.";
 
-    return NextResponse.json({ error: message }, { status: 503 });
+    return NextResponse.json({ error: message, code: "DATABASE_UNAVAILABLE", retryable: true }, { status: 503, headers: { "Retry-After": "2" } });
   }
 
-  console.error(context, error);
+  console.error("[route-error]", { operation: context, errorClass: error instanceof Error ? error.name : "UnknownError", retryable: false });
   return NextResponse.json({ error: fallbackMessage }, { status: 500 });
 }

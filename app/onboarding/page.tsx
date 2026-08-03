@@ -8,11 +8,11 @@ import { CreatorOnboardingForm } from "@/components/forms/creator-onboarding-for
 import { BranzzoLogo } from "@/components/branding/branzzo-logo";
 import { AuthSetupNotice } from "@/components/shared/auth-setup-notice";
 import { Navbar } from "@/components/shared/navbar";
+import { AccountUnavailable } from "@/components/shared/account-unavailable";
+import { accountDestination, getApplicationAccountState } from "@/lib/application-account-state";
 import { hasClerkKeys } from "@/lib/clerk-config";
-import { classifyMongoError, connectDB, hasMongoUri, MONGO_QUERY_TIMEOUT_MS } from "@/lib/db";
-import { User } from "@/lib/models/User";
 import { generateUsername } from "@/lib/slug";
-import { logServerTiming, withServerTiming } from "@/lib/server-timing";
+import { logServerTiming } from "@/lib/server-timing";
 
 export const dynamic = "force-dynamic";
 
@@ -27,62 +27,27 @@ function isOnboardingRole(value: string | undefined): value is OnboardingRole {
   return value === "creator" || value === "brand";
 }
 
-function dashboardHrefForRole(role: string | undefined) {
-  if (role === "brand") return "/dashboard/brand";
-  if (role === "creator") return "/dashboard/creator";
-  return "/dashboard";
-}
-
 export default async function OnboardingPage({ searchParams }: { searchParams: OnboardingSearchParams }) {
   const renderStartedAt = performance.now();
   if (!hasClerkKeys()) return <AuthSetupNotice />;
 
   const params = await searchParams;
+  const accountState = await getApplicationAccountState();
+  const accountDestinationHref = accountDestination(accountState);
+  if (accountDestinationHref && accountDestinationHref !== "/onboarding") redirect(accountDestinationHref);
+  if (accountState.status === "temporarily_unavailable") return <AccountUnavailable retryHref="/onboarding" />;
   const requestedRole = readParam(params.role);
   const explicitRole = isOnboardingRole(requestedRole) ? requestedRole : null;
-  const roleSwitchRequested = readParam(params.switchRole) === "1";
-  let selectedRole: OnboardingRole = explicitRole ?? "creator";
+  const selectedRole: OnboardingRole | null = explicitRole ?? (accountState.status === "needs_onboarding" ? accountState.preferredRole ?? null : null);
   const clerkUser = await currentUser();
   if (!clerkUser) redirect("/sign-in");
 
   const email = clerkUser.emailAddresses.find((item) => item.id === clerkUser.primaryEmailAddressId)?.emailAddress ?? "";
   const fallbackName = [clerkUser.firstName, clerkUser.lastName].filter(Boolean).join(" ").trim() || email.split("@")[0] || "Creator";
 
-  let initialUsername = generateUsername(clerkUser.username ?? fallbackName);
-  let databaseWarning = hasMongoUri() ? "" : "MongoDB is not configured yet. Add your Atlas connection string before saving onboarding data.";
-  let completedRedirectHref = "";
-
-  if (hasMongoUri()) {
-    try {
-      const dbUser = await withServerTiming("onboarding.preload", async () => {
-        await connectDB();
-        return User.findOne({ clerkId: clerkUser.id })
-          .select("username role onboardingComplete")
-          .maxTimeMS(MONGO_QUERY_TIMEOUT_MS)
-          .lean()
-          .exec();
-      });
-      const existingRole = isOnboardingRole(dbUser?.role) ? dbUser.role : null;
-
-      if (dbUser?.onboardingComplete) {
-        completedRedirectHref = dashboardHrefForRole(dbUser.role);
-      } else if (existingRole && (!explicitRole || !roleSwitchRequested)) {
-        selectedRole = existingRole;
-      } else if (explicitRole) {
-        selectedRole = explicitRole;
-      }
-
-      if (dbUser?.username) initialUsername = dbUser.username;
-    } catch (error) {
-      const kind = classifyMongoError(error);
-      console.error("Onboarding database preload failed", { kind });
-      databaseWarning = kind === "connecting"
-        ? "Branzzo is connecting to the database. Please retry in a moment."
-        : "The database is temporarily unavailable. Please retry shortly.";
-    }
-  }
-
-  if (completedRedirectHref) redirect(completedRedirectHref);
+  const initialUsername = accountState.status === "needs_onboarding" && accountState.username
+    ? accountState.username
+    : generateUsername(clerkUser.username ?? fallbackName);
 
   logServerTiming("server-render.total", performance.now() - renderStartedAt, { route: "/onboarding" });
 
@@ -95,12 +60,12 @@ export default async function OnboardingPage({ searchParams }: { searchParams: O
           <BranzzoLogo showWordmark size={48} className="mb-5" wordmarkClassName="text-xl" />
           <p className="bridge-eyebrow">Onboarding</p>
           <h1 className="mt-3 font-display text-3xl font-black leading-tight sm:text-4xl">
-            {selectedRole === "creator" ? "Build your public creator profile" : "Create your brand profile"}
+            {selectedRole === "creator" ? "Build your public creator profile" : selectedRole === "brand" ? "Create your brand profile" : "Choose how you use Branzzo"}
           </h1>
           <p className="mt-3 max-w-2xl text-sm leading-6 text-[var(--text-secondary)]">
             {selectedRole === "creator"
               ? "Give brands the essentials they need to understand your audience, content style, pricing, and availability."
-              : "Add your company and contact details so your brand account is ready."}
+              : selectedRole === "brand" ? "Add your company and contact details so your brand account is ready." : "Select Creator or Brand once to begin your profile."}
           </p>
         </div>
         <div className="bridge-card p-3">
@@ -130,16 +95,11 @@ export default async function OnboardingPage({ searchParams }: { searchParams: O
           </div>
         </div>
       </div>
-      {databaseWarning ? (
-        <div className="mb-6 rounded-[8px] border border-yellow-900 bg-yellow-950/30 px-4 py-3 text-sm text-yellow-100">
-          {databaseWarning}
-        </div>
-      ) : null}
       {selectedRole === "creator" ? (
         <CreatorOnboardingForm initialName={fallbackName} initialUsername={initialUsername} initialAvatar={clerkUser.imageUrl} />
-      ) : (
+      ) : selectedRole === "brand" ? (
         <BrandOnboardingForm initialContactName={fallbackName} initialEmail={email} />
-      )}
+      ) : null}
       </main>
     </>
   );

@@ -1,19 +1,14 @@
 import { redirect } from "next/navigation";
 
-import { getAdminState } from "@/lib/admin";
-import { getCurrentAppUser } from "@/lib/current-user";
+import { AccountUnavailable } from "@/components/shared/account-unavailable";
+import { accountDestination, getApplicationAccountState } from "@/lib/application-account-state";
 
 export const dynamic = "force-dynamic";
 
 export default async function AuthCompletePage() {
-  const admin = await getAdminState();
-  if (!admin.userId) redirect("/sign-in");
-  if (admin.isAdmin) redirect("/admin");
-
-  const user = await getCurrentAppUser();
-  if (!user?.onboardingComplete) redirect("/onboarding");
-  if (user.role === "creator") redirect("/dashboard/creator");
-  if (user.role === "brand") redirect("/dashboard/brand");
-
-  redirect("/onboarding");
+  const state = await getApplicationAccountState();
+  const destination = accountDestination(state);
+  if (destination) redirect(destination);
+  if (state.status === "temporarily_unavailable") return <AccountUnavailable retryHref="/auth/complete" />;
+  redirect("/sign-in");
 }

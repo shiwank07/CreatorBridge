@@ -1,17 +1,19 @@
-import { auth, currentUser } from "@clerk/nextjs/server";
+import { auth, clerkClient, currentUser } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 
 import { handleRouteError, parseJsonBody } from "@/lib/api-errors";
 import { getClerkEmailVerificationState } from "@/lib/clerk-verification";
-import { connectDB, hasMongoUri } from "@/lib/db";
+import { hasMongoUri, modelForConnection, withMongoRequest } from "@/lib/db";
 import { sendCreatorWelcomeOnce } from "@/lib/email/welcome-emails";
 import { hasClerkKeys } from "@/lib/clerk-config";
 import { CreatorProfile } from "@/lib/models/CreatorProfile";
 import { User } from "@/lib/models/User";
+import { EmailNotification } from "@/lib/models/EmailNotification";
 import { creatorOnboardingSchema } from "@/lib/validators/creator";
 import { isCreatorVerifiedStatus } from "@/lib/verification";
 import { normalizeYoutubeChannelKey } from "@/lib/verification-helpers";
 import { onboardingRoleFilter } from "@/lib/onboarding-role";
+import { syncClerkNavigationMetadata } from "@/lib/clerk-navigation-metadata";
 
 function hasNumberChanged(previous?: number | null, next?: number | null) {
   return Number(previous ?? 0) !== Number(next ?? 0);
@@ -35,21 +37,30 @@ export async function POST(req: Request) {
     const body = await parseJsonBody(req);
     const parsed = creatorOnboardingSchema.safeParse(body);
     if (!parsed.success) {
-      return NextResponse.json({ error: parsed.error.issues[0]?.message ?? "Invalid creator profile." }, { status: 400 });
+      return NextResponse.json({ error: parsed.error.issues[0]?.message ?? "Invalid creator profile.", code: "VALIDATION_ERROR" }, { status: 400 });
     }
 
-    await connectDB();
+    return await withMongoRequest("creator-onboarding", async (connection) => {
+    const ScopedUser = modelForConnection(connection, User);
+    const ScopedCreatorProfile = modelForConnection(connection, CreatorProfile);
+    const ScopedEmailNotification = modelForConnection(connection, EmailNotification);
 
-    const usernameOwner = await User.findOne({
+    const usernameOwner = await ScopedUser.findOne({
       username: parsed.data.username,
       clerkId: { $ne: userId },
     });
 
     if (usernameOwner) {
-      return NextResponse.json({ error: "That username is already taken." }, { status: 409 });
+      return NextResponse.json({ error: "That username is already taken.", code: "USERNAME_TAKEN" }, { status: 409 });
     }
 
-    const existingUser = await User.findOne({ clerkId: userId });
+    const existingUser = await ScopedUser.findOne({ clerkId: userId });
+    if (existingUser?.onboardingComplete && existingUser.role === "brand") {
+      return NextResponse.json({
+        error: "This account is already registered as a Brand. Continue to your Brand Dashboard or use a different account for a Creator profile.",
+        code: "ACCOUNT_ALREADY_BRAND", dashboardHref: "/dashboard/brand",
+      }, { status: 409 });
+    }
     const phoneVerified = Boolean(existingUser?.phoneVerified && (existingUser.phoneNumber ?? "") === parsed.data.phoneNumber);
     const phoneVerifiedAt = phoneVerified ? existingUser?.phoneVerifiedAt ?? null : null;
     const clerkUser = await currentUser();
@@ -60,7 +71,7 @@ export async function POST(req: Request) {
 
     let user;
     try {
-      user = await User.findOneAndUpdate(
+      user = await ScopedUser.findOneAndUpdate(
       onboardingRoleFilter(userId, "creator"),
       {
         $set: {
@@ -87,13 +98,13 @@ export async function POST(req: Request) {
       );
     } catch (error) {
       if (typeof error === "object" && error && "code" in error && error.code === 11000) {
-        return NextResponse.json({ error: "This account already has a different completed role." }, { status: 403 });
+        return NextResponse.json({ error: "This account is already registered as a Brand. Continue to your Brand Dashboard or use a different account for a Creator profile.", code: "ACCOUNT_ALREADY_BRAND", dashboardHref: "/dashboard/brand" }, { status: 409 });
       }
       throw error;
     }
-    if (!user) return NextResponse.json({ error: "This account cannot complete creator onboarding." }, { status: 403 });
+    if (!user) return NextResponse.json({ error: "This account cannot complete creator onboarding.", code: "ACCOUNT_ALREADY_BRAND" }, { status: 409 });
 
-    const existingProfile = await CreatorProfile.findOne({ userId: user._id });
+    const existingProfile = await ScopedCreatorProfile.findOne({ userId: user._id });
     const platformChanged = Boolean(
       existingProfile &&
         (existingProfile.youtubeUrl !== parsed.data.youtubeUrl ||
@@ -130,7 +141,7 @@ export async function POST(req: Request) {
       : existingProfile?.verificationStatus ?? "unverified";
     const verificationCodeExpiresAt = platformChanged ? null : existingProfile?.verificationCodeExpiresAt ?? null;
 
-    await CreatorProfile.findOneAndUpdate(
+    await ScopedCreatorProfile.findOneAndUpdate(
       { userId: user._id },
       {
         $set: {
@@ -189,20 +200,23 @@ export async function POST(req: Request) {
     );
 
     if (platformChanged) {
-      await User.updateOne({ _id: user._id }, { $set: { isVerified: false } });
+      await ScopedUser.updateOne({ _id: user._id }, { $set: { isVerified: false } });
     }
+
+    await syncClerkNavigationMetadata(await clerkClient(), user);
 
     await sendCreatorWelcomeOnce({
       to: user.email,
       firstName: user.name.split(/\s+/)[0],
       userId: user._id.toString(),
       idempotencyKey: `welcome:creator:${user._id}`,
-    }).catch(() => console.error("[email] Creator welcome delivery could not be recorded."));
+    }, { notificationModel: ScopedEmailNotification }).catch(() => console.error("[email] Creator welcome delivery could not be recorded."));
 
     return NextResponse.json({
       ok: true,
       username: parsed.data.username,
       verificationCode: verificationCode || undefined,
+    });
     });
   } catch (error) {
     return handleRouteError(error, "Creator onboarding failed", "Could not save your creator profile.");

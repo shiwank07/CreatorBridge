@@ -3,20 +3,20 @@ import { NextResponse } from "next/server";
 
 import { handleRouteError } from "@/lib/api-errors";
 import { hasClerkKeys } from "@/lib/clerk-config";
-import { connectDB, hasMongoUri } from "@/lib/db";
+import { hasMongoUri, modelForConnection, withMongoRequest } from "@/lib/db";
 import { CreatorProfile } from "@/lib/models/CreatorProfile";
 import { CreatorVerificationRequest } from "@/lib/models/CreatorVerificationRequest";
 import { User } from "@/lib/models/User";
 import { createVerificationCode, verificationCodeExpiry } from "@/lib/verification-helpers";
 
-async function ensureVerificationCode(profileId: string, currentCode?: string) {
+async function ensureVerificationCode(profileId: string, currentCode: string | undefined, ProfileModel: typeof CreatorProfile) {
   if (currentCode) return currentCode;
 
   for (let attempt = 0; attempt < 25; attempt += 1) {
     const verificationCode = createVerificationCode();
-    if (await CreatorProfile.exists({ verificationCode })) continue;
+    if (await ProfileModel.exists({ verificationCode })) continue;
 
-    const updated = await CreatorProfile.findOneAndUpdate(
+    const updated = await ProfileModel.findOneAndUpdate(
       { _id: profileId, verificationCode: { $in: ["", null] } },
       { $set: { verificationCode, verificationCodeExpiresAt: verificationCodeExpiry() } },
       { new: true },
@@ -42,16 +42,18 @@ export async function GET() {
       return NextResponse.json({ error: "MongoDB is not configured yet." }, { status: 503 });
     }
 
-    await connectDB();
-
-    const user = await User.findOne({ clerkId: userId, role: "creator" });
+    return await withMongoRequest("creator-verification-status", async (connection) => {
+    const ScopedUser = modelForConnection(connection, User);
+    const ScopedCreatorProfile = modelForConnection(connection, CreatorProfile);
+    const ScopedVerificationRequest = modelForConnection(connection, CreatorVerificationRequest);
+    const user = await ScopedUser.findOne({ clerkId: userId, role: "creator" });
     if (!user) return NextResponse.json({ error: "Creator account not found." }, { status: 404 });
 
-    const profile = await CreatorProfile.findOne({ userId: user._id });
+    const profile = await ScopedCreatorProfile.findOne({ userId: user._id });
     if (!profile) return NextResponse.json({ error: "Creator profile not found." }, { status: 404 });
 
-    const verificationCode = await ensureVerificationCode(profile._id.toString(), profile.verificationCode);
-    const latestRequest = await CreatorVerificationRequest.findOne({ creatorId: profile._id })
+    const verificationCode = await ensureVerificationCode(profile._id.toString(), profile.verificationCode, ScopedCreatorProfile);
+    const latestRequest = await ScopedVerificationRequest.findOne({ creatorId: profile._id })
       .sort({ submittedAt: -1, createdAt: -1 })
       .select("platform customPlatformName profileUrl creatorNote status adminNote submittedAt reviewedAt")
       .lean()
@@ -91,6 +93,7 @@ export async function GET() {
             reviewedAt: latestRequest.reviewedAt?.toISOString(),
           }
         : null,
+    });
     });
   } catch (error) {
     return handleRouteError(error, "Creator verification status failed", "Could not load verification status.");

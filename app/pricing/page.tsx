@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { ArrowRight, Sparkles } from "lucide-react";
 
-import { Navbar } from "@/components/shared/navbar";
+import { MarketingNavbar } from "@/components/marketing/marketing-navbar";
 import { publicPageMetadata } from "@/lib/seo";
 
 export const metadata = publicPageMetadata("Pricing", "Explore how Branzzo supports creator discovery and structured paid collaboration requests for brands and creators.", "/pricing");
@@ -9,7 +9,7 @@ export const metadata = publicPageMetadata("Pricing", "Explore how Branzzo suppo
 export default function PricingPage() {
   return (
     <>
-      <Navbar />
+      <MarketingNavbar />
       <main className="relative min-h-[calc(100vh-4rem)] overflow-hidden bg-[#05050d]">
         <div className="pointer-events-none absolute inset-0 surface-grid opacity-35" />
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_top,rgba(124,58,237,0.22),transparent_54%),linear-gradient(135deg,rgba(103,232,249,0.08),transparent_42%)]" />

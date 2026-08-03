@@ -4,7 +4,8 @@ import { ArrowLeft } from "lucide-react";
 
 import { BrandOnboardingForm } from "@/components/forms/brand-onboarding-form";
 import { Navbar } from "@/components/shared/navbar";
-import { getCurrentAppUser, getCurrentClerkUserId } from "@/lib/current-user";
+import { AccountUnavailable } from "@/components/shared/account-unavailable";
+import { getCurrentAppUserResult, getCurrentClerkUserId } from "@/lib/current-user";
 import { getBrandByUsername } from "@/lib/queries/brands";
 
 export const dynamic = "force-dynamic";
@@ -16,18 +17,26 @@ export const metadata = {
 
 export default async function BrandProfileEditPage() {
   const clerkUserId = await getCurrentClerkUserId();
-  const user = await getCurrentAppUser();
+  const userResult = await getCurrentAppUserResult();
 
   if (!clerkUserId) redirect("/sign-in");
-  if (!user || !user.onboardingComplete) redirect("/onboarding?role=brand");
+  if (userResult.status === "temporarily_unavailable") return <AccountUnavailable retryHref="/dashboard/brand/edit" />;
+  if (userResult.status === "account_restricted") redirect("/403");
+  if (userResult.status !== "found" || !userResult.user.onboardingComplete) redirect("/onboarding?role=brand");
+  const user = userResult.user;
   if (user.role === "creator") redirect("/dashboard/creator/edit");
   if (user.role !== "brand") redirect("/dashboard");
 
-  const brand = await getBrandByUsername(user.username);
+  let brand: Awaited<ReturnType<typeof getBrandByUsername>>;
+  try {
+    brand = await getBrandByUsername(user.username);
+  } catch {
+    return <><Navbar role="brand" username={user.username} /><AccountUnavailable retryHref="/dashboard/brand/edit" /></>;
+  }
 
   return (
     <>
-      <Navbar />
+      <Navbar role="brand" username={user.username} />
       <main className="bridge-section max-w-6xl py-8 sm:py-10">
         <Link href="/dashboard/brand" className="mb-6 inline-flex items-center gap-2 text-sm font-semibold text-[var(--text-secondary)] hover:text-[var(--text-primary)]">
           <ArrowLeft size={16} />

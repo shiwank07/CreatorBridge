@@ -3,7 +3,7 @@ import { ClerkProvider } from "@clerk/nextjs";
 
 import "@/app/globals.css";
 import { hasClerkKeys } from "@/lib/clerk-config";
-import { absoluteUrl, safeJsonLd, SITE_DESCRIPTION, SITE_NAME, SITE_TITLE, SITE_URL, SOCIAL_IMAGE } from "@/lib/seo";
+import { GLOBAL_STRUCTURED_DATA, SITE_DESCRIPTION, SITE_NAME, SITE_TITLE, SITE_URL, SOCIAL_IMAGE } from "@/lib/seo";
 
 export const viewport = {
   themeColor: "#05050d",
@@ -60,14 +60,7 @@ export default function RootLayout({
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{
-            __html: safeJsonLd({
-              "@context": "https://schema.org",
-              "@graph": [
-                { "@type": "Organization", "@id": `${SITE_URL}/#organization`, name: SITE_NAME, url: SITE_URL, logo: { "@type": "ImageObject", url: absoluteUrl("/icon.png"), width: 512, height: 512 }, email: "support@branzzo.com" },
-                { "@type": "WebSite", "@id": `${SITE_URL}/#website`, name: SITE_NAME, url: SITE_URL, description: SITE_DESCRIPTION, publisher: { "@id": `${SITE_URL}/#organization` }, potentialAction: { "@type": "SearchAction", target: { "@type": "EntryPoint", urlTemplate: `${SITE_URL}/creators?q={search_term_string}` }, "query-input": "required name=search_term_string" } },
-                { "@type": "WebApplication", "@id": `${SITE_URL}/#application`, name: SITE_NAME, url: SITE_URL, description: SITE_DESCRIPTION, applicationCategory: "BusinessApplication", operatingSystem: "Web", browserRequirements: "Requires JavaScript and a modern web browser", publisher: { "@id": `${SITE_URL}/#organization` } },
-              ],
-            }),
+            __html: GLOBAL_STRUCTURED_DATA,
           }}
         />
         <div aria-hidden="true" className="ambient-noise" />

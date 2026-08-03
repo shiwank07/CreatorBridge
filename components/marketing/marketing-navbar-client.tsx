@@ -1,213 +1,139 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useAuth, useClerk, UserButton } from "@clerk/nextjs";
-import { Bell, History, LayoutDashboard, Menu, Repeat2, ShieldCheck, UserRound, X } from "lucide-react";
+import { useAuth, useClerk } from "@clerk/nextjs";
+import { Menu, X } from "lucide-react";
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 
 import { BranzzoLogo } from "@/components/branding/branzzo-logo";
-import { NotificationIndicator } from "@/components/notifications/notification-indicator";
-import { clearBranzzoClientState } from "@/lib/auth-client";
-import { type InAppNotificationData } from "@/lib/types";
+import { AccountMenu } from "@/components/shared/account-menu";
+import { NotificationButton } from "@/components/shared/notification-button";
+import { useNavigationContext } from "@/components/shared/use-navigation-context";
+import { authHref } from "@/lib/auth-redirect";
+import type { NavigationContext } from "@/lib/navigation-context";
 
-type NavItem = {
-  label: string;
-  href: string;
-};
 
-export type MarketingUserMenuLinks = {
-  profileHref: string;
-  verificationHref: string;
-  historyHref: string;
-  notificationsHref: string;
-  accountHref: string;
-};
+const marketingLinks = [
+  { label: "Browse Creators", href: "/creators" },
+  { label: "For Brands", href: "/#for-brands" },
+  { label: "About", href: "/about" },
+];
 
-type MarketingNavbarClientProps = {
-  navItems: NavItem[];
-  isSignedIn: boolean;
-  signInHref: string;
-  primaryHref: string;
-  primaryLabel: string;
-  creatorsLabel: string;
-  showCreatorsAction: boolean;
-  userMenuLinks?: MarketingUserMenuLinks | null;
-  showNotificationBell?: boolean;
-  initialNotifications?: InAppNotificationData[];
-  initialUnreadCount?: number;
-};
+function signedInDesktopLinks(context: NavigationContext) {
+  if (context?.role === "creator") return [
+    { label: "Browse Creators", href: "/creators" },
+    { label: "Collaborations", href: "/dashboard/history" },
+    { label: "Analytics", href: "/dashboard/creator/analytics" },
+    { label: "My Profile", href: context.username ? `/creators/${context.username}` : "/dashboard/creator/edit" },
+  ];
+  if (context?.role === "brand") return [
+    { label: "Browse Creators", href: "/creators" },
+    { label: "Collaborations", href: "/dashboard/history" },
+    { label: "Saved Creators", href: "/dashboard/brand/saved-creators" },
+    { label: "Analytics", href: "/dashboard/brand/analytics" },
+    { label: "Brand Profile", href: context.username ? `/brands/${context.username}` : "/dashboard/brand/edit" },
+  ];
+  if (context?.role === "admin") return [
+    { label: "Admin Dashboard", href: "/admin" },
+    { label: "Users", href: "/admin/users" },
+    { label: "Reports", href: "/admin/reports" },
+  ];
+  return [{ label: "Browse Creators", href: "/creators" }];
+}
 
-export function MarketingNavbarClient({
-  navItems,
-  isSignedIn,
-  signInHref,
-  primaryHref,
-  primaryLabel,
-  creatorsLabel,
-  showCreatorsAction,
-  userMenuLinks,
-  showNotificationBell = false,
-  initialNotifications = [],
-  initialUnreadCount = 0,
-}: MarketingNavbarClientProps) {
+export function MarketingNavbarClient() {
   const [isOpen, setIsOpen] = useState(false);
   const pathname = usePathname();
-  const router = useRouter();
-  const { signOut } = useClerk();
-  const { sessionId } = useAuth();
+  const { isLoaded, isSignedIn } = useAuth();
+  const { openUserProfile, signOut } = useClerk();
+  const navbarContext = useNavigationContext();
+  const authenticatedDesktopLinks = signedInDesktopLinks(navbarContext);
+  const dashboardHref = navbarContext?.role === "creator" ? "/dashboard/creator" : navbarContext?.role === "brand" ? "/dashboard/brand" : "/dashboard";
 
-  useEffect(() => {
-    setIsOpen(false);
-  }, [pathname]);
+  useEffect(() => setIsOpen(false), [pathname]);
 
   useEffect(() => {
     if (!isOpen) return;
-
-    const originalOverflow = document.body.style.overflow;
+    const previousOverflow = document.body.style.overflow;
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setIsOpen(false);
+    };
     document.body.style.overflow = "hidden";
-
+    window.addEventListener("keydown", closeOnEscape);
     return () => {
-      document.body.style.overflow = originalOverflow;
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener("keydown", closeOnEscape);
     };
   }, [isOpen]);
 
-  function closeMenu() {
-    setIsOpen(false);
-  }
-
   async function handleSignOut() {
-    closeMenu();
-    clearBranzzoClientState();
-    await signOut({ sessionId: sessionId ?? undefined });
-    router.replace("/");
-    router.refresh();
+    setIsOpen(false);
+    await signOut({ redirectUrl: "/" });
   }
-
-  async function handleSwitchAccount() {
-    closeMenu();
-    clearBranzzoClientState();
-    await signOut({ sessionId: sessionId ?? undefined });
-    window.location.assign("/sign-in?switch=google");
-  }
-
-  const mobileLinks: NavItem[] = [
-    ...(isSignedIn ? navItems : []),
-    ...(showCreatorsAction ? [{ label: creatorsLabel, href: "/creators" }] : !isSignedIn ? [{ label: "Browse Creators", href: "/creators" }] : []),
-    ...(!isSignedIn ? [{ label: "For Brands", href: "/#for-brands" }] : []),
-    { label: isSignedIn ? primaryLabel : "Login", href: isSignedIn ? primaryHref : signInHref },
-    ...(isSignedIn && showNotificationBell ? [{ label: "Notifications", href: "/notifications" }] : []),
-    { label: "About", href: "/about" },
-    { label: "Contact", href: "/contact" },
-    { label: "Terms", href: "/terms" },
-    { label: "Privacy", href: "/privacy" },
-  ];
 
   return (
     <header className="marketing-navbar">
       <div className="marketing-navbar__edge" />
       <div className="marketing-navbar__inner">
-        <Link href="/" aria-label="Branzzo home" className="marketing-navbar__brand">
+        <Link href="/" aria-label="Branzzo home" className="focus-ring marketing-navbar__brand">
           <BranzzoLogo showWordmark size={40} priority wordmarkClassName="marketing-navbar__wordmark" />
         </Link>
 
-        {!isSignedIn ? (
+        {!isLoaded || !isSignedIn ? (
           <nav className="marketing-navbar__links" aria-label="Primary navigation">
-            {navItems.map((item) => (
-              <Link key={item.label} href={item.href} className="focus-ring marketing-navbar__link">
-                {item.label}
-              </Link>
+            {marketingLinks.map((item) => (
+              <Link key={item.label} href={item.href} className="focus-ring marketing-navbar__link">{item.label}</Link>
             ))}
           </nav>
         ) : null}
 
         <div className="marketing-navbar__actions">
-          {isSignedIn
-            ? navItems.map((item) => (
-                <Link key={item.label} href={item.href} className="focus-ring marketing-navbar__action-link">
-                  {item.label}
-                </Link>
-              ))
-            : null}
-          {!isSignedIn ? (
-            <Link href={signInHref} className="focus-ring marketing-navbar__login">
-              Login
-            </Link>
+          {!isLoaded ? <span aria-label="Loading account" className="marketing-navbar__account-placeholder" /> : null}
+          {isLoaded && !isSignedIn ? (
+            <>
+              <Link href={authHref("/sign-in", "/onboarding")} className="focus-ring marketing-navbar__login">Login</Link>
+              <Link href={authHref("/sign-up", "/onboarding")} className="focus-ring marketing-navbar__primary"><span>Join Free</span></Link>
+            </>
           ) : null}
-          {showCreatorsAction ? (
-            <Link href="/creators" className="focus-ring marketing-navbar__login">
-              {creatorsLabel}
-            </Link>
+          {isLoaded && isSignedIn ? (
+            <>
+              <nav aria-label="Account navigation" className="marketing-navbar__signed-in-links">
+                {authenticatedDesktopLinks.map((item) => <Link key={item.label} href={item.href} className="focus-ring marketing-navbar__action-link">{item.label}</Link>)}
+              </nav>
+              {navbarContext?.role !== "admin" ? <Link href={dashboardHref} className="focus-ring marketing-navbar__action-link marketing-navbar__signed-in-dashboard">Dashboard</Link> : null}
+              <span className="marketing-navbar__desktop-account-controls">
+                <NotificationButton className="marketing-navbar__notification" />
+                <span className="marketing-navbar__avatar"><AccountMenu role={navbarContext.role ?? undefined} username={navbarContext.username ?? undefined} /></span>
+              </span>
+            </>
           ) : null}
-          <Link href={primaryHref} aria-label={primaryLabel} className="focus-ring marketing-navbar__primary">
-            {isSignedIn ? <LayoutDashboard size={16} /> : null}
-            <span>{primaryLabel}</span>
-          </Link>
-          {showNotificationBell ? <NotificationIndicator initialNotifications={initialNotifications} initialUnreadCount={initialUnreadCount} /> : null}
-          {isSignedIn ? (
-            userMenuLinks ? (
-              <UserButton
-                customMenuItems={[
-                  { label: "Account Settings", href: userMenuLinks.accountHref },
-                  { label: "Switch account", onClick: handleSwitchAccount },
-                  { label: "Sign out", onClick: handleSignOut },
-                ]}
-              >
-                <UserButton.MenuItems>
-                  <UserButton.Link href={userMenuLinks.profileHref} label="My Profile" labelIcon={<UserRound size={16} />} />
-                  <UserButton.Link href={userMenuLinks.verificationHref} label="Verification Center" labelIcon={<ShieldCheck size={16} />} />
-                  <UserButton.Link href={userMenuLinks.historyHref} label="Collaboration History" labelIcon={<History size={16} />} />
-                  <UserButton.Link href={userMenuLinks.notificationsHref} label="Notifications" labelIcon={<Bell size={16} />} />
-                  <UserButton.Action label="manageAccount" />
-                </UserButton.MenuItems>
-              </UserButton>
-            ) : (
-              <UserButton customMenuItems={[{ label: "Switch account", onClick: handleSwitchAccount }, { label: "Sign out", onClick: handleSignOut }]} />
-            )
-          ) : null}
-          <button
-            type="button"
-            onClick={() => setIsOpen(true)}
-            className="focus-ring marketing-navbar__menu-button"
-            aria-label="Open navigation"
-            aria-expanded={isOpen}
-            aria-controls="marketing-mobile-navigation"
-          >
-            <Menu size={18} />
+          <button type="button" onClick={() => setIsOpen(true)} className="focus-ring marketing-navbar__menu-button" aria-label="Open navigation" aria-expanded={isOpen} aria-controls="marketing-mobile-navigation">
+            <Menu aria-hidden="true" size={18} />
           </button>
         </div>
       </div>
 
       {isOpen ? (
         <div className="marketing-mobile-nav">
-          <button type="button" aria-label="Close navigation" className="marketing-mobile-nav__scrim" onClick={closeMenu} />
-          <aside id="marketing-mobile-navigation" className="marketing-mobile-nav__panel">
+          <button type="button" aria-label="Close navigation" className="marketing-mobile-nav__scrim" onClick={() => setIsOpen(false)} />
+          <aside id="marketing-mobile-navigation" aria-label="Marketing menu" className="marketing-mobile-nav__panel">
             <div className="marketing-mobile-nav__header">
-              <Link href="/" onClick={closeMenu} className="marketing-mobile-nav__brand">
-                <BranzzoLogo showWordmark size={36} />
-              </Link>
-              <button type="button" onClick={closeMenu} className="focus-ring marketing-navbar__menu-button" aria-label="Close navigation">
-                <X size={18} />
-              </button>
+              <Link href="/" aria-label="Branzzo home" onClick={() => setIsOpen(false)} className="marketing-mobile-nav__brand"><BranzzoLogo showWordmark size={36} /></Link>
+              <button type="button" onClick={() => setIsOpen(false)} className="focus-ring marketing-navbar__menu-button" aria-label="Close navigation"><X aria-hidden="true" size={18} /></button>
             </div>
-
             <nav className="marketing-mobile-nav__links" aria-label="Mobile navigation">
-              {mobileLinks.map((item) => (
-                <Link key={item.label} href={item.href} onClick={closeMenu} className="focus-ring marketing-mobile-nav__link">
-                  {item.label}
-                </Link>
-              ))}
-              {isSignedIn ? (
-                <button type="button" onClick={handleSwitchAccount} className="focus-ring marketing-mobile-nav__link marketing-mobile-nav__button">
-                  <Repeat2 size={16} />
-                  Switch account
-                </button>
-              ) : null}
-              {isSignedIn ? (
-                <button type="button" onClick={handleSignOut} className="focus-ring marketing-mobile-nav__link marketing-mobile-nav__button">
-                  Sign out
-                </button>
-              ) : null}
+              {marketingLinks.map((item) => <Link key={item.label} href={item.href} onClick={() => setIsOpen(false)} className="focus-ring marketing-mobile-nav__link">{item.label}</Link>)}
+              <Link href="/contact" onClick={() => setIsOpen(false)} className="focus-ring marketing-mobile-nav__link">Contact</Link>
+              <Link href="/terms" onClick={() => setIsOpen(false)} className="focus-ring marketing-mobile-nav__link">Terms</Link>
+              <Link href="/privacy" onClick={() => setIsOpen(false)} className="focus-ring marketing-mobile-nav__link">Privacy</Link>
+              {isLoaded && !isSignedIn ? <Link href={authHref("/sign-in", "/onboarding")} className="focus-ring marketing-mobile-nav__link">Login</Link> : null}
+              {isLoaded && !isSignedIn ? <Link href={authHref("/sign-up", "/onboarding")} className="focus-ring marketing-mobile-nav__link">Join Free</Link> : null}
+              {isLoaded && isSignedIn ? <Link href="/dashboard" className="focus-ring marketing-mobile-nav__link">Dashboard</Link> : null}
+              {isLoaded && isSignedIn ? <Link href="/notifications" className="focus-ring marketing-mobile-nav__link">Notifications</Link> : null}
+              {isLoaded && isSignedIn ? <Link href="/dashboard/settings/account" className="focus-ring marketing-mobile-nav__link">Account Settings</Link> : null}
+              {isLoaded && isSignedIn ? <button type="button" onClick={() => { setIsOpen(false); openUserProfile(); }} className="focus-ring marketing-mobile-nav__link marketing-mobile-nav__button">Manage Account</button> : null}
+              {isLoaded && isSignedIn ? <button type="button" onClick={handleSignOut} className="focus-ring marketing-mobile-nav__link marketing-mobile-nav__button">Sign Out</button> : null}
             </nav>
           </aside>
         </div>

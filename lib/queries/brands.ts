@@ -99,7 +99,7 @@ export async function getBrandByUsername(username: string): Promise<BrandProfile
 
     return mapBrand(profile as unknown as BrandDocumentWithUser);
   } catch {
-    return null;
+    throw new Error("Brand profile is temporarily unavailable.");
   }
 }
 

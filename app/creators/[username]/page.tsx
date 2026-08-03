@@ -8,6 +8,7 @@ import { CreatorProfileHeader } from "@/components/creators/creator-profile-head
 import { SaveCreatorButton } from "@/components/creators/save-creator-button";
 import { StatBox } from "@/components/creators/stat-box";
 import { WorkingHistoryCard } from "@/components/collaborations/working-history-card";
+import { MarketingNavbar } from "@/components/marketing/marketing-navbar";
 import { Badge } from "@/components/shared/badge";
 import { Navbar } from "@/components/shared/navbar";
 import { ProfileCompletionCard } from "@/components/shared/profile-completion-card";
@@ -15,11 +16,11 @@ import { TrustPassportCard } from "@/components/verification/trust-passport-card
 import { canStartCreatorCollaboration, creatorAvailabilityNotice } from "@/lib/availability";
 import { authHref } from "@/lib/auth-redirect";
 import { formatINR, formatNumber } from "@/lib/format";
-import { getCurrentAppUser } from "@/lib/current-user";
+import { getCurrentAppUser, getCurrentClerkUserId } from "@/lib/current-user";
 import { platformDisplayName } from "@/lib/platforms";
 import { calculateCreatorProfileCompletion } from "@/lib/profile-completion";
 import { getCreatorCollaborationHistorySummary } from "@/lib/queries/collaborations";
-import { getCreatorByUsername, getSavedCreatorUsernames } from "@/lib/queries/creators";
+import { getCreatorByUsername, getCreatorProfileViewerState, getSavedCreatorUsernames } from "@/lib/queries/creators";
 import { logServerTiming } from "@/lib/server-timing";
 import { SOCIAL_IMAGE } from "@/lib/seo";
 import {
@@ -89,17 +90,19 @@ export async function generateMetadata({ params }: { params: CreatorProfileParam
 export default async function CreatorProfilePage({ params }: { params: CreatorProfileParams }) {
   const renderStartedAt = performance.now();
   const { username } = await params;
-  const [creator, viewer, historySummary] = await Promise.all([
+  const [creator, viewer, clerkUserId, historySummary] = await Promise.all([
     getCachedCreatorByUsername(username),
     getCurrentAppUser(),
+    getCurrentClerkUserId(),
     getCreatorCollaborationHistorySummary(username),
   ]);
 
   if (!creator) notFound();
-  const viewerRole = viewer?.onboardingComplete && (viewer.role === "creator" || viewer.role === "brand") ? viewer.role : undefined;
-  const savedUsernames = viewerRole === "brand" ? await getSavedCreatorUsernames(viewer?.id) : new Set<string>();
+  const viewerState = await getCreatorProfileViewerState(clerkUserId, creator.username);
+  const viewerRole = viewerState === "brand" ? "brand" : viewerState === "creator_owner" || viewerState === "creator_other" ? "creator" : undefined;
+  const savedUsernames = viewerState === "brand" && viewer ? await getSavedCreatorUsernames(viewer.id) : new Set<string>();
   logServerTiming("server-render.total", performance.now() - renderStartedAt, { route: "/creators/[username]" });
-  const isOwner = viewerRole === "creator" && viewer?.username === creator.username;
+  const isOwner = viewerState === "creator_owner";
   const statsVerified = hasVerifiedStats(creator);
   const statsStatus = normalizeStatsVerificationStatus(creator.statsVerificationStatus);
   const statsLastVerifiedAt = getStatsLastVerifiedAt(creator);
@@ -138,10 +141,10 @@ export default async function CreatorProfilePage({ params }: { params: CreatorPr
 
   return (
     <>
-      <Navbar />
+      {viewerRole ? <Navbar role={viewerRole} username={viewer?.username} /> : <MarketingNavbar />}
       <main>
         <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(schema) }} />
-        <CreatorProfileHeader creator={creator} viewerRole={viewerRole} viewerUsername={viewer?.username} />
+        <CreatorProfileHeader creator={creator} viewerState={viewerState} />
 
         <div className="bridge-section grid items-start gap-6 py-8 sm:py-10 lg:grid-cols-[1fr_340px]">
           <div className="space-y-6">
@@ -269,7 +272,9 @@ export default async function CreatorProfilePage({ params }: { params: CreatorPr
                   ? "Start a collaboration request with your goals, exact offer amount, and preferred timeline."
                   : viewerRole === "creator"
                     ? "Browse this public profile without brand-only collaboration actions."
-                    : "Sign in with a brand account to start a structured collaboration request."}
+                    : viewerState === "signed_out"
+                      ? "Sign in with a brand account to start a structured collaboration request."
+                      : "Browse this public profile and creator directory."}
             </p>
             {availabilityNotice ? (
               <p className="mt-4 rounded-[8px] border border-yellow-700/60 bg-yellow-950/30 px-3 py-2 text-xs leading-5 text-yellow-100">
@@ -293,7 +298,7 @@ export default async function CreatorProfilePage({ params }: { params: CreatorPr
                   View Dashboard
                 </Link>
               </>
-            ) : !viewerRole && canStart ? (
+            ) : viewerState === "signed_out" && canStart ? (
               <Link href={authHref("/sign-in", `/campaign-inquiry?creator=${creator.username}`)} className="bridge-button-primary mt-5 w-full">
                 <Send size={17} />
                 Sign in to start collaboration

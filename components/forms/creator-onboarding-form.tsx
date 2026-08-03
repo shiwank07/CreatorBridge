@@ -2,6 +2,7 @@
 
 import { type FormEvent, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import { useUser } from "@clerk/nextjs";
 import { Check, Loader2, UserPlus } from "lucide-react";
 
 import { Badge } from "@/components/shared/badge";
@@ -88,6 +89,7 @@ export function CreatorOnboardingForm({
   successMessage = "Creator profile saved.",
 }: CreatorOnboardingFormProps) {
   const router = useRouter();
+  const { user } = useUser();
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
@@ -190,6 +192,7 @@ export function CreatorOnboardingForm({
       }
 
       setSuccess(successMessage);
+      await user?.reload();
       if (redirectHref) router.replace(redirectHref);
       router.refresh();
     } catch {

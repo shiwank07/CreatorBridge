@@ -5,8 +5,9 @@ import { ArrowLeft } from "lucide-react";
 import { CreatorOnboardingForm } from "@/components/forms/creator-onboarding-form";
 import { CreatorPaymentDetailsForm } from "@/components/creators/creator-payment-details-form";
 import { Navbar } from "@/components/shared/navbar";
-import { getCurrentAppUser, getCurrentClerkUserId } from "@/lib/current-user";
-import { getCreatorPrivateProfileByUsername } from "@/lib/queries/creators";
+import { AccountUnavailable } from "@/components/shared/account-unavailable";
+import { getCurrentClerkUserId } from "@/lib/current-user";
+import { getCreatorEditAccountByClerkId } from "@/lib/queries/creators";
 
 export const dynamic = "force-dynamic";
 
@@ -25,18 +26,17 @@ function decimalInput(value?: number | null) {
 
 export default async function CreatorProfileEditPage() {
   const clerkUserId = await getCurrentClerkUserId();
-  const user = await getCurrentAppUser();
-
   if (!clerkUserId) redirect("/sign-in");
-  if (!user || !user.onboardingComplete) redirect("/onboarding?role=creator");
-  if (user.role === "brand") redirect("/dashboard/brand/edit");
-  if (user.role !== "creator") redirect("/dashboard");
-
-  const creator = await getCreatorPrivateProfileByUsername(user.username);
+  const account = await getCreatorEditAccountByClerkId(clerkUserId);
+  if (account.status === "temporarily_unavailable") return <AccountUnavailable retryHref="/dashboard/creator/edit" />;
+  if (account.status === "account_restricted") redirect("/403");
+  if (account.status === "missing" && account.role === "brand") redirect("/dashboard/brand/edit");
+  if (account.status !== "found") redirect("/onboarding?role=creator");
+  const { user, profile: creator } = account;
 
   return (
     <>
-      <Navbar />
+      <Navbar role="creator" username={user.username} />
       <main className="bridge-section max-w-6xl py-8 sm:py-10">
         <Link href="/dashboard/creator" className="mb-6 inline-flex items-center gap-2 text-sm font-semibold text-[var(--text-secondary)] hover:text-[var(--text-primary)]">
           <ArrowLeft size={16} />

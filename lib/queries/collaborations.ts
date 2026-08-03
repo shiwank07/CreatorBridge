@@ -10,7 +10,7 @@ import {
   type CollaborationTimelineEvent,
   type CollaborationStatus,
 } from "@/lib/collaborations";
-import { connectDB, hasMongoUri, MONGO_QUERY_TIMEOUT_MS } from "@/lib/db";
+import { connectDB, hasMongoUri, modelForConnection, MONGO_QUERY_TIMEOUT_MS, withMongoRequest } from "@/lib/db";
 import { BrandInquiry } from "@/lib/models/BrandInquiry";
 import { BrandProfile } from "@/lib/models/BrandProfile";
 import { Conversation } from "@/lib/models/Conversation";
@@ -520,15 +520,16 @@ export async function getCreatorCollaborationHistorySummary(username: string): P
   let declined = 0;
 
   try {
-    await connectDB();
-    const baseFilter = { creatorUsername };
-    [active, completed, declined] = await Promise.all([
-      BrandInquiry.countDocuments({ ...baseFilter, status: { $in: ACTIVE_HISTORY_QUERY_STATUSES } }).maxTimeMS(MONGO_QUERY_TIMEOUT_MS).exec(),
-      BrandInquiry.countDocuments({ ...baseFilter, status: { $in: COMPLETED_HISTORY_QUERY_STATUSES } }).maxTimeMS(MONGO_QUERY_TIMEOUT_MS).exec(),
-      BrandInquiry.countDocuments({ ...baseFilter, status: { $in: DECLINED_HISTORY_QUERY_STATUSES } }).maxTimeMS(MONGO_QUERY_TIMEOUT_MS).exec(),
-    ]);
+    [active, completed, declined] = await withMongoRequest("creator-collaboration-history", async (connection) => {
+      const ScopedBrandInquiry = modelForConnection(connection, BrandInquiry);
+      const baseFilter = { creatorUsername };
+      const activeCount = await ScopedBrandInquiry.countDocuments({ ...baseFilter, status: { $in: ACTIVE_HISTORY_QUERY_STATUSES } }).maxTimeMS(MONGO_QUERY_TIMEOUT_MS).exec();
+      const completedCount = await ScopedBrandInquiry.countDocuments({ ...baseFilter, status: { $in: COMPLETED_HISTORY_QUERY_STATUSES } }).maxTimeMS(MONGO_QUERY_TIMEOUT_MS).exec();
+      const declinedCount = await ScopedBrandInquiry.countDocuments({ ...baseFilter, status: { $in: DECLINED_HISTORY_QUERY_STATUSES } }).maxTimeMS(MONGO_QUERY_TIMEOUT_MS).exec();
+      return [activeCount, completedCount, declinedCount];
+    });
   } catch (error) {
-    console.warn("Creator collaboration history unavailable; using public fallback counts.", error);
+    console.warn("[database-fallback]", { operation: "creator-collaboration-history", errorClass: error instanceof Error ? error.name : "UnknownError", retryable: true });
   }
 
   return { active, completed, declined };

@@ -1,17 +1,19 @@
-import { auth, currentUser } from "@clerk/nextjs/server";
+import { auth, clerkClient, currentUser } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 
 import { handleRouteError, parseJsonBody } from "@/lib/api-errors";
 import { hasClerkKeys } from "@/lib/clerk-config";
 import { getClerkEmailVerificationState } from "@/lib/clerk-verification";
-import { connectDB, hasMongoUri } from "@/lib/db";
+import { hasMongoUri, modelForConnection, withMongoRequest } from "@/lib/db";
 import { sendBrandWelcomeOnce } from "@/lib/email/welcome-emails";
 import { BrandProfile } from "@/lib/models/BrandProfile";
 import { User } from "@/lib/models/User";
+import { EmailNotification } from "@/lib/models/EmailNotification";
 import { ensureUniqueUsername } from "@/lib/queries/creators";
 import { brandOnboardingSchema } from "@/lib/validators/brand-profile";
 import { emailDomain, normalizeUrlDomain } from "@/lib/verification-helpers";
 import { onboardingRoleFilter } from "@/lib/onboarding-role";
+import { syncClerkNavigationMetadata } from "@/lib/clerk-navigation-metadata";
 
 function getClerkEmail(user: Awaited<ReturnType<typeof currentUser>>) {
   return (
@@ -39,23 +41,32 @@ export async function POST(req: Request) {
     const body = await parseJsonBody(req);
     const parsed = brandOnboardingSchema.safeParse(body);
     if (!parsed.success) {
-      return NextResponse.json({ error: parsed.error.issues[0]?.message ?? "Invalid brand profile." }, { status: 400 });
+      return NextResponse.json({ error: parsed.error.issues[0]?.message ?? "Invalid brand profile.", code: "VALIDATION_ERROR" }, { status: 400 });
     }
 
-    await connectDB();
+    return await withMongoRequest("brand-onboarding", async (connection) => {
+    const ScopedUser = modelForConnection(connection, User);
+    const ScopedBrandProfile = modelForConnection(connection, BrandProfile);
+    const ScopedEmailNotification = modelForConnection(connection, EmailNotification);
 
     const clerkUser = await currentUser();
     const clerkEmail = getClerkEmail(clerkUser);
     const userEmail = clerkEmail || parsed.data.contactEmail || `${userId}@branzzo.local`;
     const emailVerified = Boolean(getClerkEmailVerificationState(clerkUser, userEmail)?.verified);
-    const existingUser = await User.findOne({ clerkId: userId });
-    const username = existingUser?.username ?? (await ensureUniqueUsername(parsed.data.companyName, userId));
+    const existingUser = await ScopedUser.findOne({ clerkId: userId });
+    if (existingUser?.onboardingComplete && existingUser.role === "creator") {
+      return NextResponse.json({
+        error: "This account is already registered as a Creator. Continue to your Creator Dashboard or use a different account for a Brand profile.",
+        code: "ACCOUNT_ALREADY_CREATOR", dashboardHref: "/dashboard/creator",
+      }, { status: 409 });
+    }
+    const username = existingUser?.username ?? (await ensureUniqueUsername(parsed.data.companyName, userId, ScopedUser));
     const phoneVerified = Boolean(existingUser?.phoneVerified && (existingUser.phoneNumber ?? "") === parsed.data.phoneNumber);
     const phoneVerifiedAt = phoneVerified ? existingUser?.phoneVerifiedAt ?? null : null;
 
     let user;
     try {
-      user = await User.findOneAndUpdate(
+      user = await ScopedUser.findOneAndUpdate(
       onboardingRoleFilter(userId, "brand"),
       {
         $set: {
@@ -82,13 +93,13 @@ export async function POST(req: Request) {
       );
     } catch (error) {
       if (typeof error === "object" && error && "code" in error && error.code === 11000) {
-        return NextResponse.json({ error: "This account already has a different completed role." }, { status: 403 });
+        return NextResponse.json({ error: "This account is already registered as a Creator. Continue to your Creator Dashboard or use a different account for a Brand profile.", code: "ACCOUNT_ALREADY_CREATOR", dashboardHref: "/dashboard/creator" }, { status: 409 });
       }
       throw error;
     }
-    if (!user) return NextResponse.json({ error: "This account cannot complete brand onboarding." }, { status: 403 });
+    if (!user) return NextResponse.json({ error: "This account cannot complete brand onboarding.", code: "ACCOUNT_ALREADY_CREATOR" }, { status: 409 });
 
-    const existingProfile = await BrandProfile.findOne({ userId: user._id });
+    const existingProfile = await ScopedBrandProfile.findOne({ userId: user._id });
     const companyDomain = emailDomain(parsed.data.contactEmail);
     const normalizedWebsiteDomain = normalizeUrlDomain(parsed.data.website);
     const brandIdentityChanged = Boolean(
@@ -98,7 +109,7 @@ export async function POST(req: Request) {
           existingProfile.companyName !== parsed.data.companyName),
     );
 
-    const profile = await BrandProfile.findOneAndUpdate(
+    const profile = await ScopedBrandProfile.findOneAndUpdate(
       { userId: user._id },
       {
         $set: {
@@ -134,21 +145,24 @@ export async function POST(req: Request) {
     );
 
     if (brandIdentityChanged) {
-      await User.updateOne({ _id: user._id }, { $set: { isVerified: false } });
+      await ScopedUser.updateOne({ _id: user._id }, { $set: { isVerified: false } });
     }
+
+    await syncClerkNavigationMetadata(await clerkClient(), user);
 
     await sendBrandWelcomeOnce({
       to: user.email,
       firstName: user.name.split(/\s+/)[0],
       userId: user._id.toString(),
       idempotencyKey: `welcome:brand:${user._id}`,
-    }).catch(() => console.error("[email] Brand welcome delivery could not be recorded."));
+    }, { notificationModel: ScopedEmailNotification }).catch(() => console.error("[email] Brand welcome delivery could not be recorded."));
 
     return NextResponse.json({
       ok: true,
       profileId: profile._id.toString(),
       companyName: profile.companyName,
       username,
+    });
     });
   } catch (error) {
     return handleRouteError(error, "Brand onboarding failed", "Could not save your brand profile.");

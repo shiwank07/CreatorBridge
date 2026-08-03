@@ -15,6 +15,15 @@ export function safeJsonLd(value: unknown) {
   return JSON.stringify(value).replace(/</g, "\\u003c");
 }
 
+export const GLOBAL_STRUCTURED_DATA = safeJsonLd({
+  "@context": "https://schema.org",
+  "@graph": [
+    { "@type": "Organization", "@id": `${SITE_URL}/#organization`, name: SITE_NAME, url: SITE_URL, logo: { "@type": "ImageObject", url: absoluteUrl("/icon.png"), width: 512, height: 512 }, email: "support@branzzo.com" },
+    { "@type": "WebSite", "@id": `${SITE_URL}/#website`, name: SITE_NAME, url: SITE_URL, description: SITE_DESCRIPTION, publisher: { "@id": `${SITE_URL}/#organization` }, potentialAction: { "@type": "SearchAction", target: { "@type": "EntryPoint", urlTemplate: `${SITE_URL}/creators?q={search_term_string}` }, "query-input": "required name=search_term_string" } },
+    { "@type": "WebApplication", "@id": `${SITE_URL}/#application`, name: SITE_NAME, url: SITE_URL, description: SITE_DESCRIPTION, applicationCategory: "BusinessApplication", operatingSystem: "Web", browserRequirements: "Requires JavaScript and a modern web browser", publisher: { "@id": `${SITE_URL}/#organization` } },
+  ],
+});
+
 export function publicPageMetadata(title: string, description: string, path: string): Metadata {
   const isHome = path === "/";
   const socialTitle = isHome ? SITE_TITLE : `${title} | ${SITE_NAME}`;

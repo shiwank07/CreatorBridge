@@ -10,12 +10,11 @@ import { normalizeCreatorVerificationStatus, verificationBadgeLabel } from "@/li
 
 type CreatorProfileHeaderProps = {
   creator: CreatorCardData;
-  viewerRole?: "creator" | "brand";
-  viewerUsername?: string;
+  viewerState: "signed_out" | "brand" | "creator_owner" | "creator_other" | "admin" | "signed_in_unknown";
 };
 
-export function CreatorProfileHeader({ creator, viewerRole, viewerUsername }: CreatorProfileHeaderProps) {
-  const isOwner = viewerRole === "creator" && viewerUsername === creator.username;
+export function CreatorProfileHeader({ creator, viewerState }: CreatorProfileHeaderProps) {
+  const isOwner = viewerState === "creator_owner";
   const verificationStatus = normalizeCreatorVerificationStatus(creator.verificationStatus);
   const canStart = canStartCreatorCollaboration(creator.availabilityStatus, creator.isOpenToDeals);
   const availabilityNotice = creatorAvailabilityNotice(creator.availabilityStatus, creator.isOpenToDeals);
@@ -65,7 +64,7 @@ export function CreatorProfileHeader({ creator, viewerRole, viewerUsername }: Cr
             </div>
           </div>
 
-          {viewerRole === "brand" && canStart ? (
+          {viewerState === "brand" && canStart ? (
             <Link href={`/campaign-inquiry?creator=${creator.username}`} className="bridge-button-primary w-full sm:w-auto">
               <Send size={17} />
               Start Collaboration
@@ -79,10 +78,14 @@ export function CreatorProfileHeader({ creator, viewerRole, viewerUsername }: Cr
                 View Dashboard
               </Link>
             </div>
-          ) : !viewerRole && canStart ? (
+          ) : viewerState === "signed_out" && canStart ? (
             <Link href={authHref("/sign-in", `/campaign-inquiry?creator=${creator.username}`)} className="bridge-button-primary w-full sm:w-auto">
               <Send size={17} />
               Sign in to start collaboration
+            </Link>
+          ) : viewerState === "creator_other" ? (
+            <Link href="/creators" className="bridge-button-secondary w-full sm:w-auto">
+              Browse Directory
             </Link>
           ) : !isOwner && !canStart ? (
             <span

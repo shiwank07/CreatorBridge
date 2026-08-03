@@ -6,15 +6,15 @@ import { CreatorCard } from "@/components/creators/creator-card";
 import { CreatorDirectoryFilters } from "@/components/creators/creator-directory-filters";
 import { Badge } from "@/components/shared/badge";
 import { EmptyState } from "@/components/shared/empty-state";
-import { Navbar } from "@/components/shared/navbar";
+import { MarketingNavbar } from "@/components/marketing/marketing-navbar";
 import { authHref } from "@/lib/auth-redirect";
-import { getCurrentAppUser } from "@/lib/current-user";
 import { formatNumber } from "@/lib/format";
 import { platformDisplayName } from "@/lib/platforms";
-import { getCreatorDiscoveryPage, getSavedCreatorUsernames } from "@/lib/queries/creators";
+import { getCreatorDiscoveryPage } from "@/lib/queries/creators";
 import { getPublicSubscriberCount } from "@/lib/verification";
 import { logServerTiming } from "@/lib/server-timing";
 import { publicPageMetadata } from "@/lib/seo";
+import { getApplicationAccountState } from "@/lib/application-account-state";
 
 export const dynamic = "force-dynamic";
 
@@ -68,13 +68,14 @@ export default async function CreatorsPage({ searchParams }: { searchParams: Cre
     country: readParam(params.country),
     sort: readParam(params.sort) ?? "featured",
     page: Math.max(Number.parseInt(readParam(params.page) ?? "1", 10) || 1, 1),
-    pageSize: 30,
+    pageSize: 24,
   };
 
-  const [viewer, discovery] = await Promise.all([getCurrentAppUser(), getCreatorDiscoveryPage(filters)]);
-  const viewerRole = viewer?.onboardingComplete && (viewer.role === "creator" || viewer.role === "brand") ? viewer.role : undefined;
+  const [discovery, accountState] = await Promise.all([
+    getCreatorDiscoveryPage(filters),
+    getApplicationAccountState(),
+  ]);
   const creators = discovery.creators;
-  const savedUsernames = viewerRole === "brand" ? await getSavedCreatorUsernames(viewer?.id) : new Set<string>();
   logServerTiming("server-render.total", performance.now() - renderStartedAt, { route: "/creators" });
   const verifiedCreators = creators.filter((creator) => creator.isVerified).length;
   const totalReach = creators.reduce((sum, creator) => sum + getPublicSubscriberCount(creator), 0);
@@ -99,7 +100,7 @@ export default async function CreatorsPage({ searchParams }: { searchParams: Cre
 
   return (
     <>
-      <Navbar />
+      <MarketingNavbar />
       <main className="creator-directory-shell">
         <section className="creator-directory-hero relative overflow-hidden">
           <div className="creator-grid-field" />
@@ -129,13 +130,10 @@ export default async function CreatorsPage({ searchParams }: { searchParams: Cre
                     Start Searching
                     <ArrowRight size={17} />
                   </Link>
-                  {viewerRole !== "creator" ? (
-                    <Link href={viewerRole === "brand" ? "#creator-search" : authHref("/sign-up", "/onboarding?role=brand")} className="bridge-button-secondary w-full sm:w-auto">
-                      {viewerRole === "brand" ? "Choose a Creator" : "Join as Brand"}
-                      <Rocket size={17} />
-                    </Link>
-                  ) : null}
-                  {viewerRole === "brand" ? <Link href="/dashboard/brand/saved-creators" className="bridge-button-secondary w-full sm:w-auto">Saved Creators</Link> : null}
+                  <Link href={authHref("/sign-up", "/onboarding?role=brand")} className="bridge-button-secondary w-full sm:w-auto">
+                    Join as Brand
+                    <Rocket size={17} />
+                  </Link>
                 </div>
               </div>
 
@@ -204,7 +202,23 @@ export default async function CreatorsPage({ searchParams }: { searchParams: Cre
           {creators.length > 0 ? (
             <section className="mt-6 grid gap-5 md:grid-cols-2 xl:grid-cols-4" data-testid="creator-grid">
               {creators.map((creator) => (
-                <CreatorCard key={creator.id} creator={creator} viewerRole={viewerRole} initialSaved={savedUsernames.has(creator.username)} />
+                <CreatorCard
+                  key={creator.id}
+                  creator={creator}
+                  viewerState={
+                    accountState.status === "anonymous"
+                      ? "signed_out"
+                      : accountState.status === "brand"
+                        ? "brand"
+                        : accountState.status === "creator"
+                          ? accountState.username.toLowerCase() === creator.username.toLowerCase() ? "owner" : "creator"
+                          : accountState.status === "admin"
+                            ? "admin"
+                            : accountState.status === "temporarily_unavailable"
+                              ? "unavailable"
+                              : "signed_in_unknown"
+                  }
+                />
               ))}
             </section>
           ) : (

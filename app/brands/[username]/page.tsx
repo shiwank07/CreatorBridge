@@ -4,6 +4,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { BadgeCheck, ExternalLink, MapPin } from "lucide-react";
 
+import { MarketingNavbar } from "@/components/marketing/marketing-navbar";
 import { Badge } from "@/components/shared/badge";
 import { InitialsAvatar } from "@/components/shared/initials-avatar";
 import { Navbar } from "@/components/shared/navbar";
@@ -73,7 +74,11 @@ export default async function BrandProfilePage({ params }: { params: BrandProfil
 
   return (
     <>
-      <Navbar />
+      {viewer?.onboardingComplete && (viewer.role === "brand" || viewer.role === "creator") ? (
+        <Navbar role={viewer.role} username={viewer.username} />
+      ) : (
+        <MarketingNavbar />
+      )}
       <main>
         <header className="surface-grid border-b border-[var(--border)] bg-[rgba(8,11,17,0.88)]">
           <div className="bridge-section py-8 sm:py-10">

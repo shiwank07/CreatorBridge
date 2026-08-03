@@ -1,8 +1,10 @@
-import mongoose, { type ConnectOptions } from "mongoose";
+import mongoose, { type Connection, type ConnectOptions, type Model } from "mongoose";
 import { withServerTiming } from "@/lib/server-timing";
 
+// Account routing runs during Atlas cold starts as well as steady state. A 1.5s
+// deadline was short enough to misclassify healthy, completed accounts.
 export const MONGO_CONNECTION_TIMEOUT_MS = 5_000;
-export const MONGO_QUERY_TIMEOUT_MS = 4_000;
+export const MONGO_QUERY_TIMEOUT_MS = 5_000;
 export const MONGO_STATE_POLL_MS = 40;
 
 type MongooseClient = Pick<typeof mongoose, "connect" | "disconnect" | "connection">;
@@ -15,8 +17,8 @@ export class MongoConfigurationError extends Error {
 }
 
 export class MongoTemporaryUnavailableError extends Error {
-  reason: "connecting" | "disconnecting" | "timeout";
-  constructor(reason: "connecting" | "disconnecting" | "timeout") {
+  reason: "connecting" | "disconnecting" | "timeout" | "pool_checkout" | "request_contention";
+  constructor(reason: "connecting" | "disconnecting" | "timeout" | "pool_checkout" | "request_contention") {
     super(`MongoDB is temporarily unavailable (${reason}).`);
     this.name = "MongoTemporaryUnavailableError";
     this.reason = reason;
@@ -33,8 +35,74 @@ export function classifyMongoError(error: unknown): MongoFailureKind {
   const code = typeof record.code === "number" ? record.code : undefined;
   const message = error instanceof Error ? error.message.toLowerCase() : "";
   if (code === 18 || message.includes("authentication failed") || message.includes("bad auth")) return "authentication";
-  if (/Mongo(Network|ServerSelection|Parse)|MongooseServerSelection/.test(name) || /enotfound|econnrefused|etimeout|server selection|dns/.test(message)) return "network";
+  if (/Mongo(Network|ServerSelection|Parse|WaitQueueTimeout)|MongooseServerSelection/.test(name) || /enotfound|econnrefused|etimeout|server selection|wait queue|timed out while checking out|dns/.test(message)) return "network";
   return "unavailable";
+}
+
+type RequestConnectionFactory = (uri: string, options: ConnectOptions) => Connection;
+
+function safeMongoLog(input: {
+  operation: string; readyState: number; startedAt: number; error?: unknown; retryable: boolean; phase: string;
+}) {
+  const errorClass = input.error instanceof Error ? input.error.name : input.error ? "UnknownError" : "none";
+  const payload = {
+    operation: input.operation,
+    readyState: input.readyState,
+    durationMs: Math.round(performance.now() - input.startedAt),
+    errorClass,
+    retryable: input.retryable,
+    phase: input.phase,
+  };
+  if (input.error) console.error("[mongodb-request]", payload);
+  else console.info("[mongodb-request]", payload);
+}
+
+export function modelForConnection<T>(connection: Connection, model: Model<T>): Model<T> {
+  return (connection.models[model.modelName] as Model<T> | undefined) ?? connection.model<T>(model.modelName, model.schema);
+}
+
+export async function withMongoRequest<T>(
+  operation: string,
+  callback: (connection: Connection) => Promise<T>,
+  options: { createConnection?: RequestConnectionFactory } = {},
+): Promise<T> {
+  const uri = process.env.MONGODB_URI?.trim();
+  if (!uri) throw new MongoConfigurationError();
+  const startedAt = performance.now();
+  const connectionOptions: ConnectOptions = {
+    bufferCommands: false,
+    maxPoolSize: 1,
+    maxConnecting: 1,
+    minPoolSize: 0,
+    waitQueueTimeoutMS: MONGO_QUERY_TIMEOUT_MS,
+    serverMonitoringMode: "poll",
+    serverSelectionTimeoutMS: MONGO_CONNECTION_TIMEOUT_MS,
+    connectTimeoutMS: MONGO_CONNECTION_TIMEOUT_MS,
+    socketTimeoutMS: 10_000,
+    ...(process.env.MONGODB_DB_NAME?.trim() ? { dbName: process.env.MONGODB_DB_NAME.trim() } : {}),
+  };
+  const connection = (options.createConnection ?? ((requestUri, requestOptions) => mongoose.createConnection(requestUri, requestOptions)))(uri, connectionOptions);
+  try {
+    await connection.asPromise();
+    safeMongoLog({ operation, readyState: connection.readyState, startedAt, retryable: false, phase: "connected" });
+    return await callback(connection);
+  } catch (error) {
+    const record = typeof error === "object" && error ? error as Record<string, unknown> : {};
+    const errorName = typeof record.name === "string" ? record.name : "";
+    const message = error instanceof Error ? error.message.toLowerCase() : "";
+    const classified = errorName.includes("WaitQueueTimeout") || message.includes("checking out") || message.includes("wait queue")
+      ? new MongoTemporaryUnavailableError("pool_checkout")
+      : error;
+    safeMongoLog({ operation, readyState: connection.readyState, startedAt, error: classified, retryable: classifyMongoError(classified) !== "authentication", phase: connection.readyState === 2 ? "connect" : "operation" });
+    throw classified;
+  } finally {
+    try {
+      await connection.destroy(true);
+      safeMongoLog({ operation, readyState: connection.readyState, startedAt, retryable: false, phase: "destroyed" });
+    } catch (error) {
+      safeMongoLog({ operation, readyState: connection.readyState, startedAt, error, retryable: true, phase: "destroy" });
+    }
+  }
 }
 
 export function hasMongoUri() { return Boolean(process.env.MONGODB_URI?.trim()); }
@@ -68,8 +136,12 @@ export async function connectMongoose(client: MongooseClient, uri: string, dbNam
 
   const options: ConnectOptions = {
     bufferCommands: false,
-    maxPoolSize: 5,
+    maxPoolSize: 2,
+    maxConnecting: 1,
     minPoolSize: 0,
+    maxIdleTimeMS: 30_000,
+    waitQueueTimeoutMS: MONGO_QUERY_TIMEOUT_MS,
+    serverMonitoringMode: "poll",
     serverSelectionTimeoutMS: MONGO_CONNECTION_TIMEOUT_MS,
     connectTimeoutMS: MONGO_CONNECTION_TIMEOUT_MS,
     socketTimeoutMS: 10_000,

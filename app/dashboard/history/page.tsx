@@ -186,7 +186,7 @@ export default async function CollaborationHistoryPage({
 
   return (
     <>
-      <Navbar />
+      <Navbar role={user.role === "brand" ? "brand" : "creator"} username={user.username} />
       <main className="bridge-section max-w-6xl py-8 sm:py-10">
         <Link href={dashboardHref} className="mb-6 inline-flex items-center gap-2 text-sm font-semibold text-[var(--text-secondary)] hover:text-[var(--text-primary)]">
           <ArrowLeft size={16} />

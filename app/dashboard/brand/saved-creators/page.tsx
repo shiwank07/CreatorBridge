@@ -17,7 +17,7 @@ export default async function SavedCreatorsPage() {
   const creators = await getSavedCreatorsForBrand(user.id);
 
   return <>
-    <Navbar />
+    <Navbar role="brand" username={user.username} />
     <main className="bridge-section max-w-7xl py-8">
       <Link href="/creators" className="inline-flex items-center gap-2 text-sm font-semibold text-[var(--text-secondary)] hover:text-white"><ArrowLeft size={16} />Back to discovery</Link>
       <header className="mt-6 bridge-card p-5 sm:p-6">

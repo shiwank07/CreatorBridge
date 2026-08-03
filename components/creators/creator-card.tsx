@@ -19,6 +19,7 @@ import {
 
 type CreatorCardProps = {
   creator: CreatorCardData;
+  viewerState?: "signed_out" | "brand" | "creator" | "owner" | "admin" | "unavailable" | "signed_in_unknown";
   viewerRole?: "creator" | "brand";
   initialSaved?: boolean;
 };
@@ -34,7 +35,8 @@ function coverClass(username: string) {
   return variants[index];
 }
 
-export function CreatorCard({ creator, viewerRole, initialSaved = false }: CreatorCardProps) {
+export function CreatorCard({ creator, viewerState, viewerRole, initialSaved = false }: CreatorCardProps) {
+  const effectiveViewerState = viewerState ?? viewerRole ?? "signed_out";
   const normalizedVerification = normalizeCreatorVerificationStatus(creator.verificationStatus);
   const subscriberCount = getPublicSubscriberCount(creator);
   const averageViews = getPublicAverageViews(creator);
@@ -155,15 +157,15 @@ export function CreatorCard({ creator, viewerRole, initialSaved = false }: Creat
             <Eye size={16} />
             View Profile
           </Link>
-          {viewerRole === "brand" ? <SaveCreatorButton username={creator.username} initialSaved={initialSaved} /> : null}
-          {viewerRole === "creator" ? null : canStart ? (
+          {effectiveViewerState === "brand" ? <SaveCreatorButton username={creator.username} initialSaved={initialSaved} /> : null}
+          {effectiveViewerState === "brand" ? canStart ? (
             <Link
-              href={viewerRole === "brand" ? `/campaign-inquiry?creator=${creator.username}` : authHref("/sign-in", `/campaign-inquiry?creator=${creator.username}`)}
+              href={`/campaign-inquiry?creator=${creator.username}`}
               className="bridge-button-secondary px-4"
-              aria-label={viewerRole === "brand" ? `Start collaboration with ${creator.name}` : `Sign in to start collaboration with ${creator.name}`}
+              aria-label={`Start collaboration with ${creator.name}`}
             >
               <Send size={16} />
-              {viewerRole === "brand" ? "Start Collaboration" : "Sign In"}
+              Start Collaboration
             </Link>
           ) : (
             <span
@@ -174,7 +176,16 @@ export function CreatorCard({ creator, viewerRole, initialSaved = false }: Creat
               <Send size={16} />
               Unavailable
             </span>
-          )}
+          ) : effectiveViewerState === "signed_out" ? (
+            <Link
+              href={authHref("/sign-in", `/campaign-inquiry?creator=${creator.username}`)}
+              className="bridge-button-secondary px-4"
+              aria-label={`Sign in to start collaboration with ${creator.name}`}
+            >
+              <Send size={16} />
+              Sign In
+            </Link>
+          ) : null}
         </div>
       </div>
     </article>

@@ -1,6 +1,6 @@
 import { DEMO_AVATARS } from "@/lib/constants";
 import { normalizeCreatorAvailability, type CreatorAvailabilityStatus } from "@/lib/availability";
-import { connectDB, hasMongoUri, MONGO_QUERY_TIMEOUT_MS } from "@/lib/db";
+import { connectDB, hasMongoUri, modelForConnection, MONGO_QUERY_TIMEOUT_MS, withMongoRequest } from "@/lib/db";
 import { CreatorProfile } from "@/lib/models/CreatorProfile";
 import { type IUser, User } from "@/lib/models/User";
 import { formatNumber } from "@/lib/format";
@@ -8,8 +8,9 @@ import { type CreatorCardData, type CreatorPaymentDetailsData, type StatsVerific
 import { getPublicAverageViews, getPublicSubscriberCount, isCreatorVerifiedStatus } from "@/lib/verification";
 import { generateUsername } from "@/lib/slug";
 import { SavedCreator } from "@/lib/models/SavedCreator";
-import type { PipelineStage } from "mongoose";
+import type { Model, PipelineStage } from "mongoose";
 import { withServerTiming } from "@/lib/server-timing";
+import { isConfiguredAdminId } from "@/lib/clerk-navigation-metadata";
 
 const CREATOR_PUBLIC_USER_SELECT = "_id username name avatar isFeatured isVerified emailVerified phoneNumber phoneVerified";
 const CREATOR_PUBLIC_PROFILE_SELECT = [
@@ -503,7 +504,7 @@ function filterDemoDiscovery(filters: CreatorDiscoveryFilters): CreatorDiscovery
     if (query) creators = creators.filter((creator) => (query.$gte === undefined || read(creator) >= query.$gte) && (query.$lt === undefined || read(creator) < query.$lt));
   }
   creators = sortCreators(creators, filters.sort);
-  const pageSize = Math.min(Math.max(filters.pageSize ?? 20, 1), 50);
+  const pageSize = Math.min(Math.max(filters.pageSize ?? 20, 1), 24);
   const total = creators.length;
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
   const page = Math.min(Math.max(filters.page ?? 1, 1), totalPages);
@@ -514,36 +515,37 @@ export async function getCreatorDiscoveryPage(filters: CreatorDiscoveryFilters =
   if (!hasMongoUri()) return filterDemoDiscovery(filters);
   try {
     await connectDB();
-    const pageSize = Math.min(Math.max(filters.pageSize ?? 20, 1), 50);
+    const pageSize = Math.min(Math.max(filters.pageSize ?? 20, 1), 24);
     const requestedPage = Math.max(filters.page ?? 1, 1);
-    const match: Record<string, unknown>[] = [];
+    const profileMatch: Record<string, unknown>[] = [];
+    const postLookupMatch: Record<string, unknown>[] = [];
     const search = filters.search?.trim();
     if (search) {
       const regex = new RegExp(escapeRegex(search.slice(0, 120)), "i");
       // This post-lookup substring search is intentionally uncapped so a valid
       // creator can never disappear behind the former 500-candidate ceiling.
-      match.push({ $or: [
+      postLookupMatch.push({ $or: [
         { "user.name": regex }, { "user.username": regex },
         { bio: regex }, { niche: regex }, { country: regex }, { languages: regex },
         { youtubeHandle: regex }, { youtubeUrl: regex }, { instagramUrl: regex }, { verificationProfileUrl: regex },
       ] });
     }
-    if (filters.niche) match.push({ niche: filters.niche });
-    if (filters.country) match.push({ country: new RegExp(`^${escapeRegex(filters.country)}$`, "i") });
-    if (filters.language) match.push({ languages: new RegExp(`^${escapeRegex(filters.language)}$`, "i") });
-    if (filters.verification === "verified") match.push({ verificationStatus: { $in: ["verified", "ownership_verified"] } });
-    if (filters.verification === "unverified") match.push({ verificationStatus: { $nin: ["verified", "ownership_verified"] } });
-    if (filters.availability === "open" || filters.openToDeals) match.push({ availabilityStatus: { $in: ["open_to_deals", "limited_availability"] } });
-    if (filters.availability === "closed") match.push({ availabilityStatus: { $in: ["unavailable", "closed"] } });
-    if (filters.platform === "youtube") match.push({ youtubeUrl: { $ne: "" } });
-    if (filters.platform === "instagram") match.push({ instagramUrl: { $ne: "" } });
-    if (filters.platform === "twitch" || filters.platform === "x" || filters.platform === "other") match.push({ verificationPlatform: filters.platform, verificationProfileUrl: { $ne: "" } });
+    if (filters.niche) profileMatch.push({ niche: filters.niche });
+    if (filters.country) profileMatch.push({ country: new RegExp(`^${escapeRegex(filters.country)}$`, "i") });
+    if (filters.language) profileMatch.push({ languages: new RegExp(`^${escapeRegex(filters.language)}$`, "i") });
+    if (filters.verification === "verified") profileMatch.push({ verificationStatus: { $in: ["verified", "ownership_verified"] } });
+    if (filters.verification === "unverified") profileMatch.push({ verificationStatus: { $nin: ["verified", "ownership_verified"] } });
+    if (filters.availability === "open" || filters.openToDeals) profileMatch.push({ availabilityStatus: { $in: ["open_to_deals", "limited_availability"] } });
+    if (filters.availability === "closed") profileMatch.push({ availabilityStatus: { $in: ["unavailable", "closed"] } });
+    if (filters.platform === "youtube") profileMatch.push({ youtubeUrl: { $ne: "" } });
+    if (filters.platform === "instagram") profileMatch.push({ instagramUrl: { $ne: "" } });
+    if (filters.platform === "twitch" || filters.platform === "x" || filters.platform === "other") profileMatch.push({ verificationPlatform: filters.platform, verificationProfileUrl: { $ne: "" } });
     for (const condition of [
       numericRange("publicSubscribers", filters.subscriberRange),
       numericRange("publicAverageViews", filters.viewsRange),
       numericRange("sponsorshipRate", filters.priceRange),
       numericRange("publicEngagement", filters.engagementRange),
-    ]) if (condition) match.push(condition);
+    ]) if (condition) postLookupMatch.push(condition);
 
     const sortMap: Record<string, Record<string, 1 | -1>> = {
       newest: { createdAt: -1 },
@@ -558,6 +560,7 @@ export async function getCreatorDiscoveryPage(filters: CreatorDiscoveryFilters =
       featured: { "user.isVerified": -1, "user.isFeatured": -1, publicSubscribers: -1 },
     };
     const pipeline: PipelineStage[] = [
+      ...(profileMatch.length ? [{ $match: { $and: profileMatch } } as PipelineStage.Match] : []),
       { $lookup: { from: "users", localField: "userId", foreignField: "_id", as: "user" } },
       { $unwind: "$user" },
       { $match: { "user.role": "creator", "user.onboardingComplete": true, "user.accountStatus": "active" } },
@@ -566,8 +569,7 @@ export async function getCreatorDiscoveryPage(filters: CreatorDiscoveryFilters =
         publicAverageViews: { $cond: [{ $eq: ["$statsVerificationStatus", "verified"] }, { $ifNull: ["$verifiedAverageViews", 0] }, { $ifNull: ["$claimedAverageViews", { $ifNull: ["$avgViews", 0] }] }] },
         publicEngagement: { $cond: [{ $eq: ["$statsVerificationStatus", "verified"] }, { $ifNull: ["$verifiedEngagementRate", 0] }, { $ifNull: ["$claimedEngagementRate", 0] }] },
       } },
-      ...(match.length ? [{ $match: { $and: match } } as PipelineStage.Match] : []),
-      { $sort: sortMap[filters.sort ?? "featured"] ?? sortMap.featured },
+      ...(postLookupMatch.length ? [{ $match: { $and: postLookupMatch } } as PipelineStage.Match] : []),
       { $project: {
         userId: 1, bio: 1, niche: 1, country: 1, languages: 1, youtubeUrl: 1, youtubeHandle: 1,
         instagramUrl: 1, podcastUrl: 1, subscribers: 1, claimedSubscribers: 1, verifiedSubscribers: 1,
@@ -580,23 +582,24 @@ export async function getCreatorDiscoveryPage(filters: CreatorDiscoveryFilters =
         "user.isVerified": 1, "user.emailVerified": 1,
       } },
       { $facet: {
-        creators: [{ $skip: (requestedPage - 1) * pageSize }, { $limit: pageSize }],
+        creators: [{ $sort: sortMap[filters.sort ?? "featured"] ?? sortMap.featured }, { $skip: (requestedPage - 1) * pageSize }, { $limit: pageSize }],
         count: [{ $count: "value" }],
       } },
     ];
-    const [result] = await withServerTiming("creator-discovery.query", () =>
-      CreatorProfile.aggregate(pipeline).option({ maxTimeMS: MONGO_QUERY_TIMEOUT_MS }),
+    const [result] = await withServerTiming(
+      "creator-discovery.query",
+      () => CreatorProfile.aggregate(pipeline).option({ maxTimeMS: MONGO_QUERY_TIMEOUT_MS }),
+      { route: "/creators", pageSize, pipelineStages: pipeline.length, hasSearch: Boolean(search) },
     );
     const total = result?.count?.[0]?.value ?? 0;
     const totalPages = Math.max(1, Math.ceil(total / pageSize));
     const page = Math.min(requestedPage, totalPages);
-    if (page !== requestedPage && total > 0) return getCreatorDiscoveryPage({ ...filters, page });
     const creators = (result?.creators ?? []).map((doc: CreatorDocumentWithUser & { user: CreatorDocumentWithUser["userId"] }) =>
       mapCreator({ ...doc, userId: doc.user }) as CreatorCardData,
     );
     return { creators, total, page, pageSize, totalPages };
   } catch {
-    const pageSize = Math.min(Math.max(filters.pageSize ?? 20, 1), 50);
+    const pageSize = Math.min(Math.max(filters.pageSize ?? 20, 1), 24);
     return { creators: [], total: 0, page: 1, pageSize, totalPages: 1 };
   }
 }
@@ -754,20 +757,83 @@ export async function getCreatorPrivateProfileByUsername(username: string): Prom
 
     return mapCreator(profile as unknown as CreatorDocumentWithUser, { includePrivatePayment: true }) as CreatorPrivateProfileData;
   } catch {
-    const creator = demoCreators.find((item) => item.username === username);
-    return creator ? { ...creator } : null;
+    throw new Error("Creator profile is temporarily unavailable.");
   }
 }
 
-export async function ensureUniqueUsername(seed: string, currentClerkId?: string) {
+export type CreatorEditAccountResult =
+  | { status: "found"; user: { id: string; username: string; name: string; phoneNumber: string }; profile: CreatorPrivateProfileData }
+  | { status: "missing"; role?: string }
+  | { status: "account_restricted" }
+  | { status: "temporarily_unavailable"; retryable: true };
+
+export async function getCreatorEditAccountByClerkId(clerkUserId: string): Promise<CreatorEditAccountResult> {
+  if (!hasMongoUri()) return { status: "temporarily_unavailable", retryable: true };
+
+  try {
+    return await withMongoRequest("creator-edit-account", async (connection): Promise<CreatorEditAccountResult> => {
+      const ScopedUser = modelForConnection(connection, User);
+      const ScopedCreatorProfile = modelForConnection(connection, CreatorProfile);
+      const user = await ScopedUser.findOne({ clerkId: clerkUserId })
+        .select(`${CREATOR_PUBLIC_USER_SELECT} phoneNumber role accountStatus`)
+        .maxTimeMS(MONGO_QUERY_TIMEOUT_MS)
+        .lean()
+        .exec();
+      if (!user) return { status: "missing" };
+      if (user.accountStatus !== "active") return { status: "account_restricted" };
+
+      const profile = await ScopedCreatorProfile.findOne({ userId: user._id })
+        .maxTimeMS(MONGO_QUERY_TIMEOUT_MS)
+        .lean()
+        .exec();
+      if (!profile) return { status: "missing", role: user.role };
+
+      return {
+        status: "found",
+        user: { id: user._id.toString(), username: user.username, name: user.name, phoneNumber: user.phoneNumber ?? "" },
+        profile: mapCreator({ ...profile, userId: user } as unknown as CreatorDocumentWithUser, { includePrivatePayment: true }) as CreatorPrivateProfileData,
+      };
+    });
+  } catch {
+    return { status: "temporarily_unavailable", retryable: true };
+  }
+}
+
+export type CreatorProfileViewerState = "signed_out" | "brand" | "creator_owner" | "creator_other" | "admin" | "signed_in_unknown";
+
+export async function getCreatorProfileViewerState(clerkUserId: string | null, creatorUsername: string): Promise<CreatorProfileViewerState> {
+  if (!clerkUserId) return "signed_out";
+  if (isConfiguredAdminId(clerkUserId)) return "admin";
+  if (!hasMongoUri()) return "signed_in_unknown";
+
+  try {
+    await connectDB();
+    const user = await User.findOne({ clerkId: clerkUserId })
+      .select("_id role username accountStatus")
+      .maxTimeMS(MONGO_QUERY_TIMEOUT_MS)
+      .lean()
+      .exec();
+    if (!user || user.accountStatus !== "active") return "signed_in_unknown";
+
+    const ownedCreatorProfile = await CreatorProfile.exists({ userId: user._id }).maxTimeMS(MONGO_QUERY_TIMEOUT_MS);
+    if (ownedCreatorProfile) {
+      return user.username.toLowerCase() === creatorUsername.toLowerCase() ? "creator_owner" : "creator_other";
+    }
+    return user.role === "brand" ? "brand" : "signed_in_unknown";
+  } catch {
+    return "signed_in_unknown";
+  }
+}
+
+export async function ensureUniqueUsername(seed: string, currentClerkId?: string, userModel: Model<IUser> = User) {
   const base = generateUsername(seed);
   if (!hasMongoUri()) return base;
 
-  await connectDB();
+  if (userModel === User) await connectDB();
 
   for (let index = 0; index < 100; index += 1) {
     const candidate = index === 0 ? base : `${base}${index + 1}`;
-    const existing = await User.exists({
+    const existing = await userModel.exists({
       username: candidate,
       ...(currentClerkId ? { clerkId: { $ne: currentClerkId } } : {}),
     });

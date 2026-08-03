@@ -20,7 +20,7 @@ export default async function BrandAnalyticsPage({ searchParams }: { searchParam
   const hasPeriodActivity = hasPeriodAnalyticsActivity(summary);
   return (
     <>
-      <Navbar />
+      <Navbar role="brand" username={user.username} />
       <main className="bridge-section max-w-7xl">
         <AnalyticsHeader title="Brand analytics" description="Measure creator response, request conversion, committed campaign value, completed spend, and the health of your collaboration pipeline." period={analytics.period} pathname="/dashboard/brand/analytics" />
         <section className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">

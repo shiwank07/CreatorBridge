@@ -26,26 +26,22 @@ import { StatsBar } from "@/components/marketing/stats-bar";
 import { Badge } from "@/components/shared/badge";
 import { authHref } from "@/lib/auth-redirect";
 import { NICHES } from "@/lib/constants";
-import { getCurrentAppUser } from "@/lib/current-user";
-import { getHomepageMarketplaceData } from "@/lib/queries/public";
-import { logServerTiming } from "@/lib/server-timing";
 import { publicPageMetadata, SITE_DESCRIPTION } from "@/lib/seo";
 
-export const dynamic = "force-dynamic";
 export const metadata = publicPageMetadata("Branzzo", SITE_DESCRIPTION, "/");
 
-export default async function HomePage() {
-  const renderStartedAt = performance.now();
-  const [{ featuredCreators, featuredBrands, stats }, viewer] = await Promise.all([
-    getHomepageMarketplaceData(),
-    getCurrentAppUser(),
-  ]);
-  const viewerRole = viewer?.onboardingComplete && (viewer.role === "creator" || viewer.role === "brand") ? viewer.role : undefined;
-  logServerTiming("server-render.total", performance.now() - renderStartedAt, { route: "/" });
+const STATIC_MARKETPLACE_DATA = {
+  featuredCreators: [],
+  featuredBrands: [],
+  stats: { creators: 0, brands: 0, collaborations: 0 },
+};
+
+export default function HomePage() {
+  const { featuredCreators, featuredBrands, stats } = STATIC_MARKETPLACE_DATA;
 
   return (
     <main className="marketing-home">
-      <LandingHero viewerRole={viewerRole} />
+      <LandingHero />
 
       <section className="bridge-section !pt-8 sm:!pt-10" aria-labelledby="marketplace-overview-heading">
         <div className="mx-auto max-w-3xl text-center">
@@ -129,7 +125,7 @@ export default async function HomePage() {
             <div className="mt-6 grid gap-3 sm:grid-cols-2">
               {[{ icon: BarChart3, text: "Comparable profile signals" }, { icon: ListChecks, text: "Structured campaign briefs" }, { icon: CircleDollarSign, text: "Visible pricing context" }, { icon: MessageSquareText, text: "Organized communication" }].map(({ icon: Icon, text }) => <div key={text} className="flex items-center gap-3 rounded-[8px] border border-white/10 bg-black/15 p-3 text-sm font-semibold"><Icon aria-hidden="true" size={17} className="text-cyan-200" />{text}</div>)}
             </div>
-            <Link href="/creators" className="bridge-button-primary mt-7 w-full sm:w-auto">Find Creators <ArrowRight size={16} /></Link>
+            <div className="mt-7 flex flex-col gap-3 sm:flex-row"><Link href="/creators" className="bridge-button-primary w-full sm:w-auto">Find Creators <ArrowRight size={16} /></Link><Link href={authHref("/sign-up", "/onboarding?role=brand")} className="bridge-button-secondary w-full sm:w-auto">Join as Brand <ArrowRight size={16} /></Link></div>
           </article>
           <article id="for-creators" className="scroll-mt-24 rounded-[12px] border border-violet-300/15 bg-gradient-to-br from-violet-300/[0.08] to-transparent p-6 sm:p-8">
             <p className="bridge-eyebrow">For creators</p>
@@ -138,7 +134,7 @@ export default async function HomePage() {
             <div className="mt-6 grid gap-3 sm:grid-cols-2">
               {[{ icon: BadgeCheck, text: "Verification workflows" }, { icon: Sparkles, text: "Professional public profile" }, { icon: ClipboardCheck, text: "Clear collaboration status" }, { icon: Handshake, text: "Partnership workspace" }].map(({ icon: Icon, text }) => <div key={text} className="flex items-center gap-3 rounded-[8px] border border-white/10 bg-black/15 p-3 text-sm font-semibold"><Icon aria-hidden="true" size={17} className="text-violet-200" />{text}</div>)}
             </div>
-            <Link href={viewerRole === "creator" ? "/dashboard/creator" : authHref("/sign-up", "/onboarding?role=creator")} className="bridge-button-secondary mt-7 w-full sm:w-auto">{viewerRole === "creator" ? "Open Creator Dashboard" : "Join as Creator"} <ArrowRight size={16} /></Link>
+            <Link href={authHref("/sign-up", "/onboarding?role=creator")} className="bridge-button-secondary mt-7 w-full sm:w-auto">Join as Creator <ArrowRight size={16} /></Link>
           </article>
         </div>
       </section>
@@ -153,7 +149,7 @@ export default async function HomePage() {
         </div>
       </section>
 
-      <FeaturedCreators creators={featuredCreators} viewerRole={viewerRole} />
+      <FeaturedCreators creators={featuredCreators} />
       <FeaturedBrands brands={featuredBrands} />
 
       <section className="bridge-section" aria-labelledby="why-branzzo">
@@ -186,7 +182,7 @@ export default async function HomePage() {
       <section className="bridge-section !pt-4">
         <div className="relative overflow-hidden rounded-[16px] border border-cyan-300/20 bg-[radial-gradient(circle_at_top_left,rgba(34,211,238,0.14),transparent_38%),radial-gradient(circle_at_bottom_right,rgba(124,58,237,0.16),transparent_38%),#0b0f16] px-6 py-10 text-center sm:px-10 sm:py-14">
           <div className="relative mx-auto max-w-3xl"><p className="bridge-eyebrow">Build the right partnership</p><h2 className="mt-3 font-display text-3xl font-black sm:text-4xl">Find the creator. Share the brief. Manage the collaboration on Branzzo.</h2><p className="mx-auto mt-4 max-w-2xl text-sm leading-7 text-[var(--text-secondary)]">Start by exploring professional creator profiles—or join as a creator and make your work discoverable to brands.</p>
-            <div className="mt-7 flex flex-col justify-center gap-3 sm:flex-row"><Link href="/creators" className="bridge-button-primary w-full sm:w-auto"><Search size={17} /> Find Creators</Link><Link href={viewerRole === "creator" ? "/dashboard/creator" : authHref("/sign-up", "/onboarding?role=creator")} className="bridge-button-secondary w-full sm:w-auto"><UserPlus size={17} /> {viewerRole === "creator" ? "Creator Dashboard" : "Join as Creator"}</Link></div>
+            <div className="mt-7 flex flex-col justify-center gap-3 sm:flex-row"><Link href="/creators" className="bridge-button-primary w-full sm:w-auto"><Search size={17} /> Find Creators</Link><Link href={authHref("/sign-up", "/onboarding?role=creator")} className="bridge-button-secondary w-full sm:w-auto"><UserPlus size={17} /> Join as Creator</Link><Link href={authHref("/sign-up", "/onboarding?role=brand")} className="bridge-button-secondary w-full sm:w-auto"><Building2 size={17} /> Join as Brand</Link></div>
           </div>
         </div>
       </section>

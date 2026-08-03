@@ -392,7 +392,7 @@ export default async function BrandDashboardPage() {
 
   return (
     <>
-      <Navbar />
+      <Navbar role="brand" username={user?.username} />
       <main className="bridge-section">
         <section className="relative overflow-hidden rounded-[8px] border border-cyan-300/15 bg-white/[0.045] p-5 shadow-[0_24px_80px_rgba(0,0,0,0.22)] sm:p-6">
           <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-cyan-300/70 to-transparent" />

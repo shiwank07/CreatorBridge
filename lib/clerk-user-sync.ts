@@ -7,6 +7,12 @@ import { ClerkWebhookEvent } from "@/lib/models/ClerkWebhookEvent";
 import { User } from "@/lib/models/User";
 import { ensureUniqueUsername } from "@/lib/queries/creators";
 
+type ClerkSyncModels = {
+  UserModel?: typeof User;
+  EventModel?: typeof ClerkWebhookEvent;
+  deletionModels?: Parameters<typeof anonymizeDeletedAccount>[1];
+};
+
 type ClerkUserEvent = Extract<WebhookEvent, { type: "user.created" | "user.updated" | "user.deleted" }>;
 
 function primaryEmail(data: ClerkUserEvent["data"]) {
@@ -30,17 +36,18 @@ export function trustedClerkEventTimestamp(event: ClerkUserEvent, signedTimestam
 
 export async function claimClerkWebhookEvent(input: {
   eventId: string; eventType: string; clerkUserId?: string; eventTimestamp: Date;
-}) {
+}, models: ClerkSyncModels = {}) {
+  const EventModel = models.EventModel ?? ClerkWebhookEvent;
   const now = new Date();
   try {
-    const created = await ClerkWebhookEvent.create({
+    const created = await EventModel.create({
       ...input, receivedAt: now, status: "processing", attempts: 1,
     });
     return { claimed: true as const, record: created };
   } catch (error) {
     if (!(typeof error === "object" && error && "code" in error && error.code === 11000)) throw error;
   }
-  const retry = await ClerkWebhookEvent.findOneAndUpdate(
+  const retry = await EventModel.findOneAndUpdate(
     {
       eventId: input.eventId, attempts: { $lt: 5 },
       $or: [
@@ -52,31 +59,32 @@ export async function claimClerkWebhookEvent(input: {
     { new: true },
   );
   if (retry) return { claimed: true as const, record: retry };
-  return { claimed: false as const, record: await ClerkWebhookEvent.findOne({ eventId: input.eventId }) };
+  return { claimed: false as const, record: await EventModel.findOne({ eventId: input.eventId }) };
 }
 
-export async function finishClerkWebhookEvent(id: mongoose.Types.ObjectId, status: "processed" | "skipped") {
-  await ClerkWebhookEvent.updateOne({ _id: id, status: "processing" }, { $set: { status, processedAt: new Date(), error: null } });
+export async function finishClerkWebhookEvent(id: mongoose.Types.ObjectId, status: "processed" | "skipped", models: ClerkSyncModels = {}) {
+  await (models.EventModel ?? ClerkWebhookEvent).updateOne({ _id: id, status: "processing" }, { $set: { status, processedAt: new Date(), error: null } });
 }
 
-export async function failClerkWebhookEvent(id: mongoose.Types.ObjectId) {
-  await ClerkWebhookEvent.updateOne(
+export async function failClerkWebhookEvent(id: mongoose.Types.ObjectId, models: ClerkSyncModels = {}) {
+  await (models.EventModel ?? ClerkWebhookEvent).updateOne(
     { _id: id, status: "processing" },
     { $set: { status: "failed", processedAt: null, error: "Clerk user synchronization failed." } },
   );
 }
 
-export async function applyClerkUserEvent(event: ClerkUserEvent, eventId: string, eventTimestamp: Date) {
+export async function applyClerkUserEvent(event: ClerkUserEvent, eventId: string, eventTimestamp: Date, models: ClerkSyncModels = {}) {
+  const UserModel = models.UserModel ?? User;
   const clerkUserId = event.data.id;
   if (!clerkUserId) return "skipped" as const;
   if (event.type === "user.deleted") {
     const result = await anonymizeDeletedAccount({
       clerkUserId, deletedAt: eventTimestamp, eventId, eventTimestamp, source: "clerk_webhook",
-    });
+    }, models.deletionModels);
     return result.outcome === "stale" ? "skipped" as const : "processed" as const;
   }
 
-  const existing = await User.findOne({ clerkId: clerkUserId }).select("_id deletedAt latestClerkEventAt latestClerkEventId").lean();
+  const existing = await UserModel.findOne({ clerkId: clerkUserId }).select("_id deletedAt latestClerkEventAt latestClerkEventId").lean();
   if (existing?.deletedAt) return "skipped" as const;
   if (existing?.latestClerkEventAt && (
     existing.latestClerkEventAt > eventTimestamp ||
@@ -87,7 +95,7 @@ export async function applyClerkUserEvent(event: ClerkUserEvent, eventId: string
   if (!email) throw new Error("Clerk user has no email address.");
   const name = displayName(event.data, email);
   const usernameSeed = "username" in event.data && event.data.username ? event.data.username : name;
-  const username = await ensureUniqueUsername(usernameSeed, clerkUserId);
+  const username = await ensureUniqueUsername(usernameSeed, clerkUserId, UserModel);
   const emailVerified = Boolean(getClerkEmailVerificationState(event.data, email)?.verified);
   const ordering = {
     deletedAt: null,
@@ -98,7 +106,7 @@ export async function applyClerkUserEvent(event: ClerkUserEvent, eventId: string
       { latestClerkEventAt: eventTimestamp, latestClerkEventId: eventId },
     ],
   };
-  const updated = await User.findOneAndUpdate(
+  const updated = await UserModel.findOneAndUpdate(
     { clerkId: clerkUserId, ...ordering },
     { $set: {
       email, emailVerified, name, avatar: "image_url" in event.data ? event.data.image_url ?? "" : "",
@@ -108,9 +116,9 @@ export async function applyClerkUserEvent(event: ClerkUserEvent, eventId: string
   );
   if (updated) return "processed" as const;
 
-  if (await User.exists({ clerkId: clerkUserId })) return "skipped" as const;
+  if (await UserModel.exists({ clerkId: clerkUserId })) return "skipped" as const;
   try {
-    await User.create({
+    await UserModel.create({
       clerkId: clerkUserId, email, emailVerified, name, username,
       avatar: "image_url" in event.data ? event.data.image_url ?? "" : "",
       role: "creator", onboardingComplete: false, subscriptionTier: "free",

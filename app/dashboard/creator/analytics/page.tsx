@@ -21,7 +21,7 @@ export default async function CreatorAnalyticsPage({ searchParams }: { searchPar
   const hasPeriodActivity = hasPeriodAnalyticsActivity(summary);
   return (
     <>
-      <Navbar />
+      <Navbar role="creator" username={user.username} />
       <main className="bridge-section max-w-7xl">
         <AnalyticsHeader title="Creator analytics" description="Understand offer conversion, collaboration value, response speed, profile demand, and the actions that can improve your pipeline." period={analytics.period} pathname="/dashboard/creator/analytics" />
         <section className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">

@@ -49,7 +49,7 @@ export default async function CampaignInquiryPage({ searchParams }: { searchPara
 
   return (
     <>
-      <Navbar />
+      <Navbar role="brand" username={user?.username} />
       <main className="bridge-section max-w-5xl py-8 sm:py-10">
         <div className="mb-8">
           <p className="bridge-eyebrow">Collaboration Request</p>

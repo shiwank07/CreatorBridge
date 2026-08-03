@@ -1,82 +1,11 @@
-import { auth } from "@clerk/nextjs/server";
+import { NavbarClient, type AuthenticatedRole } from "@/components/shared/navbar-client";
 
-import { authHref } from "@/lib/auth-redirect";
-import { hasClerkKeys } from "@/lib/clerk-config";
-import { getCurrentAppUser } from "@/lib/current-user";
-import { getCurrentUserNotificationSummary } from "@/lib/queries/notifications";
-import { NavbarClient, type UserMenuLinks } from "@/components/shared/navbar-client";
-import { logServerTiming } from "@/lib/server-timing";
+type NavbarProps = {
+  role?: AuthenticatedRole;
+  username?: string;
+};
 
-export async function Navbar() {
-  const startedAt = performance.now();
-  const { userId } = hasClerkKeys() ? await auth() : { userId: null };
-  const user = userId ? await getCurrentAppUser() : null;
-  const onboardingHref = "/onboarding";
-  const isSignedIn = Boolean(userId);
-  const canShowNotifications = Boolean(user?.onboardingComplete && (user.role === "creator" || user.role === "brand"));
-  const notificationSummary = canShowNotifications
-    ? await getCurrentUserNotificationSummary(10)
-    : {
-        notifications: [],
-        unreadCount: 0,
-      };
-
-  const navItems =
-    user?.role === "creator" && user.onboardingComplete
-      ? [
-          { label: "Collaborations", href: "/dashboard/creator#collaborations" },
-          { label: "Analytics", href: "/dashboard/creator/analytics" },
-          { label: "My Profile", href: `/creators/${user.username}` },
-        ]
-      : user?.role === "brand" && user.onboardingComplete
-        ? [
-            { label: "Campaigns", href: "/dashboard/brand#campaigns" },
-            { label: "Analytics", href: "/dashboard/brand/analytics" },
-          ]
-        : isSignedIn
-          ? [{ label: "Complete Onboarding", href: "/onboarding" }]
-          : [
-              { label: "Browse Creators", href: "/creators" },
-              { label: "For Brands", href: "/#for-brands" },
-              { label: "About", href: "/about" },
-            ];
-
-  const primaryHref = user?.role === "brand" && user.onboardingComplete ? "/dashboard/brand" : user?.role === "creator" && user.onboardingComplete ? "/dashboard/creator" : isSignedIn ? "/onboarding" : authHref("/sign-up", onboardingHref);
-  const primaryLabel = isSignedIn ? (user?.onboardingComplete ? "Dashboard" : "Onboarding") : "Join Free";
-  const userMenuLinks: UserMenuLinks | null =
-    user?.role === "creator" && user.onboardingComplete
-      ? {
-          profileHref: `/creators/${user.username}`,
-          verificationHref: "/dashboard/verification",
-          historyHref: "/dashboard/history",
-          notificationsHref: "/notifications",
-          accountHref: "/dashboard/settings/account",
-        }
-      : user?.role === "brand" && user.onboardingComplete
-        ? {
-            profileHref: `/brands/${user.username}`,
-            verificationHref: "/dashboard/verification",
-            historyHref: "/dashboard/history",
-            notificationsHref: "/notifications",
-            accountHref: "/dashboard/settings/account",
-          }
-        : null;
-
-  logServerTiming("navbar.session-lookup", performance.now() - startedAt);
-
-  return (
-    <NavbarClient
-      navItems={navItems}
-      isSignedIn={isSignedIn}
-      signInHref={authHref("/sign-in", onboardingHref)}
-      primaryHref={primaryHref}
-      primaryLabel={primaryLabel}
-      creatorsLabel={user?.role === "creator" ? "Explore Creators" : "Creators"}
-      showCreatorsAction={Boolean(user?.onboardingComplete && (user.role === "creator" || user.role === "brand"))}
-      userMenuLinks={userMenuLinks}
-      showNotificationBell={canShowNotifications}
-      initialNotifications={notificationSummary.notifications}
-      initialUnreadCount={notificationSummary.unreadCount}
-    />
-  );
+/** Authenticated navigation only. It performs no authentication or database I/O. */
+export function Navbar({ role, username }: NavbarProps) {
+  return <NavbarClient role={role} username={username} />;
 }

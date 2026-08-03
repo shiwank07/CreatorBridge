@@ -2,6 +2,7 @@
 
 import { type FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
+import { useUser } from "@clerk/nextjs";
 import { Building2, Loader2 } from "lucide-react";
 import { ProfileImageUpload } from "@/components/shared/profile-image-upload";
 import { submitOnboardingWithBusyRetry } from "@/lib/onboarding-request";
@@ -58,6 +59,7 @@ export function BrandOnboardingForm({
   successMessage = "Brand profile saved.",
 }: BrandOnboardingFormProps) {
   const router = useRouter();
+  const { user } = useUser();
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
@@ -96,6 +98,7 @@ export function BrandOnboardingForm({
       }
 
       setSuccess(successMessage);
+      await user?.reload();
       if (redirectHref) router.replace(redirectHref);
       router.refresh();
     } catch {

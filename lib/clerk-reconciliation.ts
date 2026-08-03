@@ -1,6 +1,7 @@
 import type { createClerkClient } from "@clerk/nextjs/server";
 
 import { getClerkEmailVerificationState } from "@/lib/clerk-verification";
+import { navigationPublicMetadata } from "@/lib/clerk-navigation-metadata";
 import { User } from "@/lib/models/User";
 import { ensureUniqueUsername } from "@/lib/queries/creators";
 
@@ -24,21 +25,34 @@ export async function reconcileClerkUser(input: {
     latestClerkEventAt: new Date(clerkUser.updatedAt),
     latestClerkEventId: `reconcile:${clerkUser.id}:${clerkUser.updatedAt}`,
   };
-  const changed = !existing || Object.entries(values).some(([key, value]) => {
+  const mongoChanged = !existing || Object.entries(values).some(([key, value]) => {
     const current = existing[key as keyof typeof existing];
     return current instanceof Date && value instanceof Date ? current.getTime() !== value.getTime() : current !== value;
   });
-  if (input.dryRun || !changed) {
-    return { clerkUserId: input.clerkUserId, outcome: changed ? "would_update" as const : "current" as const };
+  const desiredMetadata = existing ? navigationPublicMetadata(existing) : null;
+  const metadataChanged = Boolean(desiredMetadata && (
+    clerkUser.publicMetadata.role !== desiredMetadata.role ||
+    clerkUser.publicMetadata.username !== desiredMetadata.username ||
+    clerkUser.publicMetadata.onboardingComplete !== desiredMetadata.onboardingComplete ||
+    clerkUser.publicMetadata.isAdmin !== desiredMetadata.isAdmin
+  ));
+  if (input.dryRun) {
+    return { clerkUserId: input.clerkUserId, outcome: mongoChanged || metadataChanged ? "would_update" as const : "current" as const };
   }
-  if (existing) {
+  if (!mongoChanged && !metadataChanged) {
+    return { clerkUserId: input.clerkUserId, outcome: "current" as const };
+  }
+  if (existing && mongoChanged) {
     await User.updateOne({ _id: existing._id, deletedAt: null }, { $set: values });
-  } else {
+  } else if (!existing) {
     const username = await ensureUniqueUsername(clerkUser.username || name, clerkUser.id);
     await User.create({
       clerkId: clerkUser.id, username, role: "creator", onboardingComplete: false,
       subscriptionTier: "free", isFeatured: false, isVerified: false, ...values,
     });
+  }
+  if (desiredMetadata && metadataChanged) {
+    await input.clerk.users.updateUserMetadata(input.clerkUserId, { publicMetadata: desiredMetadata });
   }
   return { clerkUserId: input.clerkUserId, outcome: "updated" as const };
 }

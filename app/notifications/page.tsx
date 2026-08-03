@@ -49,7 +49,7 @@ export default async function NotificationsPage({
 
   return (
     <>
-      <Navbar />
+      <Navbar role={user.role === "creator" || user.role === "brand" || user.role === "admin" ? user.role : undefined} username={user.username} />
       <main className="bridge-section max-w-4xl py-8 sm:py-10">
         <Link href={dashboardHref} className="mb-6 inline-flex items-center gap-2 text-sm font-semibold text-[var(--text-secondary)] hover:text-[var(--text-primary)]">
           <ArrowLeft size={16} />

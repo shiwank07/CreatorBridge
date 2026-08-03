@@ -1,9 +1,10 @@
-import { auth, currentUser } from "@clerk/nextjs/server";
+import { auth } from "@clerk/nextjs/server";
 import { cache } from "react";
 
 import { hasClerkKeys } from "@/lib/clerk-config";
-import { getClerkEmailVerificationState } from "@/lib/clerk-verification";
-import { connectDB, hasMongoUri, MONGO_QUERY_TIMEOUT_MS } from "@/lib/db";
+import { getMongoReadyState, hasMongoUri, modelForConnection, MONGO_QUERY_TIMEOUT_MS, withMongoRequest } from "@/lib/db";
+import { BrandProfile } from "@/lib/models/BrandProfile";
+import { CreatorProfile } from "@/lib/models/CreatorProfile";
 import { User } from "@/lib/models/User";
 import { type Role } from "@/lib/types";
 import { withServerTiming } from "@/lib/server-timing";
@@ -19,7 +20,15 @@ export type CurrentAppUser = {
   name: string;
   role: Role;
   onboardingComplete: boolean;
+  accountStatus: "active" | "hidden" | "suspended" | "deleted";
 };
+
+export type CurrentAppUserResult =
+  | { status: "anonymous" }
+  | { status: "missing" }
+  | { status: "found"; user: CurrentAppUser }
+  | { status: "account_restricted"; accountStatus: CurrentAppUser["accountStatus"]; user: CurrentAppUser }
+  | { status: "temporarily_unavailable"; retryable: true };
 
 type UserDocument = {
   _id: { toString(): string };
@@ -33,6 +42,7 @@ type UserDocument = {
   name: string;
   role: Role;
   onboardingComplete: boolean;
+  accountStatus: CurrentAppUser["accountStatus"];
 };
 
 function mapUser(user: UserDocument): CurrentAppUser {
@@ -47,57 +57,62 @@ function mapUser(user: UserDocument): CurrentAppUser {
     name: user.name,
     role: user.role,
     onboardingComplete: Boolean(user.onboardingComplete),
+    accountStatus: user.accountStatus,
   };
 }
 
-async function syncEmailVerification(user: UserDocument) {
-  try {
-    const clerkUser = await currentUser();
-    const emailState = getClerkEmailVerificationState(clerkUser, user.email);
-    if (!emailState) return user;
-
-    const emailVerified = Boolean(emailState.verified);
-    if (Boolean(user.emailVerified) === emailVerified) return user;
-
-    const updated = await User.findByIdAndUpdate(
-      user._id,
-      { $set: { emailVerified } },
-      { new: true },
-    )
-      .select("_id clerkId email emailVerified phoneNumber phoneVerified username name role onboardingComplete")
-      .maxTimeMS(MONGO_QUERY_TIMEOUT_MS)
-      .lean()
-      .exec();
-
-    return updated ? (updated as unknown as UserDocument) : { ...user, emailVerified };
-  } catch (error) {
-    console.warn("Could not sync Clerk email verification status.", error);
-    return user;
-  }
-}
-
-async function getCurrentAppUserUncached(): Promise<CurrentAppUser | null> {
-  if (!hasClerkKeys() || !hasMongoUri()) return null;
+async function getCurrentAppUserResultUncached(): Promise<CurrentAppUserResult> {
+  const startedAt = performance.now();
+  if (!hasClerkKeys()) return { status: "anonymous" };
 
   const userId = await getCurrentClerkUserId();
-  if (!userId) return null;
+  if (!userId) return { status: "anonymous" };
+  if (!hasMongoUri()) return { status: "temporarily_unavailable", retryable: true };
 
   try {
-    await connectDB();
-    const user = await withServerTiming("current-user.query", () => User.findOne({ clerkId: userId })
-      .select("_id clerkId email emailVerified phoneNumber phoneVerified username name role onboardingComplete")
-      .maxTimeMS(MONGO_QUERY_TIMEOUT_MS)
-      .lean()
-      .exec());
-    if (!user) return null;
-    const syncedUser = await syncEmailVerification(user as unknown as UserDocument);
-    return mapUser(syncedUser);
-  } catch {
-    return null;
+    const user = await withMongoRequest("current-user", async (connection) => {
+      const ScopedUser = modelForConnection(connection, User);
+      const row = await withServerTiming("current-user.query", () => ScopedUser.findOne({ clerkId: userId })
+        .select("_id clerkId email emailVerified phoneNumber phoneVerified username name role onboardingComplete accountStatus")
+        .maxTimeMS(MONGO_QUERY_TIMEOUT_MS)
+        .lean()
+        .exec());
+      if (row && !row.onboardingComplete && (row.role === "creator" || row.role === "brand")) {
+        const profileExists = row.role === "creator"
+          ? await modelForConnection(connection, CreatorProfile).exists({ userId: row._id }).maxTimeMS(MONGO_QUERY_TIMEOUT_MS)
+          : await modelForConnection(connection, BrandProfile).exists({ userId: row._id }).maxTimeMS(MONGO_QUERY_TIMEOUT_MS);
+        if (profileExists) row.onboardingComplete = true;
+      }
+      return row;
+    });
+    const mapped = user ? mapUser(user as unknown as UserDocument) : null;
+    const result: CurrentAppUserResult = mapped && mapped.accountStatus !== "active"
+      ? { status: "account_restricted", accountStatus: mapped.accountStatus, user: mapped }
+      : mapped
+      ? { status: "found", user: mapped }
+      : { status: "missing" };
+    console.info("[account-resolution]", {
+      operation: "getCurrentAppUser", result: result.status,
+      durationMs: Math.round(performance.now() - startedAt), mongoReadyState: getMongoReadyState(),
+      userExists: Boolean(user), expectedProfileExists: "not_checked",
+    });
+    return result;
+  } catch (error) {
+    console.error("[account-resolution]", {
+      operation: "getCurrentAppUser", result: "temporarily_unavailable",
+      durationMs: Math.round(performance.now() - startedAt), mongoReadyState: getMongoReadyState(),
+      userExists: "unknown", expectedProfileExists: "not_checked", errorName: error instanceof Error ? error.name : "UnknownError",
+    });
+    return { status: "temporarily_unavailable", retryable: true };
   }
 }
 
-export const getCurrentAppUser = cache(getCurrentAppUserUncached);
+export const getCurrentAppUserResult = cache(getCurrentAppUserResultUncached);
+
+export const getCurrentAppUser = cache(async () => {
+  const result = await getCurrentAppUserResult();
+  return result.status === "found" || result.status === "account_restricted" ? result.user : null;
+});
 
 async function getCurrentClerkUserIdUncached() {
   if (!hasClerkKeys()) return null;

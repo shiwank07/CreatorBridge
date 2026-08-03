@@ -1,15 +1,20 @@
+"use client";
+
 import { BadgeCheck, CheckCircle2, Search, ShieldCheck, UserPlus } from "lucide-react";
 import Link from "next/link";
 
 import { CyberHeroMedia } from "@/components/marketing/cyber-hero-media";
 import { authHref } from "@/lib/auth-redirect";
+import { useNavigationContext } from "@/components/shared/use-navigation-context";
 
 type LandingHeroProps = {
   viewerRole?: "creator" | "brand";
 };
 
 export function LandingHero({ viewerRole }: LandingHeroProps) {
-  const createProfileHref = viewerRole === "creator" ? "/dashboard/creator" : viewerRole === "brand" ? "/dashboard/brand" : authHref("/sign-up", "/onboarding?role=creator");
+  const context = useNavigationContext();
+  const effectiveRole = viewerRole ?? (context.onboardingComplete && (context.role === "creator" || context.role === "brand") ? context.role : undefined);
+  const createProfileHref = effectiveRole === "creator" ? "/dashboard/creator" : effectiveRole === "brand" ? "/dashboard/brand" : authHref("/sign-up", "/onboarding?role=creator");
 
   return (
     <section className="marketing-hero">
@@ -34,8 +39,9 @@ export function LandingHero({ viewerRole }: LandingHeroProps) {
             </Link>
             <Link href={createProfileHref} className="focus-ring marketing-hero__secondary-action">
               <UserPlus size={18} />
-              <span>{viewerRole === "creator" ? "Open Creator Dashboard" : "Join as Creator"}</span>
+              <span>{effectiveRole === "creator" ? "Open Creator Dashboard" : effectiveRole === "brand" ? "Open Brand Dashboard" : "Join as Creator"}</span>
             </Link>
+            {!effectiveRole ? <Link href={authHref("/sign-up", "/onboarding?role=brand")} className="focus-ring marketing-hero__secondary-action"><UserPlus size={18} /><span>Join as Brand</span></Link> : null}
           </div>
           <div className="marketing-hero__trust" aria-label="Platform trust signals">
             <span><BadgeCheck aria-hidden="true" size={15} /> Verified creator profiles</span>
