@@ -59,7 +59,7 @@ jobs:
           test -f .open-next/assets/favicon.ico
       - name: Upload safe failure artifacts
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: ci-failure-${{ github.run_id }}
           path: |

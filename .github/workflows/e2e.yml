@@ -30,7 +30,7 @@ jobs:
       - run: npx playwright test tests/public --project=chromium
       - name: Upload failure artifacts
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: playwright-public-failure-${{ github.run_id }}
           path: |
@@ -81,7 +81,7 @@ jobs:
         run: npx playwright test --project=creator-chromium --project=brand-chromium --project=admin-chromium
       - name: Upload failure artifacts
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: playwright-authenticated-failure-${{ github.run_id }}
           path: |
