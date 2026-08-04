@@ -1,37 +1,38 @@
 import { expect, test } from "@playwright/test";
 import fs from "node:fs";
 import path from "node:path";
+import { Readable } from "node:stream";
 import { creatorPaymentDetailsSchema } from "../../lib/validators/payment-details";
-import { inspectProofImage, MAX_PROOF_FILE_SIZE } from "../../lib/private-uploads";
 import {
-  createFutureR2ContractAdapter,
-  type FutureR2Client,
-  type FutureR2Command,
-  type FutureR2Environment,
-} from "../helpers/future-r2-adapter-contract";
+  createR2UploadsAdapter,
+  inspectProofImage,
+  MAX_PROOF_FILE_SIZE,
+  type R2CommandClient,
+  type R2Environment,
+} from "../../lib/private-uploads";
 
-const configuredR2Environment: FutureR2Environment = {
+const configuredR2Environment: R2Environment = {
   R2_ENDPOINT: "https://account-id.r2.example.invalid",
   R2_ACCESS_KEY_ID: "test-access-key",
   R2_SECRET_ACCESS_KEY: "test-secret-key",
   R2_BUCKET_NAME: "test-private-uploads",
 };
 
-function futureR2Harness(options: {
-  environment?: FutureR2Environment;
-  send?: FutureR2Client["send"];
+function r2Harness(options: {
+  environment?: R2Environment;
+  send?: R2CommandClient["send"];
 } = {}) {
-  const commands: FutureR2Command[] = [];
+  const commands: Array<{ operation: "put" | "get" | "delete"; input: Record<string, unknown> }> = [];
   const clientConfigurations: unknown[] = [];
-  const client: FutureR2Client = {
+  const client: R2CommandClient = {
     send: options.send ?? (async () => ({})),
   };
-  const command = (operation: FutureR2Command["operation"]) => (input: Record<string, unknown>) => {
-    const value = { operation, input };
+  const command = (operation: "put" | "get" | "delete") => (input: object) => {
+    const value = { operation, input: input as Record<string, unknown> };
     commands.push(value);
     return value;
   };
-  const adapter = createFutureR2ContractAdapter({
+  const adapter = createR2UploadsAdapter({
     environment: options.environment ?? configuredR2Environment,
     createClient(configuration) {
       clientConfigurations.push(configuration);
@@ -91,13 +92,13 @@ test("payment route enforces owner roles, proof ownership and duplicate guards",
   expect(route).toContain("duplicate: true");
 });
 
-test("future R2 PUT preserves the private bucket, exact key, body and metadata", async () => {
+test("Node R2 PUT preserves the private bucket, exact key, body and metadata", async () => {
   const body = Uint8Array.from([0xff, 0xd8, 0xff]).buffer;
-  const { adapter, commands } = futureR2Harness({ send: async () => ({ ETag: '"etag"' }) });
+  const { adapter, commands } = r2Harness({ send: async () => ({ ETag: '"etag"' }) });
 
   const result = await adapter.put("collaborations/id/payment-proofs/opaque.jpg", body, {
-    contentType: "image/jpeg",
-    originalFilename: "payment proof.jpg",
+    httpMetadata: { contentType: "image/jpeg" },
+    customMetadata: { originalFilename: "payment proof.jpg" },
   });
 
   expect(commands).toEqual([{
@@ -115,14 +116,14 @@ test("future R2 PUT preserves the private bucket, exact key, body and metadata",
   expect(result).not.toHaveProperty("publicUrl");
 });
 
-test("future R2 GET preserves streaming bodies, content type and metadata", async () => {
+test("Node R2 GET preserves streaming bodies, content type and metadata", async () => {
   const body = new ReadableStream<Uint8Array>({
     start(controller) {
       controller.enqueue(Uint8Array.from([1, 2, 3]));
       controller.close();
     },
   });
-  const { adapter, commands } = futureR2Harness({
+  const { adapter, commands } = r2Harness({
     send: async () => ({ Body: body, ContentType: "image/webp", Metadata: { originalfilename: "proof.webp" }, ETag: "etag" }),
   });
 
@@ -136,18 +137,29 @@ test("future R2 GET preserves streaming bodies, content type and metadata", asyn
     key: "collaborations/id/campaign-proofs/opaque.webp",
     body,
     contentType: "image/webp",
-    metadata: { originalfilename: "proof.webp" },
-    etag: "etag",
+    customMetadata: { originalfilename: "proof.webp" },
+    httpEtag: "etag",
   });
 });
 
-test("future R2 GET accepts a Node-compatible stream without buffering it", async () => {
-  const body = { pipe() { return this; } } as unknown as NodeJS.ReadableStream;
-  const { adapter } = futureR2Harness({ send: async () => ({ Body: body }) });
+test("Node R2 GET accepts a Node-compatible stream without buffering it", async () => {
+  const body = Readable.from([Uint8Array.from([1, 2, 3])]);
+  const { adapter } = r2Harness({ send: async () => ({ Body: body }) });
 
   const result = await adapter.get("exact-object-key");
 
-  expect(result?.body).toBe(body);
+  expect(result?.body).toBeInstanceOf(ReadableStream);
+  expect(body.readableEnded).toBe(false);
+});
+
+test("Node R2 GET accepts an SDK body mixin web stream without buffering it", async () => {
+  const stream = new ReadableStream<Uint8Array>();
+  const body = { transformToWebStream: () => stream };
+  const { adapter } = r2Harness({ send: async () => ({ Body: body }) });
+
+  const result = await adapter.get("exact-object-key");
+
+  expect(result?.body).toBe(stream);
 });
 
 for (const providerError of [
@@ -155,25 +167,52 @@ for (const providerError of [
   { Code: "NoSuchKey" },
   { $metadata: { httpStatusCode: 404 } },
 ]) {
-  test(`future R2 GET maps provider not-found shape to null: ${JSON.stringify(providerError)}`, async () => {
-    const { adapter } = futureR2Harness({ send: async () => { throw providerError; } });
+  test(`Node R2 GET maps provider not-found shape to null: ${JSON.stringify(providerError)}`, async () => {
+    const { adapter } = r2Harness({ send: async () => { throw providerError; } });
     await expect(adapter.get("missing-object-key")).resolves.toBeNull();
   });
 }
 
-test("future R2 GET maps an empty provider result to null", async () => {
-  const { adapter } = futureR2Harness({ send: async () => ({}) });
+test("Node R2 GET maps an empty provider result to null", async () => {
+  const { adapter } = r2Harness({ send: async () => ({}) });
   await expect(adapter.get("missing-object-key")).resolves.toBeNull();
 });
 
-test("future R2 GET does not hide non-not-found provider failures", async () => {
-  const providerError = new Error("provider unavailable");
-  const { adapter } = futureR2Harness({ send: async () => { throw providerError; } });
-  await expect(adapter.get("exact-object-key")).rejects.toBe(providerError);
+test("Node R2 GET safely propagates non-not-found provider failures", async () => {
+  const providerError = new Error("provider unavailable private-secret-value");
+  const { adapter } = r2Harness({ send: async () => { throw providerError; } });
+  await expect(adapter.get("exact-object-key")).rejects.toMatchObject({
+    name: "R2StorageError",
+    message: "R2 get failed.",
+  });
 });
 
-test("future R2 DELETE uses the configured bucket and exact key with a deterministic result", async () => {
-  const { adapter, commands } = futureR2Harness();
+test("Node R2 GET does not treat a missing bucket as a missing object", async () => {
+  const providerError = { name: "NoSuchBucket", $metadata: { httpStatusCode: 404 } };
+  const { adapter } = r2Harness({ send: async () => { throw providerError; } });
+  await expect(adapter.get("exact-object-key")).rejects.toMatchObject({
+    name: "R2StorageError",
+    message: "R2 get failed.",
+  });
+});
+
+test("Node R2 PUT and DELETE failures do not expose provider details", async () => {
+  const send = async () => { throw new Error("private-access-value private-secret-value"); };
+  const putHarness = r2Harness({ send });
+  const deleteHarness = r2Harness({ send });
+
+  await expect(putHarness.adapter.put("key", new ArrayBuffer(1))).rejects.toMatchObject({
+    name: "R2StorageError",
+    message: "R2 put failed.",
+  });
+  await expect(deleteHarness.adapter.delete("key")).rejects.toMatchObject({
+    name: "R2StorageError",
+    message: "R2 delete failed.",
+  });
+});
+
+test("Node R2 DELETE uses the configured bucket and exact key with a deterministic result", async () => {
+  const { adapter, commands } = r2Harness();
 
   await expect(adapter.delete("collaborations/id/payment-proofs/opaque.jpg")).resolves.toEqual({
     key: "collaborations/id/payment-proofs/opaque.jpg",
@@ -186,7 +225,7 @@ test("future R2 DELETE uses the configured bucket and exact key with a determini
 });
 
 for (const missingName of ["R2_ENDPOINT", "R2_ACCESS_KEY_ID", "R2_SECRET_ACCESS_KEY", "R2_BUCKET_NAME"] as const) {
-  test(`future R2 adapter fails clearly and safely when ${missingName} is missing`, async () => {
+  test(`Node R2 adapter fails clearly and safely when ${missingName} is missing`, async () => {
     const secretValues = ["private-access-value", "private-secret-value"];
     const environment = {
       ...configuredR2Environment,
@@ -194,7 +233,7 @@ for (const missingName of ["R2_ENDPOINT", "R2_ACCESS_KEY_ID", "R2_SECRET_ACCESS_
       R2_SECRET_ACCESS_KEY: secretValues[1],
       [missingName]: "",
     };
-    const { adapter, clientConfigurations } = futureR2Harness({ environment });
+    const { adapter, clientConfigurations } = r2Harness({ environment });
 
     const error = await adapter.get("object-key").catch((caught: unknown) => caught);
 
@@ -205,13 +244,13 @@ for (const missingName of ["R2_ENDPOINT", "R2_ACCESS_KEY_ID", "R2_SECRET_ACCESS_
   });
 }
 
-test("future R2 client is lazy and reused by repeated operations in one process", async () => {
-  const { adapter, clientConfigurations } = futureR2Harness({
-    send: async (command) => command.operation === "get" ? { Body: new ReadableStream() } : {},
+test("Node R2 client is lazy and reused by repeated operations in one process", async () => {
+  const { adapter, clientConfigurations } = r2Harness({
+    send: async (command) => (command as { operation?: string }).operation === "get" ? { Body: new ReadableStream() } : {},
   });
 
   expect(clientConfigurations).toHaveLength(0);
-  await adapter.put("one", new ArrayBuffer(1), { contentType: "image/png", originalFilename: "one.png" });
+  await adapter.put("one", new ArrayBuffer(1), { httpMetadata: { contentType: "image/png" }, customMetadata: { originalFilename: "one.png" } });
   await adapter.get("one");
   await adapter.delete("one");
 
