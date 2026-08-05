@@ -5,10 +5,19 @@ import { withServerTiming } from "@/lib/server-timing";
 // deadline was short enough to misclassify healthy, completed accounts.
 export const MONGO_CONNECTION_TIMEOUT_MS = 5_000;
 export const MONGO_QUERY_TIMEOUT_MS = 5_000;
-export const MONGO_STATE_POLL_MS = 40;
 
 type MongooseClient = Pick<typeof mongoose, "connect" | "disconnect" | "connection">;
-type WaitOptions = { timeoutMs?: number; pollMs?: number; now?: () => number; sleep?: (ms: number) => Promise<void> };
+
+export type MongoConnectionCache = {
+  connection: MongooseClient | null;
+  promise: Promise<MongooseClient> | null;
+};
+
+declare global {
+  var mongooseConnectionCache: MongoConnectionCache | undefined;
+}
+
+const mongooseCache = globalThis.mongooseConnectionCache ??= { connection: null, promise: null };
 
 mongoose.set("bufferCommands", false);
 
@@ -39,8 +48,6 @@ export function classifyMongoError(error: unknown): MongoFailureKind {
   return "unavailable";
 }
 
-type RequestConnectionFactory = (uri: string, options: ConnectOptions) => Connection;
-
 function safeMongoLog(input: {
   operation: string; readyState: number; startedAt: number; error?: unknown; retryable: boolean; phase: string;
 }) {
@@ -61,31 +68,64 @@ export function modelForConnection<T>(connection: Connection, model: Model<T>): 
   return (connection.models[model.modelName] as Model<T> | undefined) ?? connection.model<T>(model.modelName, model.schema);
 }
 
+function connectionOptions(dbName?: string): ConnectOptions {
+  return {
+    bufferCommands: false,
+    maxPoolSize: 5,
+    maxConnecting: 1,
+    minPoolSize: 0,
+    waitQueueTimeoutMS: MONGO_QUERY_TIMEOUT_MS,
+    serverSelectionTimeoutMS: MONGO_CONNECTION_TIMEOUT_MS,
+    connectTimeoutMS: MONGO_CONNECTION_TIMEOUT_MS,
+    socketTimeoutMS: 10_000,
+    ...(dbName ? { dbName } : {}),
+  };
+}
+
+export async function connectMongoose(
+  client: MongooseClient,
+  uri: string,
+  dbName?: string,
+  cache: MongoConnectionCache = mongooseCache,
+): Promise<MongooseClient> {
+  if (cache.connection?.connection.readyState === 1) return cache.connection;
+  if (client.connection.readyState === 1) {
+    cache.connection = client;
+    return client;
+  }
+  cache.connection = null;
+
+  if (!cache.promise) {
+    cache.promise = client.connect(uri, connectionOptions(dbName))
+      .then((connected) => {
+        cache.connection = connected;
+        cache.promise = null;
+        return connected;
+      })
+      .catch((error) => {
+        cache.connection = null;
+        cache.promise = null;
+        throw error;
+      });
+  }
+
+  return cache.promise;
+}
+
 export async function withMongoRequest<T>(
   operation: string,
   callback: (connection: Connection) => Promise<T>,
-  options: { createConnection?: RequestConnectionFactory } = {},
+  options: { client?: MongooseClient; cache?: MongoConnectionCache } = {},
 ): Promise<T> {
   const uri = process.env.MONGODB_URI?.trim();
   if (!uri) throw new MongoConfigurationError();
   const startedAt = performance.now();
-  const connectionOptions: ConnectOptions = {
-    bufferCommands: false,
-    maxPoolSize: 1,
-    maxConnecting: 1,
-    minPoolSize: 0,
-    waitQueueTimeoutMS: MONGO_QUERY_TIMEOUT_MS,
-    serverMonitoringMode: "poll",
-    serverSelectionTimeoutMS: MONGO_CONNECTION_TIMEOUT_MS,
-    connectTimeoutMS: MONGO_CONNECTION_TIMEOUT_MS,
-    socketTimeoutMS: 10_000,
-    ...(process.env.MONGODB_DB_NAME?.trim() ? { dbName: process.env.MONGODB_DB_NAME.trim() } : {}),
-  };
-  const connection = (options.createConnection ?? ((requestUri, requestOptions) => mongoose.createConnection(requestUri, requestOptions)))(uri, connectionOptions);
+  const client = options.client ?? mongoose;
+
   try {
-    await connection.asPromise();
-    safeMongoLog({ operation, readyState: connection.readyState, startedAt, retryable: false, phase: "connected" });
-    return await callback(connection);
+    const connected = await connectMongoose(client, uri, process.env.MONGODB_DB_NAME?.trim(), options.cache ?? mongooseCache);
+    safeMongoLog({ operation, readyState: connected.connection.readyState, startedAt, retryable: false, phase: "connected" });
+    return await callback(connected.connection);
   } catch (error) {
     const record = typeof error === "object" && error ? error as Record<string, unknown> : {};
     const errorName = typeof record.name === "string" ? record.name : "";
@@ -93,70 +133,12 @@ export async function withMongoRequest<T>(
     const classified = errorName.includes("WaitQueueTimeout") || message.includes("checking out") || message.includes("wait queue")
       ? new MongoTemporaryUnavailableError("pool_checkout")
       : error;
-    safeMongoLog({ operation, readyState: connection.readyState, startedAt, error: classified, retryable: classifyMongoError(classified) !== "authentication", phase: connection.readyState === 2 ? "connect" : "operation" });
+    safeMongoLog({ operation, readyState: client.connection.readyState, startedAt, error: classified, retryable: classifyMongoError(classified) !== "authentication", phase: client.connection.readyState === 2 ? "connect" : "operation" });
     throw classified;
-  } finally {
-    try {
-      await connection.destroy(true);
-      safeMongoLog({ operation, readyState: connection.readyState, startedAt, retryable: false, phase: "destroyed" });
-    } catch (error) {
-      safeMongoLog({ operation, readyState: connection.readyState, startedAt, error, retryable: true, phase: "destroy" });
-    }
   }
 }
 
 export function hasMongoUri() { return Boolean(process.env.MONGODB_URI?.trim()); }
-
-const localSleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
-
-/** Waits only on this request's timers and reads readyState; it never touches the other request's promise. */
-export async function waitForMongoState(client: MongooseClient, options: WaitOptions = {}) {
-  const timeoutMs = Math.min(options.timeoutMs ?? MONGO_CONNECTION_TIMEOUT_MS, MONGO_CONNECTION_TIMEOUT_MS);
-  const pollMs = Math.max(25, Math.min(options.pollMs ?? MONGO_STATE_POLL_MS, 50));
-  const now = options.now ?? Date.now;
-  const sleep = options.sleep ?? localSleep;
-  const deadline = now() + timeoutMs;
-
-  while (now() < deadline) {
-    const state = client.connection.readyState;
-    if (state === 1 || state === 0) return state;
-    await sleep(Math.min(pollMs, Math.max(0, deadline - now())));
-  }
-  const finalState = client.connection.readyState;
-  if (finalState === 1 || finalState === 0) return finalState;
-  throw new MongoTemporaryUnavailableError("timeout");
-}
-
-export async function connectMongoose(client: MongooseClient, uri: string, dbName?: string, waitOptions: WaitOptions = {}) {
-  let state: number = client.connection.readyState;
-  if (state === 1) return client;
-  if (state === 2 || state === 3) state = await waitForMongoState(client, waitOptions);
-  if (state === 1) return client;
-  if (state !== 0) throw new MongoTemporaryUnavailableError(state === 3 ? "disconnecting" : "connecting");
-
-  const options: ConnectOptions = {
-    bufferCommands: false,
-    maxPoolSize: 2,
-    maxConnecting: 1,
-    minPoolSize: 0,
-    maxIdleTimeMS: 30_000,
-    waitQueueTimeoutMS: MONGO_QUERY_TIMEOUT_MS,
-    serverMonitoringMode: "poll",
-    serverSelectionTimeoutMS: MONGO_CONNECTION_TIMEOUT_MS,
-    connectTimeoutMS: MONGO_CONNECTION_TIMEOUT_MS,
-    socketTimeoutMS: 10_000,
-    ...(dbName ? { dbName } : {}),
-  };
-
-  try {
-    // Mongoose changes readyState synchronously when connect() begins. Later
-    // requests therefore poll state instead of starting another connect call.
-    return await client.connect(uri, options);
-  } catch (error) {
-    if (client.connection.readyState !== 0) await client.disconnect().catch(() => undefined);
-    throw error;
-  }
-}
 
 export async function connectDB() {
   const uri = process.env.MONGODB_URI?.trim();
@@ -166,7 +148,11 @@ export async function connectDB() {
   });
 }
 
-export async function disconnectDB() { await mongoose.disconnect(); }
+export async function disconnectDB() {
+  await mongoose.disconnect();
+  mongooseCache.connection = null;
+  mongooseCache.promise = null;
+}
 
 export function getMongoReadyState() {
   const states: Record<number, string> = { 0: "disconnected", 1: "connected", 2: "connecting", 3: "disconnecting" };

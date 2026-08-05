@@ -2,7 +2,7 @@ import { expect, test } from "@playwright/test";
 import fs from "node:fs";
 import path from "node:path";
 import { EventEmitter } from "node:events";
-import { classifyMongoError, connectMongoose, MongoTemporaryUnavailableError, waitForMongoState, withMongoRequest } from "../../lib/db";
+import { classifyMongoError, connectMongoose, type MongoConnectionCache, withMongoRequest } from "../../lib/db";
 import { settleHomepageData } from "../../lib/queries/public";
 import sitemap from "../../app/sitemap";
 
@@ -13,57 +13,54 @@ function deferred<T>() {
   return { promise, resolve, reject };
 }
 
-test("a request arriving during readyState 2 waits locally and succeeds", async () => {
-  let sleeps = 0;
-  const fake = {
-    connection: { readyState: 2 },
-    connect: async () => { throw new Error("must not reconnect"); },
-    disconnect: async () => { fake.connection.readyState = 0; },
-  };
-  await expect(connectMongoose(fake as never, "mongodb://example/test", undefined, { sleep: async () => { sleeps += 1; fake.connection.readyState = 1; } })).resolves.toBe(fake);
-  expect(sleeps).toBe(1);
-});
+const emptyCache = (): MongoConnectionCache => ({ connection: null, promise: null });
 
-test("state waiting uses only local polling and has a strict deadline", async () => {
-  let clock = 0;
-  const fake = { connection: { readyState: 2 }, connect: async () => fake, disconnect: async () => undefined };
-  await expect(waitForMongoState(fake as never, { timeoutMs: 100, now: () => clock, sleep: async (ms) => { clock += ms; } })).rejects.toBeInstanceOf(MongoTemporaryUnavailableError);
-  expect(clock).toBe(100);
-  const source = fs.readFileSync(path.join(process.cwd(), "lib/db.ts"), "utf8");
-  expect(source).not.toMatch(/connectionPromise|cache\.promise|await\s+client\.connection/);
-});
-
-test("a state 2 to 0 transition permits one clean connection attempt", async () => {
+test("concurrent cold callers share one persistent mongoose.connect promise", async () => {
+  const pending = deferred<void>();
   let connects = 0;
-  const fake = { connection: { readyState: 2 }, connect: async () => { connects += 1; fake.connection.readyState = 1; return fake; }, disconnect: async () => undefined };
-  await expect(connectMongoose(fake as never, "mongodb://example/test", undefined, { sleep: async () => { fake.connection.readyState = 0; } })).resolves.toBe(fake);
-  expect(connects).toBe(1);
-});
-
-test("concurrent callers trigger only one mongoose.connect call", async () => {
-  const pending = deferred<unknown>();
-  let connects = 0;
+  const cache = emptyCache();
   const fake = {
     connection: { readyState: 0 },
     connect: async () => { connects += 1; fake.connection.readyState = 2; await pending.promise; fake.connection.readyState = 1; return fake; },
     disconnect: async () => { fake.connection.readyState = 0; },
   };
-  const first = connectMongoose(fake as never, "mongodb://example/test");
-  const second = connectMongoose(fake as never, "mongodb://example/test", undefined, { sleep: async () => { pending.resolve(fake); await Promise.resolve(); } });
-  await Promise.all([first, second]);
+  const first = connectMongoose(fake as never, "mongodb://example/test", undefined, cache);
+  const sharedPromise = cache.promise;
+  const second = connectMongoose(fake as never, "mongodb://example/test", undefined, cache);
+  expect(cache.promise).toBe(sharedPromise);
   expect(connects).toBe(1);
+  pending.resolve();
+  await expect(Promise.all([first, second])).resolves.toEqual([fake, fake]);
+  expect(cache.connection).toBe(fake);
 });
 
-test("failed connection resets transitional state for a later retry", async () => {
-  let disconnects = 0;
+test("connected callers reuse the resolved persistent connection", async () => {
+  let connects = 0;
+  const cache = emptyCache();
+  const fake = { connection: { readyState: 1 }, connect: async () => { connects += 1; return fake; }, disconnect: async () => undefined };
+  await expect(connectMongoose(fake as never, "mongodb://example/test", undefined, cache)).resolves.toBe(fake);
+  await expect(connectMongoose(fake as never, "mongodb://example/test", undefined, cache)).resolves.toBe(fake);
+  expect(connects).toBe(0);
+  expect(cache.connection).toBe(fake);
+});
+
+test("a failed initial connection clears the promise and a later caller retries", async () => {
+  let connects = 0;
+  const cache = emptyCache();
   const fake = {
     connection: { readyState: 0 },
-    connect: async () => { fake.connection.readyState = 2; throw new Error("selection failed"); },
-    disconnect: async () => { disconnects += 1; fake.connection.readyState = 0; },
+    connect: async () => {
+      connects += 1;
+      if (connects === 1) throw new Error("selection failed");
+      fake.connection.readyState = 1;
+      return fake;
+    },
+    disconnect: async () => { fake.connection.readyState = 0; },
   };
-  await expect(connectMongoose(fake as never, "mongodb://example/test")).rejects.toThrow("selection failed");
-  expect(fake.connection.readyState).toBe(0);
-  expect(disconnects).toBe(1);
+  await expect(connectMongoose(fake as never, "mongodb://example/test", undefined, cache)).rejects.toThrow("selection failed");
+  expect(cache.promise).toBeNull();
+  await expect(connectMongoose(fake as never, "mongodb://example/test", undefined, cache)).resolves.toBe(fake);
+  expect(connects).toBe(2);
 });
 
 test("homepage data failures preserve a renderable fallback", async () => {
@@ -97,13 +94,17 @@ test("onboarding maps busy state to an accurate retryable message", () => {
   expect(errors).toContain('code: "DATABASE_CONNECTING"');
 });
 
-test("no unresolved Mongoose promise cache remains", () => {
+test("the persistent Node connection cache and bounded pool options are configured", () => {
   const source = fs.readFileSync(path.join(process.cwd(), "lib/db.ts"), "utf8");
-  expect(source).not.toContain("mongooseCache");
-  expect(source).not.toContain("cache.promise");
-  expect(source).not.toMatch(/globalForMongoose|globalThis\s+as/);
+  expect(source).toContain("globalThis.mongooseConnectionCache");
+  expect(source).toContain("connection: MongooseClient | null");
+  expect(source).toContain("promise: Promise<MongooseClient> | null");
   expect(source).toContain("bufferCommands: false");
+  expect(source).toContain("maxPoolSize: 5");
+  expect(source).toContain("minPoolSize: 0");
   expect(source).toContain("serverSelectionTimeoutMS");
+  expect(source).not.toContain("serverMonitoringMode");
+  expect(source).not.toContain("maxIdleTimeMS");
 });
 
 test("sitemap is synchronous, valid, and completely database-independent", () => {
@@ -135,20 +136,20 @@ test("creator discovery is bounded and avoids sorting the count branch", () => {
 });
 
 test("parallel connection waiters add no EventEmitter timeout listeners", async () => {
-  let clock = 0;
-  const connection = Object.assign(new EventEmitter(), { readyState: 2 });
-  const fake = { connection, connect: async () => fake, disconnect: async () => undefined };
-  const waits = Array.from({ length: 24 }, () =>
-    waitForMongoState(fake as never, { timeoutMs: 40, now: () => clock, sleep: async (ms) => { clock += ms; connection.readyState = 1; } }),
-  );
+  const pending = deferred<void>();
+  const connection = Object.assign(new EventEmitter(), { readyState: 0 });
+  const cache = emptyCache();
+  const fake = { connection, connect: async () => { connection.readyState = 2; await pending.promise; connection.readyState = 1; return fake; }, disconnect: async () => undefined };
+  const waits = Array.from({ length: 24 }, () => connectMongoose(fake as never, "mongodb://example/test", undefined, cache));
+  pending.resolve();
   await Promise.all(waits);
   expect(connection.listenerCount("timeout")).toBe(0);
 });
 
-test("MongoDB connection topology prevents parallel socket-listener amplification", () => {
+test("MongoDB persistent pool topology remains bounded", () => {
   const source = fs.readFileSync(path.join(process.cwd(), "lib/db.ts"), "utf8");
   expect(source).toContain("maxConnecting: 1");
-  expect(source).toContain('serverMonitoringMode: "poll"');
+  expect(source).toContain("maxPoolSize: 5");
   expect(source).toContain("waitQueueTimeoutMS: MONGO_QUERY_TIMEOUT_MS");
   expect(source).not.toContain("setMaxListeners");
 
@@ -386,44 +387,64 @@ test("creator cards introduce no per-card authentication, navigation-context, or
   expect(source).not.toMatch(/useAuth|useUser|auth\(|getApplicationAccountState|getCurrentAppUser|navigation-context|connectDB|fetch\(/);
 });
 
-test("simultaneous cold account requests never share a pending connection promise", async () => {
+test("withMongoRequest shares the persistent connection without creating or destroying pools", async () => {
   const previous = process.env.MONGODB_URI;
   process.env.MONGODB_URI = "mongodb://example/test";
-  const opened: number[] = [];
-  const destroyed: number[] = [];
-  const makeFactory = (id: number) => () => ({
-    readyState: 0, models: {}, asPromise: async function () { this.readyState = 1; opened.push(id); return this; },
-    destroy: async function () { this.readyState = 0; destroyed.push(id); },
-  });
-  const [first, second] = await Promise.all([
-    withMongoRequest("cold-account-a", async () => "a", { createConnection: makeFactory(1) as never }),
-    withMongoRequest("cold-account-b", async () => "b", { createConnection: makeFactory(2) as never }),
-  ]);
+  const pending = deferred<void>();
+  const cache = emptyCache();
+  let connects = 0;
+  let disconnects = 0;
+  const connection = { readyState: 0, models: {} };
+  const client = {
+    connection,
+    connect: async () => { connects += 1; connection.readyState = 2; await pending.promise; connection.readyState = 1; return client; },
+    disconnect: async () => { disconnects += 1; },
+  };
+  const operations = [
+    withMongoRequest("cold-account-a", async (received) => { expect(received).toBe(connection); return "a"; }, { client: client as never, cache }),
+    withMongoRequest("cold-account-b", async (received) => { expect(received).toBe(connection); return "b"; }, { client: client as never, cache }),
+  ];
+  pending.resolve();
+  const [first, second] = await Promise.all(operations);
   expect([first, second]).toEqual(["a", "b"]);
-  expect(opened).toEqual([1, 2]);
-  expect(destroyed).toEqual([1, 2]);
+  expect(connects).toBe(1);
+  expect(disconnects).toBe(0);
+  const source = fs.readFileSync(path.join(process.cwd(), "lib/db.ts"), "utf8");
+  expect(source).not.toContain("mongoose.createConnection");
+  expect(source).not.toMatch(/\.destroy\(|finally\s*{/);
   if (previous === undefined) delete process.env.MONGODB_URI; else process.env.MONGODB_URI = previous;
 });
 
-test("failed request connection is destroyed before a later successful request", async () => {
+test("withMongoRequest retries after a failed shared connection", async () => {
   const previous = process.env.MONGODB_URI;
   process.env.MONGODB_URI = "mongodb://example/test";
-  let destroyed = 0;
-  const failing = () => ({ readyState: 2, models: {}, asPromise: async () => { throw Object.assign(new Error("selection"), { name: "MongooseServerSelectionError" }); }, destroy: async () => { destroyed += 1; } });
-  await expect(withMongoRequest("failed", async () => null, { createConnection: failing as never })).rejects.toThrow("selection");
-  const succeeding = () => ({ readyState: 1, models: {}, asPromise: async function () { return this; }, destroy: async () => { destroyed += 1; } });
-  await expect(withMongoRequest("retry", async () => "ok", { createConnection: succeeding as never })).resolves.toBe("ok");
-  expect(destroyed).toBe(2);
+  const cache = emptyCache();
+  let connects = 0;
+  const connection = { readyState: 0, models: {} };
+  const client = {
+    connection,
+    connect: async () => {
+      connects += 1;
+      if (connects === 1) throw Object.assign(new Error("selection"), { name: "MongooseServerSelectionError" });
+      connection.readyState = 1;
+      return client;
+    },
+    disconnect: async () => undefined,
+  };
+  await expect(withMongoRequest("failed", async () => null, { client: client as never, cache })).rejects.toThrow("selection");
+  await expect(withMongoRequest("retry", async () => "ok", { client: client as never, cache })).resolves.toBe("ok");
+  expect(connects).toBe(2);
   if (previous === undefined) delete process.env.MONGODB_URI; else process.env.MONGODB_URI = previous;
 });
 
-test("repeated request-local failures add no timeout listeners", async () => {
+test("repeated persistent operations add no timeout listeners", async () => {
   const previous = process.env.MONGODB_URI;
   process.env.MONGODB_URI = "mongodb://example/test";
-  const emitter = new EventEmitter();
-  const factory = () => Object.assign(emitter, { readyState: 2, models: {}, asPromise: async () => { throw new Error("failed"); }, destroy: async () => undefined });
-  for (let index = 0; index < 20; index += 1) await withMongoRequest("listener-test", async () => null, { createConnection: factory as never }).catch(() => undefined);
-  expect(emitter.listenerCount("timeout")).toBe(0);
+  const connection = Object.assign(new EventEmitter(), { readyState: 1, models: {} });
+  const client = { connection, connect: async () => client, disconnect: async () => undefined };
+  const cache = emptyCache();
+  for (let index = 0; index < 20; index += 1) await withMongoRequest("listener-test", async () => null, { client: client as never, cache });
+  expect(connection.listenerCount("timeout")).toBe(0);
   if (previous === undefined) delete process.env.MONGODB_URI; else process.env.MONGODB_URI = previous;
 });
 
