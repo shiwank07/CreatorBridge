@@ -16,6 +16,23 @@ const live = {
   ADMIN_CLERK_USER_IDS: "user_production_admin",
 } as NodeJS.ProcessEnv;
 
+test("marketing legal pages keep their Clerk-aware navbar under the root provider without database work", () => {
+  const rootLayout = fs.readFileSync(path.join(process.cwd(), "app/layout.tsx"), "utf8");
+  const marketingLayout = fs.readFileSync(path.join(process.cwd(), "app/(marketing)/layout.tsx"), "utf8");
+  const marketingNavbar = fs.readFileSync(path.join(process.cwd(), "components/marketing/marketing-navbar-client.tsx"), "utf8");
+
+  expect(rootLayout).toContain("<ClerkProvider");
+  expect(rootLayout).not.toMatch(/if\s*\([^)]*hasClerkKeys\(\)[^)]*\)\s*return/);
+  expect(marketingLayout).toContain("<MarketingNavbar />");
+  expect(marketingNavbar).toContain("useAuth()");
+
+  for (const route of ["terms", "privacy", "cookies", "about"]) {
+    const page = fs.readFileSync(path.join(process.cwd(), `app/(marketing)/${route}/page.tsx`), "utf8");
+    expect(page).not.toMatch(/connectDB|mongoose|mongodb|@\/lib\/db|@\/lib\/queries/);
+    expect(page).not.toContain("force-dynamic");
+  }
+});
+
 test("production Clerk configuration requires paired live keys and immutable admin IDs", () => {
   expect(clerkConfigurationIssue(live)).toBeNull();
   expect(clerkConfigurationIssue({ ...live, CLERK_SECRET_KEY: "sk_test_example" })).toMatch(/live keys/);

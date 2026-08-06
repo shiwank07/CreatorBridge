@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import { ClerkProvider } from "@clerk/nextjs";
 
 import "@/app/globals.css";
-import { hasClerkKeys } from "@/lib/clerk-config";
 import { GLOBAL_STRUCTURED_DATA, SITE_DESCRIPTION, SITE_NAME, SITE_TITLE, SITE_URL, SOCIAL_IMAGE } from "@/lib/seo";
 
 export const viewport = {
@@ -68,8 +67,6 @@ export default function RootLayout({
       </body>
     </html>
   );
-
-  if (!hasClerkKeys()) return html;
 
   return (
     <ClerkProvider
