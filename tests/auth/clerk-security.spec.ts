@@ -33,6 +33,24 @@ test("marketing legal pages keep their Clerk-aware navbar under the root provide
   }
 });
 
+test("Clerk middleware covers public creator discovery and optional navigation auth without protecting them", () => {
+  const middleware = fs.readFileSync(path.join(process.cwd(), "middleware.ts"), "utf8");
+  const creators = fs.readFileSync(path.join(process.cwd(), "app/creators/page.tsx"), "utf8");
+  const navigationContext = fs.readFileSync(path.join(process.cwd(), "app/api/navigation-context/route.ts"), "utf8");
+
+  expect(middleware).toContain('"/((?!_next|[^?]*\\\\.(?:html?|css|js(?!on)|jpe?g|webp|png|gif|svg|ttf|woff2?|ico|csv|docx?|xlsx?|zip|webmanifest)).*)"');
+  expect(middleware).toContain('"/(api|trpc)(.*)"');
+  expect(middleware).not.toMatch(/isStaticPublicRoute[\s\S]*?\[[\s\S]*?["']\/creators["']/);
+  expect(middleware).toContain('const isProtectedRoute = createRouteMatcher(["/onboarding(.*)", "/admin(.*)", "/dashboard(.*)", "/notifications(.*)"])');
+  expect(middleware).not.toMatch(/isProtectedRoute[^;]*\/creators/);
+  expect(middleware).toContain("await auth.protect()");
+
+  expect(creators).toContain("getApplicationAccountState()");
+  expect(navigationContext).toContain("getApplicationAccountState()");
+  expect(navigationContext).toContain('state.status === "anonymous"');
+  expect(navigationContext).not.toMatch(/connectDB|mongoose|mongodb|@\/lib\/db/);
+});
+
 test("production Clerk configuration requires paired live keys and immutable admin IDs", () => {
   expect(clerkConfigurationIssue(live)).toBeNull();
   expect(clerkConfigurationIssue({ ...live, CLERK_SECRET_KEY: "sk_test_example" })).toMatch(/live keys/);

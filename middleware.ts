@@ -6,7 +6,7 @@ import { clerkConfigurationIssue, hasClerkKeys } from "@/lib/clerk-config";
 const isProtectedRoute = createRouteMatcher(["/onboarding(.*)", "/admin(.*)", "/dashboard(.*)", "/notifications(.*)"]);
 const isStaticPublicRoute = createRouteMatcher([
   "/", "/about", "/contact", "/privacy", "/terms", "/cookies", "/trust-safety",
-  "/community-guidelines", "/pricing", "/robots.txt", "/sitemap.xml", "/creators", "/account-unavailable",
+  "/community-guidelines", "/pricing", "/robots.txt", "/sitemap.xml", "/account-unavailable",
 ]);
 
 const clerkHandler = clerkMiddleware(async (auth, req) => {
