@@ -600,7 +600,7 @@ export const notificationService = {
         ...emailConfigLogSnapshot(),
       });
 
-      const created = await createInAppNotification({
+      await createInAppNotification({
         recipientUserId: userObjectId(creator),
         actorUserId: userObjectId(brand),
         event,
@@ -609,7 +609,16 @@ export const notificationService = {
         href,
       });
 
-      if (created && creator?.email) await sendCollaborationInvitation({
+      if (!creator?.email) {
+        console.warn("[notifications] Collaboration email delivery state.", {
+          event,
+          outcome: "missing_recipient",
+          recipientEmailExists: false,
+        });
+        return;
+      }
+
+      await sendCollaborationInvitation({
         to: creator.email, eventId: collaborationId(collaboration), preferences: creator.emailPreferences,
         firstName: userDisplayName(creator, "Creator").split(/\s+/)[0], brandName: companyName,
         title: trimText(collaboration.campaignTitle, trimText(collaboration.campaignGoal, "New collaboration")),

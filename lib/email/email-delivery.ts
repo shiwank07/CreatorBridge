@@ -19,6 +19,7 @@ type DeliverOnceInput = {
 export async function deliverEmailOnce(input: DeliverOnceInput): Promise<EmailSendResult & { duplicate?: boolean }> {
   const NotificationModel = input.notificationModel ?? EmailNotification;
   if (!preferenceAllowsEmail(input.preferences, input.preference)) {
+    console.info("[email] Delivery state.", { event: input.event, outcome: "skipped_by_preference" });
     return { status: "skipped", providerId: null, error: "Disabled by email preference." };
   }
 
@@ -38,17 +39,22 @@ export async function deliverEmailOnce(input: DeliverOnceInput): Promise<EmailSe
     );
   } catch (error) {
     if (typeof error === "object" && error && "code" in error && error.code === 11000) {
+      console.info("[email] Delivery state.", { event: input.event, outcome: "skipped_by_suppression", reason: "duplicate_or_terminal_delivery" });
       return { status: "skipped", providerId: null, error: null, duplicate: true };
     }
     throw error;
   }
 
-  if (!claim) return { status: "skipped", providerId: null, error: null, duplicate: true };
+  if (!claim) {
+    console.info("[email] Delivery state.", { event: input.event, outcome: "skipped_by_suppression", reason: "duplicate_or_terminal_delivery" });
+    return { status: "skipped", providerId: null, error: null, duplicate: true };
+  }
 
   let result: EmailSendResult;
   try {
     result = await input.send();
   } catch {
+    console.error("[email] Delivery state.", { event: input.event, outcome: "provider_rejected", errorClass: "send_callback_error" });
     result = { status: "failed", providerId: null, error: "The email could not be sent. Please try again later." };
   }
   const status = isPermanentRecipientFailure(result) ? "permanent_failed" : result.status;

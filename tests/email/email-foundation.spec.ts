@@ -22,6 +22,7 @@ import {
   resolveEmailLogoUrl,
 } from "../../lib/email/email-config";
 import { isPermanentRecipientFailure, preferenceAllowsEmail } from "../../lib/email/email-policy";
+import { sendEmail, type EmailProvider } from "../../lib/email/email-service-runtime";
 import {
   AccountSecurityAlertEmail, ContactAdminAlertEmail, accountSecurityAlertPreviewProps,
   accountSecurityAlertSubject, accountSecurityAlertText, contactAdminAlertPreviewProps, contactAdminAlertText,
@@ -117,6 +118,57 @@ test("email preferences and permanent recipient failures are enforced", () => {
   expect(preferenceAllowsEmail({ collaborationInvitations: false }, "verificationUpdates")).toBeTruthy();
   expect(isPermanentRecipientFailure({ status: "failed", providerId: null, error: "A valid recipient email address is required." })).toBeTruthy();
   expect(isPermanentRecipientFailure({ status: "failed", providerId: null, error: "The email could not be sent. Please try again later." })).toBeFalsy();
+});
+
+test("shared sender reaches the provider and reports provider acceptance", async () => {
+  const calls: unknown[] = [];
+  const provider: EmailProvider = {
+    async send(input) {
+      calls.push(input);
+      return { data: { id: "email_test_accepted" }, error: null };
+    },
+  };
+  const result = await sendEmail(
+    { to: "creator@example.com", subject: "New collaboration", react: "Collaboration request" },
+    { env: validEnv, provider },
+  );
+  expect(calls).toHaveLength(1);
+  expect(result).toEqual({ status: "sent", providerId: "email_test_accepted", error: null });
+});
+
+test("shared sender safely handles missing configuration and recipient", async () => {
+  const developmentEnv = { ...validEnv, NODE_ENV: "development", RESEND_API_KEY: "" };
+  expect(await sendEmail(
+    { to: "creator@example.com", subject: "New collaboration", react: "Collaboration request" },
+    { env: developmentEnv },
+  )).toMatchObject({ status: "skipped", providerId: null });
+  expect(await sendEmail(
+    { to: "", subject: "New collaboration", react: "Collaboration request" },
+    { env: validEnv },
+  )).toEqual({ status: "failed", providerId: null, error: "A valid recipient email address is required." });
+});
+
+test("provider rejection is returned without logging recipient or API key", async () => {
+  const messages: string[] = [];
+  const originalInfo = console.info;
+  const originalError = console.error;
+  console.info = (...args: unknown[]) => messages.push(JSON.stringify(args));
+  console.error = (...args: unknown[]) => messages.push(JSON.stringify(args));
+  try {
+    const result = await sendEmail(
+      { to: "private.creator@example.com", subject: "New collaboration", react: "Sensitive body" },
+      { env: { ...validEnv, RESEND_API_KEY: "re_private_test_key" }, provider: { async send() { return { data: null, error: { message: "rejected" } }; } } },
+    );
+    expect(result.status).toBe("failed");
+    expect(messages.join(" ")).toContain("provider_request_started");
+    expect(messages.join(" ")).toContain("provider_rejected");
+    expect(messages.join(" ")).not.toContain("private.creator@example.com");
+    expect(messages.join(" ")).not.toContain("re_private_test_key");
+    expect(messages.join(" ")).not.toContain("Sensitive body");
+  } finally {
+    console.info = originalInfo;
+    console.error = originalError;
+  }
 });
 
 test("welcome subjects and plain text are meaningful", () => {
