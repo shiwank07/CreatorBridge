@@ -33,7 +33,7 @@ export async function processResendWebhook(input: {
   if (!RESEND_EMAIL_EVENTS.includes(input.type as ResendEmailEvent) || !input.emailId) return { ignored: true };
   const record = await EmailNotification.findOne({ providerId: input.emailId });
   if (!record) return { ignored: true };
-  if (record.webhookEventIds.includes(input.eventId)) return { duplicate: true };
+  if ((record.webhookEventIds ?? []).includes(input.eventId)) return { duplicate: true };
   const next = statusFor[input.type as ResendEmailEvent];
   const eventTime = input.createdAt ? new Date(input.createdAt) : new Date();
   if (!mayTransition(record.status, next) || (record.providerUpdatedAt && eventTime < record.providerUpdatedAt)) {

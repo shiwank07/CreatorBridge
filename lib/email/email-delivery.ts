@@ -2,6 +2,7 @@ import "server-only";
 
 import { EmailNotification } from "@/lib/models/EmailNotification";
 import type { EmailSendResult } from "./email-service";
+import { isDeliveryKeyDuplicateError } from "./email-delivery-errors";
 import { isPermanentRecipientFailure, preferenceAllowsEmail, type EmailPreferenceSnapshot, type TransactionalPreference } from "./email-policy";
 import { EMAIL_MAX_ATTEMPTS, retryDelayMs } from "./retry-policy";
 
@@ -38,7 +39,7 @@ export async function deliverEmailOnce(input: DeliverOnceInput): Promise<EmailSe
       { upsert: !input.retryFailed, new: true },
     );
   } catch (error) {
-    if (typeof error === "object" && error && "code" in error && error.code === 11000) {
+    if (isDeliveryKeyDuplicateError(error)) {
       console.info("[email] Delivery state.", { event: input.event, outcome: "skipped_by_suppression", reason: "duplicate_or_terminal_delivery" });
       return { status: "skipped", providerId: null, error: null, duplicate: true };
     }

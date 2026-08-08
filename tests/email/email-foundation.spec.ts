@@ -30,6 +30,8 @@ import {
 import { mayTransition, verifyResendWebhook } from "../../lib/email/resend-webhook";
 import { Webhook } from "svix";
 import { acceptsContactContentType, contactRequestTooLarge, contactSubmissionSchema } from "../../lib/contact-security";
+import { EmailNotification } from "../../lib/models/EmailNotification";
+import { isDeliveryKeyDuplicateError } from "../../lib/email/email-delivery-errors";
 
 const validEnv = {
   NODE_ENV: "production",
@@ -40,6 +42,25 @@ const validEnv = {
   EMAIL_SECURITY_FROM: DEFAULT_EMAIL_SECURITY_FROM,
   EMAIL_LOGO_URL: "https://branzzo.com/branding/branzzo-logo.png",
 };
+
+test("new email notifications omit webhook event IDs until the first real event", () => {
+  const notification = new EmailNotification({
+    deliveryKey: "test:new-delivery",
+    recipient: "test@example.com",
+    event: "test",
+    status: "processing",
+  });
+
+  expect(notification.webhookEventIds).toBeUndefined();
+  expect(notification.toObject()).not.toHaveProperty("webhookEventIds");
+});
+
+test("delivery claim duplicate classification only accepts the delivery key index", () => {
+  expect(isDeliveryKeyDuplicateError({ code: 11000, keyPattern: { deliveryKey: 1 }, keyValue: { deliveryKey: "private-value" } })).toBeTruthy();
+  expect(isDeliveryKeyDuplicateError({ code: 11000, keyPattern: { webhookEventIds: 1 }, keyValue: { webhookEventIds: "private-value" } })).toBeFalsy();
+  expect(isDeliveryKeyDuplicateError({ code: 11000 })).toBeFalsy();
+  expect(isDeliveryKeyDuplicateError(new Error("storage failure"))).toBeFalsy();
+});
 
 test("uses the verified sender and support reply-to", () => {
   const config = readEmailEnvironment(validEnv);

@@ -14,7 +14,7 @@ export interface IEmailNotification extends Document {
   nextRetryAt?: Date | null;
   deliveredAt?: Date | null;
   providerUpdatedAt?: Date | null;
-  webhookEventIds: string[];
+  webhookEventIds?: string[];
   retryable: boolean;
   updatedAt: Date;
   createdAt: Date;
@@ -33,7 +33,7 @@ const EmailNotificationSchema = new Schema<IEmailNotification>(
     nextRetryAt: { type: Date, default: null },
     deliveredAt: { type: Date, default: null },
     providerUpdatedAt: { type: Date, default: null },
-    webhookEventIds: { type: [String], default: [] },
+    webhookEventIds: { type: [String], default: undefined },
     retryable: { type: Boolean, default: false },
   },
   { timestamps: true },
