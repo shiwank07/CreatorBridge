@@ -29,7 +29,7 @@ export function LandingHero({ viewerRole }: LandingHeroProps) {
             <span className="marketing-hero__title-line">with verified creators.</span>
           </h1>
           <p className="marketing-hero__support">
-            Discover creators across YouTube, Instagram, TikTok, Twitch, and more. Compare professional profiles, send collaboration requests, and manage paid partnerships in one secure platform.
+            Branzzo is a creator-brand collaboration marketplace where brands can discover creators, send campaign opportunities, and manage partnerships, while creators can showcase their profiles and receive collaboration offers.
           </p>
 
           <div className="marketing-hero__actions">
