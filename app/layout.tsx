@@ -1,8 +1,22 @@
 import type { Metadata } from "next";
+import { Outfit, Plus_Jakarta_Sans } from "next/font/google";
 import { ClerkProvider } from "@clerk/nextjs";
 
 import "@/app/globals.css";
+import { MouseGlow } from "@/components/shared/mouse-glow";
 import { GLOBAL_STRUCTURED_DATA, SITE_DESCRIPTION, SITE_NAME, SITE_TITLE, SITE_URL, SOCIAL_IMAGE } from "@/lib/seo";
+
+const outfit = Outfit({
+  subsets: ["latin"],
+  variable: "--font-outfit",
+  display: "swap",
+});
+
+const plusJakarta = Plus_Jakarta_Sans({
+  subsets: ["latin"],
+  variable: "--font-plus-jakarta",
+  display: "swap",
+});
 
 export const viewport = {
   themeColor: "#05050d",
@@ -54,7 +68,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   const html = (
-    <html lang="en" className="dark">
+    <html lang="en" className={`dark ${outfit.variable} ${plusJakarta.variable}`}>
       <body>
         <script
           type="application/ld+json"
@@ -63,6 +77,7 @@ export default function RootLayout({
           }}
         />
         <div aria-hidden="true" className="ambient-noise" />
+        <MouseGlow />
         {children}
       </body>
     </html>

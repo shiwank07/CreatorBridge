@@ -89,7 +89,7 @@ export function MarketingNavbarClient() {
         ) : null}
 
         <div className="marketing-navbar__actions">
-          {!isLoaded ? <span aria-label="Loading account" className="marketing-navbar__account-placeholder" /> : null}
+          {!isLoaded ? <span role="status" aria-label="Loading account" className="marketing-navbar__account-placeholder" /> : null}
           {isLoaded && !isSignedIn ? (
             <>
               <Link href={authHref("/sign-in", "/onboarding")} className="focus-ring marketing-navbar__login">Login</Link>

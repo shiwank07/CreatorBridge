@@ -25,6 +25,7 @@ test("marketing legal pages keep their Clerk-aware navbar under the root provide
   expect(rootLayout).not.toMatch(/if\s*\([^)]*hasClerkKeys\(\)[^)]*\)\s*return/);
   expect(marketingLayout).toContain("<MarketingNavbar />");
   expect(marketingNavbar).toContain("useAuth()");
+  expect(marketingNavbar).toContain('role="status" aria-label="Loading account"');
 
   for (const route of ["terms", "privacy", "cookies", "about"]) {
     const page = fs.readFileSync(path.join(process.cwd(), `app/(marketing)/${route}/page.tsx`), "utf8");
@@ -42,6 +43,7 @@ test("Clerk middleware covers public creator discovery and optional navigation a
   expect(middleware).toContain('"/(api|trpc)(.*)"');
   expect(middleware).not.toMatch(/isStaticPublicRoute[\s\S]*?\[[\s\S]*?["']\/creators["']/);
   expect(middleware).toContain('const isProtectedRoute = createRouteMatcher(["/onboarding(.*)", "/admin(.*)", "/dashboard(.*)", "/notifications(.*)"])');
+  expect(middleware).toContain('"/account-unavailable", "/api/health"');
   expect(middleware).not.toMatch(/isProtectedRoute[^;]*\/creators/);
   expect(middleware).toContain("await auth.protect()");
 

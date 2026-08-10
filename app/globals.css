@@ -20,9 +20,9 @@
   --yellow: #f59e0b;
   --cyan: #67e8f9;
   --rose: #fb7185;
-  --font-display: "Plus Jakarta Sans";
-  --font-body: "Inter";
-  --font-mono: "JetBrains Mono";
+  --font-display: var(--font-outfit), "Outfit", ui-sans-serif, system-ui, sans-serif;
+  --font-body: var(--font-plus-jakarta), "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", monospace;
 }
 
 * {
@@ -1348,7 +1348,6 @@ textarea {
   min-width: 0;
   overflow: visible;
   pointer-events: none;
-  filter: drop-shadow(0 28px 72px rgba(0, 0, 0, 0.46));
 }
 
 .cyber-hero-media__frame {
@@ -1357,60 +1356,50 @@ textarea {
   width: 100%;
   min-width: 0;
   overflow: hidden;
-  border: 1px solid rgba(130, 150, 190, 0.24);
-  border-radius: 18px;
-  opacity: 1;
+  border-radius: 28px;
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.08),
-    0 0 60px rgba(88, 230, 255, 0.12),
-    0 0 100px rgba(124, 58, 237, 0.14);
-}
-
-.cyber-hero-media__poster,
-.cyber-hero-media__video,
-.cyber-hero-media__blend {
-  position: absolute;
-  inset: 0;
-}
-
-.cyber-hero-media__poster {
-  background-position: 58% center;
-  background-size: cover;
-  opacity: 0.76;
+    0 0 50px rgba(168, 85, 247, 0.28),
+    0 0 100px rgba(124, 58, 237, 0.2);
 }
 
 .cyber-hero-media__video {
+  position: absolute;
+  inset: 0;
   width: 100%;
   height: 100%;
   object-fit: cover;
   object-position: 58% center;
-  opacity: 0.9;
+  opacity: 1;
   pointer-events: none;
+  border-radius: 28px;
+  mask-image: radial-gradient(ellipse 85% 85% at 50% 48%, #000 0%, #000 65%, rgba(0, 0, 0, 0.6) 85%, transparent 100%);
+  -webkit-mask-image: radial-gradient(ellipse 85% 85% at 50% 48%, #000 0%, #000 65%, rgba(0, 0, 0, 0.6) 85%, transparent 100%);
 }
 
 .cyber-hero-media__blend {
-  background:
-    radial-gradient(ellipse at 62% 38%, transparent 0%, rgba(5, 6, 10, 0.08) 58%, rgba(5, 6, 10, 0.6) 100%),
-    linear-gradient(180deg, rgba(5, 6, 10, 0.06), rgba(5, 6, 10, 0.62));
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  border-radius: 28px;
+  background: radial-gradient(ellipse at 52% 48%, transparent 40%, rgba(8, 9, 13, 0.4) 75%, rgba(8, 9, 13, 0.9) 100%);
 }
 
 .creator-signal-preview {
   position: absolute;
-  right: clamp(0.5rem, 2vw, 2rem);
-  bottom: 1.25rem;
-  width: min(295px, calc(100vw - 2rem));
-  overflow: hidden;
-  border: 1px solid rgba(130, 150, 190, 0.22);
-  border-radius: 8px;
-  background:
-    linear-gradient(180deg, rgba(16, 20, 31, 0.78), rgba(8, 10, 16, 0.7)),
-    rgba(16, 20, 31, 0.72);
+  right: 0.5rem;
+  bottom: 0.5rem;
+  width: auto;
+  max-width: 290px;
+  overflow: visible;
+  border: 1px solid rgba(103, 232, 249, 0.3);
+  border-radius: 12px;
+  background: rgba(13, 17, 24, 0.92);
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.08),
-    0 24px 80px rgba(0, 0, 0, 0.48),
-    0 0 34px rgba(88, 230, 255, 0.1);
-  padding: 1rem;
-  backdrop-filter: blur(18px);
+    0 16px 40px rgba(0, 0, 0, 0.6),
+    0 0 30px rgba(124, 58, 237, 0.2);
+  padding: 0.85rem 1rem;
+  backdrop-filter: blur(16px);
+  pointer-events: auto;
 }
 
 .creator-signal-preview__scan {
@@ -1419,6 +1408,7 @@ textarea {
   transform: translateY(-100%);
   background: linear-gradient(180deg, transparent, rgba(88, 230, 255, 0.12), transparent);
   animation: marketing-scan 6.5s ease-in-out infinite;
+  border-radius: 12px;
 }
 
 .creator-signal-preview__header,
@@ -1431,31 +1421,34 @@ textarea {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 1rem;
-  border-bottom: 1px solid rgba(130, 150, 190, 0.16);
-  padding-bottom: 0.85rem;
+  gap: 0.75rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  padding-bottom: 0.5rem;
 }
 
 .creator-signal-preview__header p,
 .creator-signal-preview__header span,
 .creator-signal-preview__status {
-  font-family: var(--marketing-font-mono), ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-family: var(--font-mono), monospace;
 }
 
 .creator-signal-preview__header p {
-  color: var(--marketing-cyan);
-  font-size: 0.74rem;
+  color: #67e8f9;
+  font-size: 0.7rem;
   font-weight: 800;
+  letter-spacing: 0.05em;
+  margin: 0;
 }
 
 .creator-signal-preview__header span {
-  border: 1px solid rgba(88, 230, 255, 0.24);
+  border: 1px solid rgba(88, 230, 255, 0.3);
   border-radius: 999px;
-  background: rgba(88, 230, 255, 0.08);
-  padding: 0.22rem 0.48rem;
-  color: rgba(245, 243, 239, 0.86);
-  font-size: 0.62rem;
+  background: rgba(88, 230, 255, 0.12);
+  padding: 0.18rem 0.5rem;
+  color: #a7f3d0;
+  font-size: 0.6rem;
   font-weight: 800;
+  letter-spacing: 0.05em;
 }
 
 .creator-signal-preview__tags {
@@ -1665,24 +1658,14 @@ textarea {
     opacity: 1;
   }
 
-  .cyber-hero-media__poster,
   .cyber-hero-media__video {
     width: 100%;
     height: 100%;
     object-fit: cover;
     object-position: 58% 38%;
-    opacity: 0.88;
-  }
-
-  .cyber-hero-media__poster {
-    background-position: 58% 38%;
-  }
-
-  .cyber-hero-media__blend {
-    background:
-      linear-gradient(180deg, transparent 48%, rgba(5, 6, 10, 0.72) 100%),
-      radial-gradient(ellipse at 72% 28%, rgba(88, 230, 255, 0.16), transparent 42%),
-      radial-gradient(ellipse at 55% 62%, rgba(124, 58, 237, 0.2), transparent 48%);
+    opacity: 1;
+    mask-image: radial-gradient(ellipse 70% 70% at 50% 45%, #000 0%, #000 35%, rgba(0, 0, 0, 0.75) 60%, rgba(0, 0, 0, 0.35) 80%, transparent 98%);
+    -webkit-mask-image: radial-gradient(ellipse 70% 70% at 50% 45%, #000 0%, #000 35%, rgba(0, 0, 0, 0.75) 60%, rgba(0, 0, 0, 0.35) 80%, transparent 98%);
   }
 
   .creator-signal-preview {
@@ -1862,4 +1845,105 @@ textarea {
   .marketing-mobile-nav__panel {
     animation: none;
   }
+}
+
+/* Atmospheric Background Overlay System */
+.atmospheric-section {
+  position: relative;
+  isolation: isolate;
+}
+
+.atmospheric-container {
+  position: relative;
+  overflow: hidden;
+  border-radius: 1rem;
+}
+
+/* Atmospheric Layer 1: Cyber City (Featured Creators) */
+.atmospheric-layer-city {
+  position: absolute;
+  inset: -8%;
+  z-index: 0;
+  pointer-events: none;
+  opacity: 0.22;
+  transition: opacity 0.5s ease;
+  mask-image: radial-gradient(ellipse 85% 75% at 50% 50%, black 30%, transparent 95%);
+  -webkit-mask-image: radial-gradient(ellipse 85% 75% at 50% 50%, black 30%, transparent 95%);
+}
+
+@media (min-width: 768px) {
+  .atmospheric-layer-city {
+    opacity: 0.38;
+  }
+}
+
+.atmospheric-overlay-city {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  background:
+    radial-gradient(ellipse 60% 50% at 50% 50%, rgba(8, 9, 13, 0.95) 0%, rgba(8, 9, 13, 0.78) 55%, transparent 100%),
+    linear-gradient(180deg, #08090d 0%, transparent 15%, transparent 85%, #08090d 100%),
+    linear-gradient(90deg, #08090d 0%, transparent 12%, transparent 88%, #08090d 100%),
+    radial-gradient(circle at 10% 45%, rgba(103, 232, 249, 0.12), transparent 45%),
+    radial-gradient(circle at 90% 45%, rgba(124, 58, 237, 0.12), transparent 45%);
+}
+
+/* Atmospheric Layer 2: Liquid Orb (Featured Brands) */
+.atmospheric-layer-liquid {
+  position: absolute;
+  inset: -8%;
+  z-index: 0;
+  pointer-events: none;
+  opacity: 0.24;
+  transition: opacity 0.5s ease;
+  mask-image: linear-gradient(to right, transparent 0%, black 40%, black 85%, transparent 100%);
+  -webkit-mask-image: linear-gradient(to right, transparent 0%, black 40%, black 85%, transparent 100%);
+}
+
+@media (min-width: 768px) {
+  .atmospheric-layer-liquid {
+    opacity: 0.46;
+  }
+}
+
+.atmospheric-overlay-liquid {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  background:
+    linear-gradient(90deg, #08090d 0%, rgba(8, 9, 13, 0.93) 38%, rgba(8, 9, 13, 0.5) 72%, transparent 100%),
+    linear-gradient(180deg, #08090d 0%, transparent 15%, transparent 85%, #08090d 100%),
+    radial-gradient(circle at 82% 48%, rgba(103, 232, 249, 0.1), rgba(124, 58, 237, 0.1), transparent 55%);
+}
+
+/* Atmospheric Layer 3: Mahi (Final CTA) */
+.atmospheric-layer-mahi {
+  position: absolute;
+  inset: -8%;
+  z-index: 0;
+  pointer-events: none;
+  opacity: 0.25;
+  transition: opacity 0.5s ease;
+  mask-image: linear-gradient(to left, black 40%, transparent 95%);
+  -webkit-mask-image: linear-gradient(to left, black 40%, transparent 95%);
+}
+
+@media (min-width: 768px) {
+  .atmospheric-layer-mahi {
+    opacity: 0.52;
+  }
+}
+
+.atmospheric-overlay-mahi {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  background:
+    linear-gradient(90deg, #0b0f16 0%, rgba(11, 15, 22, 0.96) 42%, rgba(11, 15, 22, 0.55) 75%, transparent 100%),
+    linear-gradient(180deg, #0b0f16 0%, transparent 20%, transparent 80%, #0b0f16 100%),
+    radial-gradient(circle at 85% 40%, rgba(103, 232, 249, 0.12), rgba(124, 58, 237, 0.12), transparent 50%);
 }
