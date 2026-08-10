@@ -134,7 +134,20 @@ export default function HomePage() {
       </ScrollReveal>
 
       {/* How Branzzo Works: Connected Process Step Timeline */}
-      <section id="how-it-works" className="bridge-section scroll-mt-24 relative overflow-hidden !py-14 sm:!py-20" aria-labelledby="how-branzzo-works">
+      <section id="how-it-works" className="atmospheric-section bridge-section scroll-mt-24 relative overflow-hidden !py-14 sm:!py-20" aria-labelledby="how-branzzo-works">
+        <div className="atmospheric-layer-liquid">
+          <Image
+            src="/media/KuchCrazy.webp"
+            alt=""
+            aria-hidden="true"
+            fill
+            sizes="(max-width: 768px) 100vw, (max-width: 1200px) 90vw, 1200px"
+            className="pointer-events-none select-none object-cover object-right md:object-[80%_center]"
+            loading="lazy"
+          />
+          <div className="atmospheric-overlay-liquid" />
+        </div>
+
         <div className="relative z-10">
           <ScrollReveal delay={0}>
             <div className="max-w-3xl">
@@ -172,7 +185,6 @@ export default function HomePage() {
           </div>
         </div>
       </section>
-
 
       {/* Deep Feature Split: For Brands & Creators Showcase */}
       <section className="border-y border-[var(--border)] bg-gradient-to-b from-[#090b10] via-[#0d1017] to-[#090b10]">

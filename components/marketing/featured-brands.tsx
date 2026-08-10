@@ -7,32 +7,18 @@ import { type BrandProfileData } from "@/lib/types";
 
 export function FeaturedBrands({ brands }: { brands: BrandProfileData[] }) {
   return (
-    <section className="atmospheric-section bridge-section relative overflow-hidden" aria-labelledby="featured-brands-heading">
-      <div className="atmospheric-layer-liquid">
-        <Image
-          src="/media/KuchCrazy.webp"
-          alt=""
-          aria-hidden="true"
-          fill
-          sizes="(max-width: 768px) 100vw, (max-width: 1200px) 90vw, 1200px"
-          className="pointer-events-none select-none object-cover object-right md:object-[80%_center]"
-          loading="lazy"
-        />
-        <div className="atmospheric-overlay-liquid" />
-      </div>
+    <section className="bridge-section" aria-labelledby="featured-brands-heading">
+      <ScrollReveal delay={0}>
+        <p className="bridge-eyebrow">Featured Brands</p>
+        <h2 id="featured-brands-heading" className="mt-3 font-display text-3xl font-bold">
+          Brands building with creators
+        </h2>
+        <p className="mt-3 max-w-2xl text-sm leading-6 text-[var(--text-secondary)]">
+          Companies shown here have explicitly opted in to public visibility.
+        </p>
+      </ScrollReveal>
 
-      <div className="relative z-10">
-        <ScrollReveal delay={0}>
-          <p className="bridge-eyebrow">Featured Brands</p>
-          <h2 id="featured-brands-heading" className="mt-3 font-display text-3xl font-bold">
-            Brands building with creators
-          </h2>
-          <p className="mt-3 max-w-2xl text-sm leading-6 text-[var(--text-secondary)]">
-            Companies shown here have explicitly opted in to public visibility.
-          </p>
-        </ScrollReveal>
-
-        <ScrollReveal delay={150}>
+      <ScrollReveal delay={150}>
         {brands.length ? (
           <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {brands.map((brand) => (
@@ -64,8 +50,7 @@ export function FeaturedBrands({ brands }: { brands: BrandProfileData[] }) {
             />
           </div>
         )}
-        </ScrollReveal>
-      </div>
+      </ScrollReveal>
     </section>
   );
 }
