@@ -4,6 +4,12 @@ import path from "node:path";
 import { Readable } from "node:stream";
 import { creatorPaymentDetailsSchema } from "../../lib/validators/payment-details";
 import {
+  canViewCreatorPaymentDetails,
+  CREATOR_PAYMENT_DETAILS_SELECT,
+  mapCreatorPaymentDetails,
+} from "../../lib/creator-payment-details";
+import { canViewCollaborationDetails } from "../../lib/collaboration-detail-access";
+import {
   createR2UploadsAdapter,
   inspectProofImage,
   MAX_PROOF_FILE_SIZE,
@@ -72,6 +78,62 @@ test("sensitive profile fields are select-false and public queries do not select
   expect(model).toContain('upiId: { type: String, trim: true, maxlength: 120, default: "", select: false }');
   const publicRoute = fs.readFileSync(path.join(process.cwd(), "app/api/creators/route.ts"), "utf8");
   expect(publicRoute).not.toContain("paymentDetails");
+});
+
+test("payment projection uses only explicit leaf fields without parent-child collisions", () => {
+  const fields = CREATOR_PAYMENT_DETAILS_SELECT.split(/\s+/).map((field) => field.replace(/^\+/, ""));
+  expect(fields).not.toContain("paymentDetails");
+  expect(fields).toContain("paymentDetails.upiId");
+  expect(fields).toContain("paymentDetails.accountNumber");
+  expect(new Set(fields).size).toBe(fields.length);
+  for (const field of fields) {
+    expect(fields.some((candidate) => candidate !== field && field.startsWith(`${candidate}.`))).toBe(false);
+  }
+});
+
+test("creator payment visibility preserves the accepted-collaboration brand-only policy", () => {
+  expect(canViewCreatorPaymentDetails("brand", "IN_PROGRESS")).toBe(true);
+  expect(canViewCreatorPaymentDetails("creator", "IN_PROGRESS")).toBe(false);
+  expect(canViewCreatorPaymentDetails("admin", "IN_PROGRESS")).toBe(false);
+  expect(canViewCreatorPaymentDetails("brand", "PENDING_CREATOR_RESPONSE")).toBe(false);
+  expect(canViewCreatorPaymentDetails("unrelated", "IN_PROGRESS")).toBe(false);
+});
+
+test("collaboration detail authorizes only its brand and creator participants", () => {
+  const collaboration = {
+    brandUserId: "brand-user",
+    brandProfileId: "brand-profile",
+    creatorUserId: "creator-user",
+    creatorProfileId: "creator-profile",
+    createdByClerkId: "clerk-brand",
+    creatorUsername: "linked-creator",
+  };
+  expect(canViewCollaborationDetails(collaboration, { _id: "brand-user", clerkId: "other", username: "brand", role: "brand" })).toBe(true);
+  expect(canViewCollaborationDetails(collaboration, { _id: "creator-user", clerkId: "creator", username: "linked-creator", role: "creator" })).toBe(true);
+  expect(canViewCollaborationDetails(collaboration, { _id: "admin", clerkId: "admin", username: "admin", role: "admin" })).toBe(false);
+  expect(canViewCollaborationDetails(collaboration, { _id: "unrelated", clerkId: "unrelated", username: "unrelated", role: "brand" })).toBe(false);
+});
+
+test("missing, UPI-only and bank-only payment details map to safe serializable data", () => {
+  expect(mapCreatorPaymentDetails(null)).toBeUndefined();
+  expect(mapCreatorPaymentDetails({})).toBeUndefined();
+  expect(mapCreatorPaymentDetails({ paymentDetails: { preferredMethod: "upi", upiId: "creator@upi" } })).toEqual({
+    preferredMethod: "upi", upiId: "creator@upi", accountHolderName: "", bankName: "", bankAccountNumber: "", ifscCode: "", paymentNote: "",
+  });
+  expect(mapCreatorPaymentDetails({ paymentDetails: { preferredMethod: "bank", accountHolderName: "Creator", bankName: "Bank", accountNumber: "123456", ifscCode: "ABCD0123456" } })).toEqual({
+    preferredMethod: "bank", upiId: "", accountHolderName: "Creator", bankName: "Bank", bankAccountNumber: "123456", ifscCode: "ABCD0123456", paymentNote: "",
+  });
+});
+
+test("collaboration detail keeps participant authorization and renders absent proof or deliverables safely", () => {
+  const query = fs.readFileSync(path.join(process.cwd(), "lib/queries/collaborations.ts"), "utf8");
+  const page = fs.readFileSync(path.join(process.cwd(), "app/dashboard/collaborations/[inquiryId]/page.tsx"), "utf8");
+  expect(query).toContain('if (user.role === "brand")');
+  expect(query).toContain('if (user.role === "creator")');
+  expect(query).toContain("if (!canView) return null");
+  expect(query).not.toContain('if (user.role === "admin")');
+  expect(page).toContain('collaboration.deliverables.length ?');
+  expect(page).toContain('collaboration.deliveryProof?.videoUrl');
 });
 
 test("proof access uses opaque database ID, participant authorization and private headers", () => {

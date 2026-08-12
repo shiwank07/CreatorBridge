@@ -4,6 +4,7 @@ import { connectDB, hasMongoUri } from "@/lib/db";
 import { CreatorProfile } from "@/lib/models/CreatorProfile";
 import { User } from "@/lib/models/User";
 import { creatorPaymentDetailsSchema } from "@/lib/validators/payment-details";
+import { CREATOR_PAYMENT_DETAILS_SELECT, type CreatorPaymentProfile } from "@/lib/creator-payment-details";
 
 async function owner() {
   const { userId } = await auth();
@@ -17,7 +18,7 @@ export async function GET() {
   if (!hasMongoUri()) return NextResponse.json({ error: "MongoDB is not configured yet." }, { status: 503 });
   const userId = await owner();
   if (!userId) return NextResponse.json({ error: "Creator authentication required." }, { status: 401 });
-  const profile = await CreatorProfile.findOne({ userId }).select("+paymentDetails.upiId +paymentDetails.accountNumber paymentDetails").lean();
+  const profile = await CreatorProfile.findOne({ userId }).select(CREATOR_PAYMENT_DETAILS_SELECT).lean<CreatorPaymentProfile>();
   return NextResponse.json({ paymentDetails: profile?.paymentDetails ?? null }, { headers: { "Cache-Control": "no-store" } });
 }
 

@@ -17,7 +17,14 @@ import { Conversation } from "@/lib/models/Conversation";
 import { CreatorProfile } from "@/lib/models/CreatorProfile";
 import { User } from "@/lib/models/User";
 import { notificationService } from "@/lib/notifications/notification-service";
+import {
+  canViewCreatorPaymentDetails,
+  CREATOR_PAYMENT_DETAILS_SELECT,
+  mapCreatorPaymentDetails,
+  type CreatorPaymentProfile,
+} from "@/lib/creator-payment-details";
 import { hasClerkKeys } from "@/lib/clerk-config";
+import { canViewCollaborationDetails } from "@/lib/collaboration-detail-access";
 import { normalizePageRequest, pageResult, type PaginatedResult } from "@/lib/pagination";
 import {
   type BrandInquiryData,
@@ -258,10 +265,6 @@ function mapCollaboration(doc: CollaborationDocument): BrandInquiryData {
   };
 }
 
-function idsMatch(value: unknown, id: unknown) {
-  return Boolean(value && id && value.toString() === id.toString());
-}
-
 async function getBrandVerificationStatus(collaboration: CollaborationDocument): Promise<{
   brandVerificationStatus: BrandVerificationStatus;
   brandVerificationNote?: string;
@@ -342,12 +345,12 @@ async function getCreatorPaymentDetails(
   collaboration: CollaborationDocument,
   viewerRole: string,
 ): Promise<{ creatorPaymentDetails?: CreatorPaymentDetailsData }> {
-  if (viewerRole !== "brand" || !canRevealCollaborationContactEmail(collaboration.status)) return {};
+  if (!canViewCreatorPaymentDetails(viewerRole, collaboration.status)) return {};
 
   const profile = collaboration.creatorProfileId
     ? await CreatorProfile.findById(collaboration.creatorProfileId)
-        .select("paymentDetails +paymentDetails.upiId +paymentDetails.accountNumber")
-        .exec()
+        .select(CREATOR_PAYMENT_DETAILS_SELECT)
+        .lean<CreatorPaymentProfile>()
     : collaboration.creatorUsername
       ? await User.findOne({ username: collaboration.creatorUsername, role: "creator" })
           .select("_id")
@@ -355,24 +358,13 @@ async function getCreatorPaymentDetails(
           .then(async (creatorUser) => {
             if (!creatorUser) return null;
             return CreatorProfile.findOne({ userId: creatorUser._id })
-              .select("paymentDetails +paymentDetails.upiId +paymentDetails.accountNumber")
-              .exec();
+              .select(CREATOR_PAYMENT_DETAILS_SELECT)
+              .lean<CreatorPaymentProfile>();
           })
       : null;
 
-  if (!profile) return {};
-
-  return {
-    creatorPaymentDetails: {
-      preferredMethod: profile.paymentDetails?.preferredMethod,
-      upiId: profile.paymentDetails?.upiId ?? "",
-      accountHolderName: profile.paymentDetails?.accountHolderName ?? "",
-      bankName: profile.paymentDetails?.bankName ?? "",
-      bankAccountNumber: profile.paymentDetails?.accountNumber ?? "",
-      ifscCode: profile.paymentDetails?.ifscCode ?? "",
-      paymentNote: profile.paymentDetails?.paymentNote ?? "",
-    },
-  };
+  const creatorPaymentDetails = mapCreatorPaymentDetails(profile);
+  return creatorPaymentDetails ? { creatorPaymentDetails } : {};
 }
 
 async function getCurrentUserRecord() {
@@ -549,18 +541,12 @@ export async function getCurrentUserCollaborationDetails(id: string): Promise<Co
 
   if (user.role === "creator") {
     const creatorProfile = await CreatorProfile.findOne({ userId: user._id }).select("_id").exec();
-    canView =
-      doc.creatorUsername === user.username ||
-      idsMatch(doc.creatorUserId, user._id) ||
-      idsMatch(doc.creatorProfileId, creatorProfile?._id);
+    canView = canViewCollaborationDetails(doc, user, creatorProfile?._id);
   }
 
   if (user.role === "brand") {
     const brandProfile = await BrandProfile.findOne({ userId: user._id }).select("_id contactEmail").exec();
-    canView =
-      doc.createdByClerkId === user.clerkId ||
-      idsMatch(doc.brandUserId, user._id) ||
-      idsMatch(doc.brandProfileId, brandProfile?._id);
+    canView = canViewCollaborationDetails(doc, user, brandProfile?._id);
   }
 
   if (!canView) return null;

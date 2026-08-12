@@ -26,3 +26,15 @@ test('seeded creator can open the authenticated dashboard', async ({ page }) => 
   // The second top-level section is the four-card metrics grid in the actual dashboard markup.
   await assertElementsDoNotOverlap(page, 'main > section:nth-of-type(2) > article');
 });
+
+test('authorised creator can open a collaboration detail', async ({ page }) => {
+  await page.goto('/dashboard/creator#collaborations');
+  const collaboration = page.locator('a[href^="/dashboard/collaborations/"]').first();
+  await expect(collaboration).toBeVisible();
+  await collaboration.click();
+  await expect(page).toHaveURL(/\/dashboard\/collaborations\/[a-f\d]{24}$/i);
+  await expect(page.getByText('Collaboration Details', { exact: true })).toBeVisible();
+  await expect(page.locator('body')).not.toContainText(
+    /Application error|Internal Server Error/i,
+  );
+});
