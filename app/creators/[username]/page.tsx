@@ -18,6 +18,7 @@ import { authHref } from "@/lib/auth-redirect";
 import { formatINR, formatNumber } from "@/lib/format";
 import { getCurrentAppUser, getCurrentClerkUserId } from "@/lib/current-user";
 import { platformDisplayName } from "@/lib/platforms";
+import { PLATFORM_DEFINITIONS } from "@/lib/creator-platforms";
 import { calculateCreatorProfileCompletion } from "@/lib/profile-completion";
 import { getCreatorCollaborationHistorySummary } from "@/lib/queries/collaborations";
 import { getCreatorByUsername, getCreatorProfileViewerState, getSavedCreatorUsernames } from "@/lib/queries/creators";
@@ -106,7 +107,7 @@ export default async function CreatorProfilePage({ params }: { params: CreatorPr
   const statsVerified = hasVerifiedStats(creator);
   const statsStatus = normalizeStatsVerificationStatus(creator.statsVerificationStatus);
   const statsLastVerifiedAt = getStatsLastVerifiedAt(creator);
-  const publicSubscriberCount = getPublicSubscriberCount(creator);
+  const publicSubscriberCount = creator.topAudienceCount ?? getPublicSubscriberCount(creator);
   const publicAverageViews = getPublicAverageViews(creator);
   const publicEngagementRate = getPublicEngagementRate(creator);
   const normalizedVerification = normalizeCreatorVerificationStatus(creator.verificationStatus);
@@ -122,7 +123,7 @@ export default async function CreatorProfilePage({ params }: { params: CreatorPr
     creator,
     emailVerified: Boolean(viewer?.emailVerified),
   });
-  const platformLinks = [
+  const platformLinks = creator.platformAccounts?.map((account) => ({ label: account.platform === "other" ? account.customPlatformName || "Other" : PLATFORM_DEFINITIONS[account.platform].label, href: account.profileUrl, icon: Globe2 })) ?? [
     creator.youtubeUrl ? { label: "YouTube", href: creator.youtubeUrl, icon: TvMinimalPlay } : null,
     creator.instagramUrl ? { label: "Instagram", href: creator.instagramUrl, icon: Camera } : null,
     creator.podcastUrl ? { label: "Podcast", href: creator.podcastUrl, icon: Radio } : null,
@@ -136,7 +137,7 @@ export default async function CreatorProfilePage({ params }: { params: CreatorPr
     name: creator.name,
     url: `${process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000"}/creators/${creator.username}`,
     jobTitle: `${creator.niche[0] ?? "Content"} Creator`,
-    sameAs: [creator.youtubeUrl, creator.instagramUrl, creator.podcastUrl, customPlatformHref].filter(Boolean),
+    sameAs: platformLinks.map((platform) => platform.href),
   };
 
   return (
@@ -171,13 +172,13 @@ export default async function CreatorProfilePage({ params }: { params: CreatorPr
             ) : null}
             <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
               <StatBox
-                label="YouTube Subs"
+                label={`Top platform audience${creator.topAudiencePlatform ? ` · ${PLATFORM_DEFINITIONS[creator.topAudiencePlatform].label}` : ""}`}
                 value={statNumberLabel(publicSubscriberCount, "Not added yet")}
                 muted={publicSubscriberCount <= 0}
               />
               <StatBox label="Avg Views" value={statNumberLabel(publicAverageViews)} muted={publicAverageViews <= 0} />
               <StatBox label="Engagement" value={percentLabel(publicEngagementRate)} muted={publicEngagementRate <= 0} />
-              <StatBox label="Instagram" value={statNumberLabel(creator.instagramFollowers)} muted={!creator.instagramFollowers} />
+              <StatBox label="Verified audience" value={statNumberLabel(creator.topVerifiedAudienceCount, "None verified") } muted={!creator.topVerifiedAudienceCount} />
             </div>
           </section>
 
@@ -336,12 +337,12 @@ export default async function CreatorProfilePage({ params }: { params: CreatorPr
             <h2 className="font-display text-xl font-bold">Creator channels</h2>
             {platformLinks.length > 0 ? (
               <div className="mt-4 space-y-2">
-                {platformLinks.map(({ label, href, icon: Icon }) => (
+                {platformLinks.map(({ label, href, icon: Icon }, index) => (
                   <Link
-                    key={label}
+                    key={`${href}-${index}`}
                     href={href}
                     target="_blank"
-                    rel="noreferrer"
+                    rel="noopener noreferrer"
                     className="focus-ring flex items-center justify-between gap-3 rounded-[8px] border border-[var(--border)] bg-[#0b0f16] px-4 py-3 text-sm text-[var(--text-secondary)] transition hover:border-[var(--border-accent)] hover:text-[var(--text-primary)]"
                   >
                     <span className="flex min-w-0 items-center gap-2">

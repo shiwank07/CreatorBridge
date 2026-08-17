@@ -102,7 +102,7 @@ export function calculateCreatorProfileCompletion({
     {
       key: "social",
       label: "Social links",
-      done: Boolean(creator?.youtubeUrl || creator?.instagramUrl || creator?.podcastUrl),
+      done: Boolean(creator?.platformAccounts?.length || creator?.youtubeUrl || creator?.instagramUrl || creator?.podcastUrl),
       helper: "Link at least one public creator channel.",
       weight: 10,
     },

@@ -8,20 +8,20 @@ import { Filter, RotateCcw, Search, X } from "lucide-react";
 import { NICHES } from "@/lib/constants";
 
 export type CreatorDirectoryFilterValues = {
-  search?: string; niche?: string; platform?: string; verification?: string; availability?: string;
+  search?: string; niche?: string; platform?: string; primaryPlatform?: string; verification?: string; availability?: string; verifiedPlatformOnly?: boolean; foundingOnly?: boolean;
   country?: string; language?: string; subscriberRange?: string; viewsRange?: string;
   priceRange?: string; engagementRange?: string; sort?: string;
 };
 
 const options = {
-  platform: [["", "All platforms"], ["youtube", "YouTube"], ["instagram", "Instagram"], ["twitch", "Twitch"], ["x", "X"], ["other", "Other"]],
+  platform: [["", "All platforms"], ["youtube", "YouTube"], ["instagram", "Instagram"], ["facebook", "Facebook"], ["tiktok", "TikTok"], ["x", "X"], ["twitch", "Twitch"], ["kick", "Kick"], ["linkedin", "LinkedIn"], ["snapchat", "Snapchat"], ["pinterest", "Pinterest"], ["podcast", "Podcast"], ["other", "Other"]],
   verification: [["", "Any verification"], ["verified", "Verified"], ["unverified", "Unverified"]],
   availability: [["", "Any availability"], ["open", "Open for collaborations"], ["closed", "Closed"]],
-  subscriberRange: [["", "Any subscribers"], ["under-100k", "Under 100K"], ["100k-500k", "100K–500K"], ["500k-1m", "500K–1M"], ["1m-plus", "1M+"]],
+  subscriberRange: [["", "Any top audience"], ["under-100k", "Under 100K"], ["100k-500k", "100K–500K"], ["500k-1m", "500K–1M"], ["1m-plus", "1M+"]],
   viewsRange: [["", "Any average views"], ["under-10k", "Under 10K"], ["10k-50k", "10K–50K"], ["50k-100k", "50K–100K"], ["100k-plus", "100K+"]],
   priceRange: [["", "Any starting price"], ["under-50k", "Under Rs. 50K"], ["50k-100k", "Rs. 50K–100K"], ["100k-plus", "Rs. 100K+"]],
   engagementRange: [["", "Any engagement"], ["under-5", "Under 5%"], ["5-10", "5%–10%"], ["10-plus", "10%+"]],
-  sort: [["featured", "Featured"], ["newest", "Newest"], ["oldest", "Oldest"], ["subscribers", "Highest subscribers"], ["subscribers-low", "Lowest subscribers"], ["engagement-high", "Highest engagement"], ["rate-low", "Lowest price"], ["rate-high", "Highest price"], ["alphabetical", "Alphabetical A–Z"], ["alphabetical-desc", "Alphabetical Z–A"]],
+  sort: [["featured", "Featured"], ["newest", "Newest"], ["oldest", "Oldest"], ["subscribers", "Highest top audience"], ["subscribers-low", "Lowest top audience"], ["engagement-high", "Highest engagement"], ["rate-low", "Lowest price"], ["rate-high", "Highest price"], ["alphabetical", "Alphabetical A–Z"], ["alphabetical-desc", "Alphabetical Z–A"]],
 } as const;
 
 function SelectField({ label, name, value, values }: { label: string; name: string; value?: string; values: readonly (readonly [string, string])[] }) {
@@ -37,7 +37,7 @@ export function CreatorDirectoryFilters(props: CreatorDirectoryFilterValues) {
   const triggerRef = useRef<HTMLButtonElement>(null);
   const drawerRef = useRef<HTMLDivElement>(null);
   const activeCount = [
-    props.search, props.niche, props.platform, props.verification, props.availability, props.country,
+    props.search, props.niche, props.platform, props.primaryPlatform, props.verification, props.availability, props.country, props.verifiedPlatformOnly ? "verified" : "", props.foundingOnly ? "founding" : "",
     props.language, props.subscriberRange, props.viewsRange, props.priceRange, props.engagementRange,
     props.sort && props.sort !== "featured" ? props.sort : "",
   ].filter(Boolean).length;
@@ -88,15 +88,18 @@ export function CreatorDirectoryFilters(props: CreatorDirectoryFilterValues) {
     <>
       <label className="creator-filter-field md:col-span-2"><span className="creator-filter-label">Search creators</span><span className="relative mt-2 block"><Search size={16} className="absolute left-3 top-3.5 text-cyan-200/70" /><input name="q" value={search} onChange={(event) => setSearch(event.target.value)} className="creator-filter-input pl-10" placeholder="Name, username, platform, category, country" /></span></label>
       <SelectField label="Platform" name="platform" value={props.platform} values={options.platform} />
+      <SelectField label="Primary platform" name="primaryPlatform" value={props.primaryPlatform} values={options.platform} />
       <SelectField label="Verification" name="verification" value={props.verification} values={options.verification} />
       <SelectField label="Availability" name="availability" value={props.availability} values={options.availability} />
       <SelectField label="Category" name="niche" value={props.niche} values={[["", "All categories"], ...NICHES.map((value) => [value, value] as const)]} />
       <label className="creator-filter-field"><span className="creator-filter-label">Country</span><input name="country" defaultValue={props.country} className="creator-filter-input mt-2" placeholder="India" /></label>
       <label className="creator-filter-field"><span className="creator-filter-label">Language</span><input name="language" defaultValue={props.language} className="creator-filter-input mt-2" placeholder="English" /></label>
-      <SelectField label="Subscribers" name="subs" value={props.subscriberRange} values={options.subscriberRange} />
+      <SelectField label="Top audience" name="subs" value={props.subscriberRange} values={options.subscriberRange} />
       <SelectField label="Average views" name="views" value={props.viewsRange} values={options.viewsRange} />
       <SelectField label="Starting price" name="price" value={props.priceRange} values={options.priceRange} />
       <SelectField label="Engagement" name="engagement" value={props.engagementRange} values={options.engagementRange} />
+      <label className="creator-filter-field flex items-center gap-2"><input type="checkbox" name="verifiedPlatform" value="true" defaultChecked={props.verifiedPlatformOnly} /> <span className="creator-filter-label">Verified platform only</span></label>
+      <label className="creator-filter-field flex items-center gap-2"><input type="checkbox" name="founding" value="true" defaultChecked={props.foundingOnly} /> <span className="creator-filter-label">Founding Creators</span></label>
       <SelectField label="Sort" name="sort" value={props.sort} values={options.sort} />
       <button type="submit" className="bridge-button-primary min-h-12 md:self-end"><Search size={16} />Apply filters</button>
       <Link href="/creators" className="bridge-button-secondary min-h-12 md:self-end"><RotateCcw size={16} />Reset</Link>

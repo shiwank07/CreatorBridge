@@ -1,0 +1,5 @@
+import mongoose, { type Document, type Model, Schema } from "mongoose";
+export interface ICreatorVerificationAudit extends Document { creatorId: mongoose.Types.ObjectId; platformAccountId: string; requestId?: mongoose.Types.ObjectId; action: "approve" | "reject" | "revoke"; actorId: string; reason?: string; createdAt: Date }
+const schema = new Schema<ICreatorVerificationAudit>({ creatorId: { type: Schema.Types.ObjectId, ref: "CreatorProfile", required: true, index: true }, platformAccountId: { type: String, required: true, maxlength: 80, index: true }, requestId: { type: Schema.Types.ObjectId, ref: "CreatorVerificationRequest" }, action: { type: String, enum: ["approve", "reject", "revoke"], required: true }, actorId: { type: String, required: true }, reason: { type: String, maxlength: 500, default: "" } }, { timestamps: { createdAt: true, updatedAt: false } });
+schema.index({ creatorId: 1, platformAccountId: 1, createdAt: -1 });
+export const CreatorVerificationAudit = (mongoose.models.CreatorVerificationAudit as Model<ICreatorVerificationAudit> | undefined) ?? mongoose.model<ICreatorVerificationAudit>("CreatorVerificationAudit", schema);

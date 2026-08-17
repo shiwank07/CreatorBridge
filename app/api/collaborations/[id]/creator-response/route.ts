@@ -10,6 +10,7 @@ import { CreatorProfile } from "@/lib/models/CreatorProfile";
 import { User } from "@/lib/models/User";
 import { notificationService } from "@/lib/notifications/notification-service";
 import { creatorResponseSchema } from "@/lib/validators/brand-inquiry";
+import { createCollaborationPlatformSnapshot } from "@/lib/creator-platforms";
 
 type RouteContext = {
   params: Promise<{ id: string }>;
@@ -69,6 +70,7 @@ export async function POST(req: Request, { params }: RouteContext) {
     collaboration.offerHistory = collaboration.offerHistory ?? [];
 
     if (action === "accept_offer") {
+      if (!collaboration.creatorPlatformSnapshot && creatorProfile) collaboration.creatorPlatformSnapshot = createCollaborationPlatformSnapshot(creatorProfile.toObject() as unknown as Record<string, unknown>, collaboration.targetPlatforms);
       const note = parsed.data.note || "Offer accepted by creator.";
       collaboration.set({
         status: "ACCEPTED",

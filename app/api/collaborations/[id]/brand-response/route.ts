@@ -7,6 +7,8 @@ import { appendCollaborationTimeline, normalizeCollaborationStatus } from "@/lib
 import { connectDB, hasMongoUri } from "@/lib/db";
 import { BrandInquiry } from "@/lib/models/BrandInquiry";
 import { BrandProfile } from "@/lib/models/BrandProfile";
+import { CreatorProfile } from "@/lib/models/CreatorProfile";
+import { createCollaborationPlatformSnapshot } from "@/lib/creator-platforms";
 import { User } from "@/lib/models/User";
 import { notificationService } from "@/lib/notifications/notification-service";
 import { brandNegotiationResponseSchema } from "@/lib/validators/brand-inquiry";
@@ -43,6 +45,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     const now = new Date();
     const currentAmount = collaboration.currentOfferAmount || 0;
     if (parsed.data.action === "accept_counter") {
+      if (!collaboration.creatorPlatformSnapshot) { const creatorProfile = collaboration.creatorProfileId ? await CreatorProfile.findById(collaboration.creatorProfileId) : collaboration.creatorUserId ? await CreatorProfile.findOne({ userId: collaboration.creatorUserId }) : null; if (creatorProfile) collaboration.creatorPlatformSnapshot = createCollaborationPlatformSnapshot(creatorProfile.toObject() as unknown as Record<string, unknown>, collaboration.targetPlatforms); }
       collaboration.set({ status: "ACCEPTED", currentStage: "Accepted", creatorStatus: "accepted", brandStatus: "accepted" });
       appendCollaborationTimeline(collaboration, { event: "ACCEPTED", status: "ACCEPTED", actor: "brand", note: parsed.data.note || "Brand accepted the creator counter offer.", createdAt: now });
       collaboration.offerHistory.push({ actor: "brand", action: "offer_accepted", amount: currentAmount, currency: "INR", note: parsed.data.note, createdAt: now });

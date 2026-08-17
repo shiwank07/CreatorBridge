@@ -58,6 +58,9 @@ export default async function CreatorsPage({ searchParams }: { searchParams: Cre
     search: readParam(params.q),
     niche: readParam(params.niche),
     platform: readParam(params.platform),
+    primaryPlatform: readParam(params.primaryPlatform),
+    verifiedPlatformOnly: readParam(params.verifiedPlatform) === "true",
+    foundingOnly: readParam(params.founding) === "true",
     verification: readParam(params.verification) as "verified" | "unverified" | undefined,
     availability: readParam(params.availability) as "open" | "closed" | undefined,
     language: readParam(params.language),
@@ -78,7 +81,7 @@ export default async function CreatorsPage({ searchParams }: { searchParams: Cre
   const creators = discovery.creators;
   logServerTiming("server-render.total", performance.now() - renderStartedAt, { route: "/creators" });
   const verifiedCreators = creators.filter((creator) => creator.isVerified).length;
-  const totalReach = creators.reduce((sum, creator) => sum + getPublicSubscriberCount(creator), 0);
+  const totalReach = creators.reduce((sum, creator) => sum + (creator.topAudienceCount ?? getPublicSubscriberCount(creator)), 0);
   const activeFilters = [
     filters.search ? `Search: ${filters.search}` : "",
     filters.niche ? `Niche: ${filters.niche}` : "",
@@ -249,7 +252,7 @@ export default async function CreatorsPage({ searchParams }: { searchParams: Cre
                 {[
                   { label: "Matching creators", value: String(discovery.total), detail: "server-filtered results", icon: Sparkles },
                   { label: "Verified creators", value: String(verifiedCreators), detail: "approved platform ownership", icon: BadgeCheck },
-                  { label: "Visible audience reach", value: formatNumber(totalReach), detail: "combined public subscriber count", icon: Zap },
+                  { label: "Visible headline audiences", value: formatNumber(totalReach), detail: "sum of each visible creator's largest account", icon: Zap },
                 ].map(({ label, value, detail, icon: Icon }) => (
                   <div key={label} className="creator-stat-card">
                     <Icon size={19} className="text-cyan-200" />

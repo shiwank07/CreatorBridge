@@ -2,6 +2,7 @@ import { z } from "zod";
 
 import { CREATOR_AVAILABILITY_STATUSES } from "@/lib/availability";
 import { isValidPhoneNumber, normalizePhoneNumber } from "@/lib/phone";
+import { normalizePlatformUrl, platformAccountInputSchema } from "@/lib/creator-platforms";
 
 const urlish = z
   .string()
@@ -30,6 +31,7 @@ export const creatorOnboardingSchema = z.object({
   niche: z.array(z.string().trim().min(1)).min(1, "Choose at least one niche.").max(5),
   country: z.string().trim().min(2, "Country is required.").max(80),
   languages: z.array(z.string().trim().min(1)).min(1, "Add at least one language.").max(8),
+  platformAccounts: z.array(platformAccountInputSchema).max(20).optional().default([]),
   youtubeUrl: urlish,
   youtubeHandle: z.string().trim().max(60).optional().default(""),
   subscribers: z.coerce.number().int().nonnegative().optional().default(0),
@@ -55,6 +57,11 @@ export const creatorOnboardingSchema = z.object({
   bankAccountNumber: z.string().trim().max(40).optional().default(""),
   ifsc: z.string().trim().toUpperCase().max(20).optional().default(""),
   preferredPaymentNote: z.string().trim().max(500).optional().default(""),
+}).superRefine((value, context) => {
+  if (!value.platformAccounts.length && !value.youtubeUrl && !value.instagramUrl && !value.podcastUrl) context.addIssue({ code: "custom", path: ["platformAccounts"], message: "Add at least one platform account." });
+  const normalized = value.platformAccounts.flatMap((account) => { try { return [normalizePlatformUrl(account.profileUrl)]; } catch { return []; } });
+  if (new Set(normalized).size !== normalized.length) context.addIssue({ code: "custom", path: ["platformAccounts"], message: "Each platform profile URL must be unique." });
+  if (value.platformAccounts.length && value.platformAccounts.filter((account) => account.isPrimary).length !== 1) context.addIssue({ code: "custom", path: ["platformAccounts"], message: "Choose exactly one primary platform account." });
 });
 
 export type CreatorOnboardingInput = z.infer<typeof creatorOnboardingSchema>;

@@ -44,6 +44,7 @@ export function CreatorProfileHeader({ creator, viewerState }: CreatorProfileHea
                   {verificationStatus === "verified" ? <BadgeCheck size={13} /> : null}
                   {verificationBadgeLabel(creator.verificationStatus)}
                 </Badge>
+                {creator.foundingCreator ? <Badge tone="yellow"><Crown size={13} />Founding Creator #{String(creator.foundingCreator.number).padStart(3, "0")}</Badge> : null}
                 {creator.isFeatured ? <Crown size={22} className="text-[var(--yellow)]" aria-label="Featured" /> : null}
               </div>
               <p className="mt-2 text-[var(--text-secondary)]">@{creator.username}</p>

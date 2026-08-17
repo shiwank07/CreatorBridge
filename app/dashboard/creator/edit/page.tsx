@@ -56,6 +56,7 @@ export default async function CreatorProfileEditPage() {
           initialUsername={user.username}
           initialAvatar={creator?.avatar ?? ""}
           initialValues={{
+            platformAccounts: creator?.platformAccounts,
             phoneNumber: user.phoneNumber,
             avatar: creator?.avatar ?? "",
             bio: creator?.bio ?? "",

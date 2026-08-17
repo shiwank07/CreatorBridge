@@ -62,6 +62,13 @@ export type CreatorCardData = {
   niche: string[];
   country?: string;
   languages: string[];
+  platformAccounts?: CreatorPlatformAccount[];
+  topAudienceCount?: number;
+  topAudienceAccountId?: string;
+  topAudiencePlatform?: PlatformKind;
+  topVerifiedAudienceCount?: number;
+  topVerifiedAudiencePlatform?: PlatformKind;
+  foundingCreator?: { number: number; status: "active" | "revoked" };
   youtubeUrl?: string;
   youtubeHandle?: string;
   instagramUrl?: string;
@@ -75,7 +82,6 @@ export type CreatorCardData = {
   verifiedEngagementRate?: number;
   statsVerificationStatus?: StatsVerificationStatus;
   verificationStatus: VerificationStatus;
-  verificationCode?: string;
   verificationPlatform?: CreatorVerificationPlatform;
   customPlatformName?: string;
   verificationProfileUrl?: string;
@@ -284,6 +290,10 @@ export type AdminCreatorData = {
   verificationStatus: VerificationStatus;
   accountStatus: AccountStatus;
   joinedDate?: string;
+  platformAccounts?: CreatorPlatformAccount[];
+  topAudienceCount?: number;
+  topVerifiedAudienceCount?: number;
+  foundingCreator?: { number: number; status: "active" | "revoked" };
 };
 
 export type AdminBrandData = {
@@ -358,3 +368,4 @@ export type AdminSearchResultData = {
   href: string;
   status: AccountStatus | VerificationStatus | BrandVerificationStatus;
 };
+import type { CreatorPlatformAccount, PlatformKind } from "@/lib/creator-platforms";

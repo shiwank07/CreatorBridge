@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { BadgeCheck, Ban, ChevronDown, ExternalLink, EyeOff, Loader2, MoreHorizontal, RotateCcw, XCircle } from "lucide-react";
+import { BadgeCheck, Ban, ChevronDown, Crown, ExternalLink, EyeOff, Loader2, MoreHorizontal, RotateCcw, XCircle } from "lucide-react";
 
 import { Badge } from "@/components/shared/badge";
 import { InitialsAvatar } from "@/components/shared/initials-avatar";
@@ -35,6 +35,18 @@ export function CreatorTable({ creators }: CreatorTableProps) {
   const [savingKey, setSavingKey] = useState("");
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+
+  async function updateFounding(creator: AdminCreatorData, action: "grant" | "revoke" | "restore") {
+    let reason = "";
+    if (action === "grant") {
+      const preview = await fetch(`/api/admin/creators/founding?username=${encodeURIComponent(creator.username)}`).then((response) => response.json());
+      if (preview.exhausted) { setError("All 100 Founding Creator numbers have been issued."); return; }
+      if (!window.confirm(`Grant Founding Creator #${String(preview.nextNumber).padStart(3, "0")} to @${creator.username}?\n\nThis permanent first-100 number will not be reassigned if revoked.`)) return;
+    } else { reason = window.prompt(action === "revoke" ? "Mandatory revocation reason" : "Mandatory restoration reason")?.trim() ?? ""; if (!reason) return; }
+    setSavingKey(`${creator.username}:founding-${action}`); setError("");
+    try { const response = await fetch("/api/admin/creators/founding", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ username: creator.username, action, reason }) }); const result = await response.json(); if (!response.ok) throw new Error(result.error || "Could not update Founding Creator."); setRows((current) => current.map((row) => row.username === creator.username ? { ...row, foundingCreator: { number: result.number, status: result.status } } : row)); setSuccess(`Founding Creator #${String(result.number).padStart(3, "0")} is ${result.status}.`); } catch (error) { setError(error instanceof Error ? error.message : "Could not update Founding Creator."); } finally { setSavingKey(""); }
+  }
+  async function viewFoundingHistory(creator: AdminCreatorData) { const result = await fetch(`/api/admin/creators/founding?username=${encodeURIComponent(creator.username)}`).then((response) => response.json()); const history = result.issuance?.history as Array<{ action: string; at: string; reason?: string }> | undefined; window.alert(history?.length ? history.map((entry) => `${new Date(entry.at).toLocaleString()} · ${entry.action}${entry.reason ? ` · ${entry.reason}` : ""}`).join("\n") : "No Founding Creator history."); }
 
   async function updateCreator(creator: AdminCreatorData, action: CreatorAction) {
     setError("");
@@ -158,6 +170,8 @@ export function CreatorTable({ creators }: CreatorTableProps) {
               <ChevronDown size={12} className="group-open:rotate-180" />
             </summary>
             <div className="absolute right-0 z-30 mt-2 w-56 rounded-[8px] border border-[var(--border)] bg-[#15151f] p-2 shadow-2xl">
+              <button type="button" onClick={() => void updateFounding(creator, creator.foundingCreator?.status === "active" ? "revoke" : creator.foundingCreator?.status === "revoked" ? "restore" : "grant")} className="focus-ring flex w-full items-center gap-2 rounded-[6px] px-3 py-2 text-left text-xs font-semibold text-yellow-100 hover:bg-white/5"><Crown size={14} />{creator.foundingCreator?.status === "active" ? "Revoke Founding" : creator.foundingCreator?.status === "revoked" ? "Restore Founding" : "Grant Founding"}</button>
+              <button type="button" onClick={() => void viewFoundingHistory(creator)} className="focus-ring flex w-full items-center gap-2 rounded-[6px] px-3 py-2 text-left text-xs font-semibold text-[var(--text-secondary)] hover:bg-white/5"><MoreHorizontal size={14} />View founding history</button>
               {actions.map(({ action, label, icon: Icon, className }) => {
                 const key = `${creator.username}:${action}`;
                 return (
@@ -222,7 +236,7 @@ export function CreatorTable({ creators }: CreatorTableProps) {
                     <span className="block truncate" title={creator.email} aria-label={`Email ${creator.email}`}>{creator.email}</span>
                   </td>
                   <td className="px-4 py-3">
-                    <Badge tone={verificationTone(creator.verificationStatus)}>{creator.verificationStatus.replaceAll("_", " ")}</Badge>
+                    <div className="flex flex-wrap gap-1"><Badge tone={verificationTone(creator.verificationStatus)}>{creator.verificationStatus.replaceAll("_", " ")}</Badge>{creator.foundingCreator ? <Badge tone="yellow">Founding #{String(creator.foundingCreator.number).padStart(3, "0")} · {creator.foundingCreator.status}</Badge> : null}</div>
                   </td>
                   <td className="px-4 py-3">
                     <Badge tone={accountTone(creator.accountStatus)}>{creator.accountStatus}</Badge>
@@ -249,7 +263,7 @@ export function CreatorTable({ creators }: CreatorTableProps) {
                 </div>
               </div>
               <div className="mt-4 flex flex-wrap gap-2">
-                <Badge tone={verificationTone(creator.verificationStatus)}>{creator.verificationStatus.replaceAll("_", " ")}</Badge>
+                <Badge tone={verificationTone(creator.verificationStatus)}>{creator.verificationStatus.replaceAll("_", " ")}</Badge>{creator.foundingCreator ? <Badge tone="yellow">Founding #{String(creator.foundingCreator.number).padStart(3, "0")} · {creator.foundingCreator.status}</Badge> : null}
                 <Badge tone={accountTone(creator.accountStatus)}>{creator.accountStatus}</Badge>
                 <Badge tone="neutral">{dateLabel(creator.joinedDate)}</Badge>
               </div>

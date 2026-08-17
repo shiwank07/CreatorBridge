@@ -208,7 +208,6 @@ export default async function VerificationCenterPage() {
   if (user.role === "creator") {
     const creator = await getCreatorByUsername(user.username);
     const normalizedStatus = normalizeCreatorVerificationStatus(creator?.verificationStatus);
-    const code = creator?.verificationCode;
 
     return (
       <>
@@ -237,17 +236,13 @@ export default async function VerificationCenterPage() {
           <div className="grid gap-6 lg:grid-cols-[1fr_390px]">
             <ProgressPanel
               title="Verification progress"
-              description="Place your BZ code in your YouTube About section, Instagram bio, Twitch profile, or other platform bio, then submit the public link for admin review."
+              description="Generate a one-time BZ code for an exact saved platform account, place it in that profile, then submit it for review."
               status={normalizedStatus}
               statusLabel={verificationBadgeLabel(normalizedStatus)}
               steps={creatorSteps(user.emailVerified, creator)}
-              code={code}
-              codeLabel={creator?.verificationCode ? "Your verification code" : "Code format"}
-              codeHelp={
-                creator?.verificationCode
-                  ? "This exact code must be visible in the submitted platform bio or About section before admin review."
-                  : "Submit your platform link below to generate and store your unique BZ code, then place it in your bio/About section before admin review."
-              }
+              code="BZ-XXXXXXXX"
+              codeLabel="Code format"
+              codeHelp="Raw codes are shown only once when generated and are never stored in reusable form."
             >
               <div className="rounded-[8px] border border-white/10 bg-black/20 p-4 text-sm leading-6 text-[var(--text-secondary)]">
                 Current status: <span className="font-semibold text-[var(--text-primary)]">{verificationBadgeLabel(normalizedStatus)}</span>

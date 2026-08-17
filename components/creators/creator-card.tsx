@@ -8,6 +8,7 @@ import { canStartCreatorCollaboration, creatorAvailabilityLabel, creatorAvailabi
 import { authHref } from "@/lib/auth-redirect";
 import { formatINR, formatNumber } from "@/lib/format";
 import { platformDisplayName } from "@/lib/platforms";
+import { PLATFORM_DEFINITIONS } from "@/lib/creator-platforms";
 import { type CreatorCardData } from "@/lib/types";
 import {
   getPublicAverageViews,
@@ -38,7 +39,7 @@ function coverClass(username: string) {
 export function CreatorCard({ creator, viewerState, viewerRole, initialSaved = false }: CreatorCardProps) {
   const effectiveViewerState = viewerState ?? viewerRole ?? "signed_out";
   const normalizedVerification = normalizeCreatorVerificationStatus(creator.verificationStatus);
-  const subscriberCount = getPublicSubscriberCount(creator);
+  const subscriberCount = creator.topAudienceCount ?? getPublicSubscriberCount(creator);
   const averageViews = getPublicAverageViews(creator);
   const engagement = getPublicEngagementRate(creator);
   const canStart = canStartCreatorCollaboration(creator.availabilityStatus, creator.isOpenToDeals);
@@ -49,13 +50,15 @@ export function CreatorCard({ creator, viewerState, viewerRole, initialSaved = f
     Boolean(customPlatformLabel) &&
     Boolean(creator.verificationProfileUrl) &&
     !knownPlatformUrls.includes(creator.verificationProfileUrl ?? "");
-  const platforms = [
+  const platforms = creator.platformAccounts?.map((account) => ({ label: account.platform === "other" ? account.customPlatformName || "Other" : PLATFORM_DEFINITIONS[account.platform].label, icon: Globe2 })) ?? [
     creator.youtubeUrl ? { label: "YouTube", icon: TvMinimalPlay } : null,
     creator.instagramUrl ? { label: "Instagram", icon: Camera } : null,
     creator.podcastUrl ? { label: "Podcast", icon: Radio } : null,
     hasCustomPlatform ? { label: customPlatformLabel, icon: Globe2 } : null,
   ].filter(Boolean) as { label: string; icon: typeof TvMinimalPlay }[];
   const primaryPlatform = platforms[0]?.label ?? (platformDisplayName(creator.verificationPlatform, creator.customPlatformName) || "Platform not listed");
+  const topAccount = creator.platformAccounts?.find((account) => account.id === creator.topAudienceAccountId);
+  const audienceLabel = topAccount ? `${topAccount.audienceType[0].toUpperCase()}${topAccount.audienceType.slice(1)}` : "Audience";
 
   return (
     <article className="creator-premium-card group flex h-full flex-col overflow-hidden">
@@ -72,6 +75,7 @@ export function CreatorCard({ creator, viewerState, viewerRole, initialSaved = f
             {normalizedVerification === "verified" ? <BadgeCheck size={12} /> : <Sparkles size={12} />}
             {verificationBadgeLabel(creator.verificationStatus)}
           </Badge>
+          {creator.foundingCreator ? <Badge tone="yellow">Founding Creator #{String(creator.foundingCreator.number).padStart(3, "0")}</Badge> : null}
         </div>
         <div className="absolute bottom-4 right-4 flex gap-2">
           {platforms.slice(0, 3).map(({ label, icon: Icon }) => (
@@ -124,7 +128,7 @@ export function CreatorCard({ creator, viewerState, viewerRole, initialSaved = f
 
         <div className="mt-5 grid grid-cols-2 gap-2">
           {[
-            { label: "Subscribers", value: subscriberCount > 0 ? formatNumber(subscriberCount) : "Not added yet", muted: subscriberCount <= 0 },
+            { label: `Top ${audienceLabel}`, value: subscriberCount > 0 ? formatNumber(subscriberCount) : "Not added yet", muted: subscriberCount <= 0 },
             { label: "Avg Views", value: averageViews > 0 ? formatNumber(averageViews) : "Stats pending", muted: averageViews <= 0 },
             { label: "Engagement", value: engagement > 0 ? `${engagement.toFixed(1)}%` : "Complete profile", muted: engagement <= 0 },
             { label: "Starting Price", value: creator.sponsorshipRate && creator.sponsorshipRate > 0 ? formatINR(creator.sponsorshipRate) : "Pricing not set", muted: !creator.sponsorshipRate },

@@ -24,6 +24,7 @@ export interface IBrandInquiry extends Document {
   deliverables: string[];
   targetNiches: string[];
   targetPlatforms: string[];
+  creatorPlatformSnapshot?: { platformAccountId: string; platform: string; customPlatformName?: string; handle?: string; profileUrl: string; audienceType: string; audienceCount: number; averageViews?: number; engagementRate?: number; verificationStatus: string; capturedAt: Date };
   customPlatformName?: string;
   budgetRange: string;
   initialOfferAmount?: number;
@@ -162,6 +163,7 @@ const BrandInquirySchema = new Schema<IBrandInquiry>(
     deliverables: [{ type: String }],
     targetNiches: [{ type: String }],
     targetPlatforms: [{ type: String }],
+    creatorPlatformSnapshot: { platformAccountId: { type: String, maxlength: 80 }, platform: { type: String, maxlength: 40 }, customPlatformName: { type: String, maxlength: 50 }, handle: { type: String, maxlength: 80 }, profileUrl: { type: String, maxlength: 500 }, audienceType: { type: String, enum: ["followers", "subscribers", "listeners", "members"] }, audienceCount: { type: Number, min: 0 }, averageViews: { type: Number, min: 0 }, engagementRate: { type: Number, min: 0, max: 100 }, verificationStatus: { type: String, enum: ["unverified", "pending", "verified", "rejected"] }, capturedAt: Date },
     customPlatformName: { type: String, trim: true, maxlength: 80, default: "" },
     budgetRange: { type: String, required: true },
     initialOfferAmount: { type: Number, min: 0, default: 0 },

@@ -11,6 +11,7 @@ import { SavedCreator } from "@/lib/models/SavedCreator";
 import type { Model, PipelineStage } from "mongoose";
 import { withServerTiming } from "@/lib/server-timing";
 import { isConfiguredAdminId } from "@/lib/clerk-navigation-metadata";
+import { deriveAudience, legacyPlatformAccounts, type CreatorPlatformAccount, type PlatformKind } from "@/lib/creator-platforms";
 
 const CREATOR_PUBLIC_USER_SELECT = "_id username name avatar isFeatured isVerified emailVerified phoneNumber phoneVerified";
 const CREATOR_PUBLIC_PROFILE_SELECT = [
@@ -18,7 +19,7 @@ const CREATOR_PUBLIC_PROFILE_SELECT = [
   "instagramUrl", "podcastUrl", "subscribers", "claimedSubscribers", "verifiedSubscribers", "claimedAverageViews",
   "verifiedAverageViews", "claimedEngagementRate", "verifiedEngagementRate", "statsVerificationStatus", "verificationStatus",
   "verificationPlatform", "customPlatformName", "verificationProfileUrl", "avgViews", "instagramFollowers", "sponsorshipRate",
-  "rateType", "pastBrands", "sampleWorkUrls", "isOpenToDeals", "availabilityStatus", "verifiedAt", "lastVerifiedAt", "createdAt",
+  "rateType", "pastBrands", "sampleWorkUrls", "isOpenToDeals", "availabilityStatus", "verifiedAt", "lastVerifiedAt", "createdAt", "platformAccounts", "topAudienceCount", "topAudienceAccountId", "topAudiencePlatform", "topVerifiedAudienceCount", "topVerifiedAudiencePlatform", "foundingCreator",
 ].join(" ");
 
 export type CreatorFilters = {
@@ -32,6 +33,10 @@ export type CreatorFilters = {
 };
 
 export type CreatorDiscoveryFilters = CreatorFilters & {
+  primaryPlatform?: string;
+  verifiedPlatformOnly?: boolean;
+  foundingOnly?: boolean;
+  verifiedAudienceRange?: string;
   verification?: "verified" | "unverified";
   availability?: "open" | "closed";
   language?: string;
@@ -60,6 +65,13 @@ type CreatorDocumentWithUser = {
   niche?: string[];
   country?: string;
   languages?: string[];
+  platformAccounts?: CreatorPlatformAccount[];
+  topAudienceCount?: number;
+  topAudienceAccountId?: string;
+  topAudiencePlatform?: PlatformKind;
+  topVerifiedAudienceCount?: number;
+  topVerifiedAudiencePlatform?: PlatformKind;
+  foundingCreator?: { number: number; status: "active" | "revoked" };
   youtubeUrl?: string;
   youtubeHandle?: string;
   instagramUrl?: string;
@@ -73,7 +85,6 @@ type CreatorDocumentWithUser = {
   verifiedEngagementRate?: number;
   statsVerificationStatus?: StatsVerificationStatus;
   verificationStatus?: VerificationStatus;
-  verificationCode?: string;
   verificationPlatform?: "youtube" | "instagram" | "twitch" | "x" | "other";
   customPlatformName?: string;
   verificationProfileUrl?: string;
@@ -309,6 +320,8 @@ function mapCreator(doc: CreatorDocumentWithUser, options?: { includePrivatePaym
         ? "verified"
       : doc.statsVerificationStatus ?? "unverified";
   const availabilityStatus = normalizeCreatorAvailability(doc.availabilityStatus, Boolean(doc.isOpenToDeals));
+  const platformAccounts = legacyPlatformAccounts(doc as unknown as Record<string, unknown>);
+  const audience = deriveAudience(platformAccounts);
   const subscriberSnapshot = {
     verificationStatus,
     statsVerificationStatus,
@@ -331,6 +344,13 @@ function mapCreator(doc: CreatorDocumentWithUser, options?: { includePrivatePaym
     niche: doc.niche ?? [],
     country: doc.country,
     languages: doc.languages ?? [],
+    platformAccounts,
+    topAudienceCount: doc.topAudienceCount ?? audience.topAudienceCount,
+    topAudienceAccountId: doc.topAudienceAccountId ?? audience.topAudienceAccountId,
+    topAudiencePlatform: doc.topAudiencePlatform ?? audience.topAudiencePlatform,
+    topVerifiedAudienceCount: doc.topVerifiedAudienceCount ?? audience.topVerifiedAudienceCount,
+    topVerifiedAudiencePlatform: doc.topVerifiedAudiencePlatform ?? audience.topVerifiedAudiencePlatform,
+    foundingCreator: doc.foundingCreator?.status === "active" ? doc.foundingCreator : undefined,
     youtubeUrl: doc.youtubeUrl,
     youtubeHandle: doc.youtubeHandle,
     instagramUrl: doc.instagramUrl,
@@ -344,7 +364,6 @@ function mapCreator(doc: CreatorDocumentWithUser, options?: { includePrivatePaym
     verifiedEngagementRate,
     statsVerificationStatus,
     verificationStatus,
-    verificationCode: doc.verificationCode,
     verificationPlatform: doc.verificationPlatform,
     customPlatformName: doc.customPlatformName,
     verificationProfileUrl: doc.verificationProfileUrl,
@@ -527,21 +546,23 @@ export async function getCreatorDiscoveryPage(filters: CreatorDiscoveryFilters =
       postLookupMatch.push({ $or: [
         { "user.name": regex }, { "user.username": regex },
         { bio: regex }, { niche: regex }, { country: regex }, { languages: regex },
-        { youtubeHandle: regex }, { youtubeUrl: regex }, { instagramUrl: regex }, { verificationProfileUrl: regex },
+        { youtubeHandle: regex }, { youtubeUrl: regex }, { instagramUrl: regex }, { verificationProfileUrl: regex }, { "platformAccounts.handle": regex }, { "platformAccounts.customPlatformName": regex },
       ] });
     }
     if (filters.niche) profileMatch.push({ niche: filters.niche });
     if (filters.country) profileMatch.push({ country: new RegExp(`^${escapeRegex(filters.country)}$`, "i") });
     if (filters.language) profileMatch.push({ languages: new RegExp(`^${escapeRegex(filters.language)}$`, "i") });
-    if (filters.verification === "verified") profileMatch.push({ verificationStatus: { $in: ["verified", "ownership_verified"] } });
+    if (filters.verification === "verified") profileMatch.push({ $or: [{ "platformAccounts.verification.status": "verified" }, { platformAccounts: { $in: [null, []] }, verificationStatus: { $in: ["verified", "ownership_verified", "stats_verified"] } }] });
     if (filters.verification === "unverified") profileMatch.push({ verificationStatus: { $nin: ["verified", "ownership_verified"] } });
     if (filters.availability === "open" || filters.openToDeals) profileMatch.push({ availabilityStatus: { $in: ["open_to_deals", "limited_availability"] } });
     if (filters.availability === "closed") profileMatch.push({ availabilityStatus: { $in: ["unavailable", "closed"] } });
-    if (filters.platform === "youtube") profileMatch.push({ youtubeUrl: { $ne: "" } });
-    if (filters.platform === "instagram") profileMatch.push({ instagramUrl: { $ne: "" } });
-    if (filters.platform === "twitch" || filters.platform === "x" || filters.platform === "other") profileMatch.push({ verificationPlatform: filters.platform, verificationProfileUrl: { $ne: "" } });
+    if (filters.platform) profileMatch.push({ $or: [{ "platformAccounts.platform": filters.platform }, ...(filters.platform === "youtube" ? [{ youtubeUrl: { $ne: "" } }] : []), ...(filters.platform === "instagram" ? [{ instagramUrl: { $ne: "" } }] : []), ...(filters.platform === "podcast" ? [{ podcastUrl: { $ne: "" } }] : []), { verificationPlatform: filters.platform, verificationProfileUrl: { $ne: "" } }] });
+    if (filters.primaryPlatform) profileMatch.push({ $or: [{ platformAccounts: { $elemMatch: { platform: filters.primaryPlatform, isPrimary: true } } }, ...(filters.primaryPlatform === "youtube" ? [{ platformAccounts: { $in: [null, []] }, youtubeUrl: { $ne: "" } }] : [])] });
+    if (filters.verifiedPlatformOnly) profileMatch.push({ "platformAccounts.verification.status": "verified" });
+    if (filters.foundingOnly) profileMatch.push({ "foundingCreator.status": "active" });
     for (const condition of [
-      numericRange("publicSubscribers", filters.subscriberRange),
+      numericRange("publicAudience", filters.subscriberRange),
+      numericRange("publicVerifiedAudience", filters.verifiedAudienceRange),
       numericRange("publicAverageViews", filters.viewsRange),
       numericRange("sponsorshipRate", filters.priceRange),
       numericRange("publicEngagement", filters.engagementRange),
@@ -550,14 +571,14 @@ export async function getCreatorDiscoveryPage(filters: CreatorDiscoveryFilters =
     const sortMap: Record<string, Record<string, 1 | -1>> = {
       newest: { createdAt: -1 },
       oldest: { createdAt: 1 },
-      subscribers: { publicSubscribers: -1 },
-      "subscribers-low": { publicSubscribers: 1 },
+      subscribers: { publicAudience: -1, _id: 1 },
+      "subscribers-low": { publicAudience: 1, _id: 1 },
       "engagement-high": { publicEngagement: -1 },
       "rate-low": { sponsorshipRate: 1 },
       "rate-high": { sponsorshipRate: -1 },
       alphabetical: { "user.name": 1 },
       "alphabetical-desc": { "user.name": -1 },
-      featured: { "user.isVerified": -1, "user.isFeatured": -1, publicSubscribers: -1 },
+      featured: { "user.isVerified": -1, "user.isFeatured": -1, publicAudience: -1, _id: 1 },
     };
     const pipeline: PipelineStage[] = [
       ...(profileMatch.length ? [{ $match: { $and: profileMatch } } as PipelineStage.Match] : []),
@@ -565,6 +586,8 @@ export async function getCreatorDiscoveryPage(filters: CreatorDiscoveryFilters =
       { $unwind: "$user" },
       { $match: { "user.role": "creator", "user.onboardingComplete": true, "user.accountStatus": "active" } },
       { $addFields: {
+        publicAudience: { $ifNull: ["$topAudienceCount", { $max: [{ $ifNull: ["$claimedSubscribers", { $ifNull: ["$subscribers", 0] }] }, { $ifNull: ["$instagramFollowers", 0] }] }] },
+        publicVerifiedAudience: { $ifNull: ["$topVerifiedAudienceCount", { $cond: [{ $in: ["$verificationStatus", ["verified", "ownership_verified", "stats_verified"]] }, { $ifNull: ["$verifiedSubscribers", { $ifNull: ["$claimedSubscribers", 0] }] }, 0] }] },
         publicSubscribers: { $cond: [{ $eq: ["$statsVerificationStatus", "verified"] }, { $ifNull: ["$verifiedSubscribers", 0] }, { $ifNull: ["$claimedSubscribers", { $ifNull: ["$subscribers", 0] }] }] },
         publicAverageViews: { $cond: [{ $eq: ["$statsVerificationStatus", "verified"] }, { $ifNull: ["$verifiedAverageViews", 0] }, { $ifNull: ["$claimedAverageViews", { $ifNull: ["$avgViews", 0] }] }] },
         publicEngagement: { $cond: [{ $eq: ["$statsVerificationStatus", "verified"] }, { $ifNull: ["$verifiedEngagementRate", 0] }, { $ifNull: ["$claimedEngagementRate", 0] }] },
@@ -577,7 +600,7 @@ export async function getCreatorDiscoveryPage(filters: CreatorDiscoveryFilters =
         statsVerificationStatus: 1, verificationStatus: 1, verificationPlatform: 1, customPlatformName: 1,
         verificationProfileUrl: 1, avgViews: 1, instagramFollowers: 1, sponsorshipRate: 1, rateType: 1,
         pastBrands: 1, sampleWorkUrls: 1, isOpenToDeals: 1, availabilityStatus: 1, verifiedAt: 1,
-        lastVerifiedAt: 1, createdAt: 1, publicSubscribers: 1, publicAverageViews: 1, publicEngagement: 1,
+        lastVerifiedAt: 1, createdAt: 1, publicSubscribers: 1, publicAudience: 1, publicVerifiedAudience: 1, publicAverageViews: 1, publicEngagement: 1, platformAccounts: 1, topAudienceCount: 1, topAudienceAccountId: 1, topAudiencePlatform: 1, topVerifiedAudienceCount: 1, topVerifiedAudiencePlatform: 1, foundingCreator: 1,
         "user._id": 1, "user.username": 1, "user.name": 1, "user.avatar": 1, "user.isFeatured": 1,
         "user.isVerified": 1, "user.emailVerified": 1,
       } },
@@ -847,6 +870,6 @@ export async function ensureUniqueUsername(seed: string, currentClerkId?: string
 export function creatorMetaDescription(creator: CreatorCardData) {
   const primaryNiche = creator.niche[0] ?? "creator";
   return `Hire ${creator.name}, a ${primaryNiche} creator with ${formatNumber(
-    getPublicSubscriberCount(creator),
-  )} subscribers and ${formatNumber(getPublicAverageViews(creator))} average views.`;
+    creator.topAudienceCount ?? getPublicSubscriberCount(creator),
+  )} on their largest platform and ${formatNumber(getPublicAverageViews(creator))} average views.`;
 }

@@ -6,8 +6,8 @@
     "node": ">=20 <25"
   },
   "scripts": {
-    "test": "playwright test tests/public/analytics-formulas.spec.ts tests/public/payment-security.spec.ts tests/public/cloudflare-mongodb.spec.ts tests/public/index-deployment.spec.ts tests/email/email-foundation.spec.ts tests/auth/clerk-security.spec.ts --config=playwright.analytics-unit.config.ts",
-    "test:integration": "playwright test tests/public/analytics-db.integration.spec.ts tests/public/admin-search.integration.spec.ts tests/email/email-delivery.integration.spec.ts tests/auth/clerk-sync.integration.spec.ts --config=playwright.analytics-unit.config.ts",
+    "test": "playwright test tests/public/creator-onboarding-runtime.spec.ts tests/public/creator-platforms.spec.ts tests/public/creator-platform-lifecycle.spec.ts tests/public/analytics-formulas.spec.ts tests/public/payment-security.spec.ts tests/public/cloudflare-mongodb.spec.ts tests/public/index-deployment.spec.ts tests/email/email-foundation.spec.ts tests/auth/clerk-security.spec.ts --config=playwright.analytics-unit.config.ts",
+    "test:integration": "playwright test tests/public/analytics-db.integration.spec.ts tests/public/admin-search.integration.spec.ts tests/public/founding-creators.integration.spec.ts tests/email/email-delivery.integration.spec.ts tests/auth/clerk-sync.integration.spec.ts --config=playwright.analytics-unit.config.ts",
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
     "test:e2e:headed": "playwright test --headed",
@@ -36,6 +36,7 @@
     "check:wizard": "tsx scripts/check-brand-inquiry-wizard.ts",
     "db:check": "tsx scripts/check-db.ts",
     "migrate:analytics": "tsx scripts/migrate-analytics.ts",
+    "migrate:creator-platforms": "tsx scripts/migrate-creator-platforms.ts",
     "indexes:analytics": "tsx scripts/deploy-analytics-indexes.ts",
     "indexes:analytics:apply": "tsx scripts/deploy-analytics-indexes.ts --apply",
     "indexes:pagination": "tsx scripts/verify-pagination-indexes.ts",

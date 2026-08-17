@@ -1,21 +1,31 @@
 "use client";
 
-import { type FormEvent, useMemo, useState } from "react";
+import { type FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useUser } from "@clerk/nextjs";
-import { Check, Loader2, UserPlus } from "lucide-react";
+import { Check, Loader2, Plus, Trash2, UserPlus } from "lucide-react";
 
-import { Badge } from "@/components/shared/badge";
 import { ProfileImageUpload } from "@/components/shared/profile-image-upload";
+import { createBrowserDraftId } from "@/lib/browser-draft-id";
 import { submitOnboardingWithBusyRetry } from "@/lib/onboarding-request";
-import { NICHES, PLATFORMS, RATE_TYPES } from "@/lib/constants";
+import { NICHES, RATE_TYPES } from "@/lib/constants";
 import { splitList } from "@/lib/slug";
+import { AUDIENCE_TYPES, PLATFORM_DEFINITIONS, PLATFORM_KINDS, type AudienceType, type PlatformKind } from "@/lib/creator-platforms";
+
+type PlatformAccountDraft = { id: string; platform: PlatformKind; customPlatformName: string; profileUrl: string; handle: string; audienceType: AudienceType; audienceCount: string; averageViews: string; engagementRate: string; isPrimary: boolean };
+
+const INITIAL_PLATFORM_ACCOUNT_DRAFT_ID = "initial-platform-account";
+
+function emptyPlatformAccount(id: string, isPrimary = false): PlatformAccountDraft {
+  return { id, platform: "instagram", customPlatformName: "", profileUrl: "", handle: "", audienceType: "followers", audienceCount: "", averageViews: "", engagementRate: "", isPrimary };
+}
 
 type CreatorOnboardingFormProps = {
   initialName: string;
   initialUsername: string;
   initialAvatar?: string;
   initialValues?: {
+    platformAccounts?: Array<{ id: string; platform: PlatformKind; customPlatformName?: string; profileUrl: string; handle?: string; audienceType: AudienceType; audienceCount: number; averageViews?: number; engagementRate?: number; isPrimary: boolean }>;
     phoneNumber?: string;
     avatar?: string;
     bio?: string;
@@ -93,6 +103,8 @@ export function CreatorOnboardingForm({
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+  const legacyAccounts: PlatformAccountDraft[] = initialValues?.platformAccounts?.map((account) => ({ ...account, customPlatformName: account.customPlatformName ?? "", handle: account.handle ?? "", audienceCount: String(account.audienceCount), averageViews: account.averageViews ? String(account.averageViews) : "", engagementRate: account.engagementRate ? String(account.engagementRate) : "" })) ?? [];
+  const [platformAccounts, setPlatformAccounts] = useState<PlatformAccountDraft[]>(legacyAccounts.length ? legacyAccounts : [emptyPlatformAccount(INITIAL_PLATFORM_ACCOUNT_DRAFT_ID, true)]);
   const [form, setForm] = useState<FormState>({
     name: initialName,
     username: initialUsername,
@@ -124,17 +136,6 @@ export function CreatorOnboardingForm({
     preferredPaymentNote: initialValues?.preferredPaymentNote ?? "",
   });
 
-  const selectedPlatforms = useMemo(
-    () =>
-      PLATFORMS.filter((platform) => {
-        if (platform.value === "youtube") return Boolean(form.youtubeUrl || form.subscribers);
-        if (platform.value === "instagram") return Boolean(form.instagramUrl || form.instagramFollowers);
-        if (platform.value === "podcast") return Boolean(form.podcastUrl);
-        return false;
-      }),
-    [form.instagramFollowers, form.instagramUrl, form.podcastUrl, form.subscribers, form.youtubeUrl],
-  );
-
   function setField<K extends keyof FormState>(key: K, value: FormState[K]) {
     setForm((current) => ({ ...current, [key]: value }));
   }
@@ -161,6 +162,7 @@ export function CreatorOnboardingForm({
       niche: form.niche,
       country: form.country,
       languages: splitList(form.languagesText),
+      platformAccounts: platformAccounts.map((account) => ({ ...account, audienceCount: Number(account.audienceCount || 0), averageViews: account.averageViews ? Number(account.averageViews) : undefined, engagementRate: account.engagementRate ? Number(account.engagementRate) : undefined })),
       youtubeUrl: form.youtubeUrl,
       youtubeHandle: form.youtubeHandle,
       subscribers: Number(form.subscribers || 0),
@@ -283,51 +285,29 @@ export function CreatorOnboardingForm({
         </div>
       </section>
 
-      <section className="bridge-card p-5">
-        <h2 className="font-display text-xl font-bold">Platform stats</h2>
-        <div className="mt-5 grid gap-4 lg:grid-cols-2">
-          <label>
-            <span className="bridge-label">YouTube URL</span>
-            <input value={form.youtubeUrl} onChange={(event) => setField("youtubeUrl", event.target.value)} className="bridge-input mt-2" placeholder="https://youtube.com/..." />
-          </label>
-          <label>
-            <span className="bridge-label">YouTube handle</span>
-            <input value={form.youtubeHandle} onChange={(event) => setField("youtubeHandle", event.target.value)} className="bridge-input mt-2" placeholder="@creator" />
-          </label>
-          <label>
-            <span className="bridge-label">Subscribers</span>
-            <input value={form.subscribers} onChange={(event) => setField("subscribers", event.target.value)} className="bridge-input mt-2" inputMode="numeric" />
-          </label>
-          <label>
-            <span className="bridge-label">Average views</span>
-            <input value={form.avgViews} onChange={(event) => setField("avgViews", event.target.value)} className="bridge-input mt-2" inputMode="numeric" />
-          </label>
-          <label>
-            <span className="bridge-label">Engagement rate (%)</span>
-            <input value={form.engagementRate} onChange={(event) => setField("engagementRate", event.target.value)} className="bridge-input mt-2" inputMode="decimal" placeholder="4.8" />
-          </label>
-          <label>
-            <span className="bridge-label">Instagram URL</span>
-            <input value={form.instagramUrl} onChange={(event) => setField("instagramUrl", event.target.value)} className="bridge-input mt-2" placeholder="https://instagram.com/..." />
-          </label>
-          <label>
-            <span className="bridge-label">Instagram followers</span>
-            <input value={form.instagramFollowers} onChange={(event) => setField("instagramFollowers", event.target.value)} className="bridge-input mt-2" inputMode="numeric" />
-          </label>
-          <label className="lg:col-span-2">
-            <span className="bridge-label">Podcast URL</span>
-            <input value={form.podcastUrl} onChange={(event) => setField("podcastUrl", event.target.value)} className="bridge-input mt-2" placeholder="https://..." />
-          </label>
+      <section className="bridge-card min-w-0 p-5">
+        <h2 className="font-display text-xl font-bold">Platform accounts</h2>
+        <p className="mt-2 text-sm text-[var(--text-secondary)]">Add every account you want brands to see. Your largest single account becomes the headline audience.</p>
+        <div className="mt-5 space-y-4">
+          {platformAccounts.map((account, index) => {
+            const definition = PLATFORM_DEFINITIONS[account.platform];
+            const update = (changes: Partial<PlatformAccountDraft>) => setPlatformAccounts((current) => current.map((item) => item.id === account.id ? { ...item, ...changes } : item));
+            return <fieldset key={account.id} className="min-w-0 rounded-[8px] border border-[var(--border)] p-4">
+              <legend className="px-2 font-semibold">Account {index + 1}</legend>
+              <div className="grid min-w-0 gap-4 sm:grid-cols-2">
+                <label><span className="bridge-label">Platform</span><select aria-label={`Platform for account ${index + 1}`} value={account.platform} onChange={(event) => { const platform = event.target.value as PlatformKind; update({ platform, audienceType: PLATFORM_DEFINITIONS[platform].audienceType, customPlatformName: platform === "other" ? account.customPlatformName : "" }); }} className="bridge-input mt-2">{PLATFORM_KINDS.map((platform) => <option key={platform} value={platform}>{PLATFORM_DEFINITIONS[platform].label}</option>)}</select></label>
+                {account.platform === "other" ? <label><span className="bridge-label">Platform name</span><input required maxLength={50} value={account.customPlatformName} onChange={(event) => update({ customPlatformName: event.target.value })} className="bridge-input mt-2" /></label> : null}
+                <label className="sm:col-span-2"><span className="bridge-label">{definition.label} profile URL</span><input required type="url" value={account.profileUrl} onChange={(event) => update({ profileUrl: event.target.value })} className="bridge-input mt-2 min-w-0" placeholder="https://..." /></label>
+                <label><span className="bridge-label">Handle (optional)</span><input maxLength={80} value={account.handle} onChange={(event) => update({ handle: event.target.value })} className="bridge-input mt-2" placeholder="@creator" /></label>
+                {account.platform === "other" ? <label><span className="bridge-label">Audience type</span><select value={account.audienceType} onChange={(event) => update({ audienceType: event.target.value as AudienceType })} className="bridge-input mt-2">{AUDIENCE_TYPES.map((type) => <option key={type} value={type}>{type[0].toUpperCase() + type.slice(1)}</option>)}</select></label> : null}
+                <label><span className="bridge-label">{account.audienceType[0].toUpperCase() + account.audienceType.slice(1)}</span><input required min="0" step="1" type="number" value={account.audienceCount} onChange={(event) => update({ audienceCount: event.target.value })} className="bridge-input mt-2" /></label>
+                <label><span className="bridge-label">{account.platform === "instagram" ? "Average Reel views" : account.platform === "kick" || account.platform === "twitch" ? "Average concurrent viewers" : "Average views (optional)"}</span><input min="0" step="1" type="number" value={account.averageViews} onChange={(event) => update({ averageViews: event.target.value })} className="bridge-input mt-2" /></label>
+              </div>
+              <div className="mt-4 flex flex-wrap items-center justify-between gap-3"><label className="flex items-center gap-2 text-sm"><input type="radio" name="primaryPlatform" checked={account.isPrimary} onChange={() => setPlatformAccounts((current) => current.map((item) => ({ ...item, isPrimary: item.id === account.id })))} /> Primary account</label>{platformAccounts.length > 1 ? <button type="button" onClick={() => setPlatformAccounts((current) => { const remaining = current.filter((item) => item.id !== account.id); if (account.isPrimary && remaining[0]) remaining[0] = { ...remaining[0], isPrimary: true }; return remaining; })} className="bridge-button-secondary"><Trash2 size={16} /> Remove</button> : null}</div>
+            </fieldset>;
+          })}
         </div>
-        {selectedPlatforms.length > 0 ? (
-          <div className="mt-4 flex flex-wrap gap-2">
-            {selectedPlatforms.map((platform) => (
-              <Badge key={platform.value} tone="neutral">
-                {platform.label}
-              </Badge>
-            ))}
-          </div>
-        ) : null}
+        <button type="button" onClick={() => setPlatformAccounts((current) => [...current, emptyPlatformAccount(createBrowserDraftId())])} className="bridge-button-secondary mt-4"><Plus size={16} /> Add another platform account</button>
       </section>
 
       <section className="bridge-card p-5">

@@ -168,6 +168,10 @@ type AdminCreatorDocument = {
   userId: PopulatedUserDocument;
   verificationStatus?: VerificationStatus;
   createdAt?: Date;
+  platformAccounts?: import("@/lib/creator-platforms").CreatorPlatformAccount[];
+  topAudienceCount?: number;
+  topVerifiedAudienceCount?: number;
+  foundingCreator?: { number: number; status: "active" | "revoked" };
 };
 
 type AdminBrandDocument = {
@@ -417,6 +421,10 @@ function mapAdminCreator(doc: AdminCreatorDocument): AdminCreatorData {
     verificationStatus: doc.verificationStatus ?? (user.isVerified ? "verified" : "unverified"),
     accountStatus: accountStatus(user),
     joinedDate: user.createdAt?.toISOString() ?? doc.createdAt?.toISOString(),
+    platformAccounts: doc.platformAccounts ?? [],
+    topAudienceCount: doc.topAudienceCount ?? 0,
+    topVerifiedAudienceCount: doc.topVerifiedAudienceCount ?? 0,
+    foundingCreator: doc.foundingCreator,
   };
 }
 
@@ -755,7 +763,7 @@ export async function getAdminCreatorsPage(filters: AdminPageFilters = {}): Prom
   const regex = searchRegex(filters.search);
   const verification = allowed(filters.verification, ["unverified", "pending", "verified", "rejected", "pending_ownership", "ownership_verified", "stats_verified", "needs_review"]);
   const status = allowed(filters.status ?? filters.visibility, ["active", "hidden", "suspended", "deleted"]);
-  const platform = allowed(filters.platform, ["youtube", "instagram", "twitch", "x", "other"]);
+  const platform = allowed(filters.platform, ["youtube", "instagram", "facebook", "tiktok", "x", "twitch", "kick", "linkedin", "snapchat", "pinterest", "podcast", "other"]);
   const sort = allowed(filters.sort, ["newest", "oldest", "updated", "name_asc", "name_desc"]) ?? "updated";
   const sortStage: Record<string, 1 | -1> =
     sort === "oldest" ? { createdAt: 1, _id: 1 } :
@@ -766,7 +774,7 @@ export async function getAdminCreatorsPage(filters: AdminPageFilters = {}): Prom
   const window = safeFacetWindow(filters);
   const match = {
     ...(verification ? { verificationStatus: verification } : {}),
-    ...(platform ? { verificationPlatform: platform } : {}),
+    ...(platform ? { $or: [{ "platformAccounts.platform": platform }, { verificationPlatform: platform }] } : {}),
     ...(status ? { "userId.accountStatus": status } : {}),
     ...(regex ? { $or: [
       { "userId.name": regex }, { "userId.username": regex }, { "userId.email": regex },

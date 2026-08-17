@@ -10,11 +10,9 @@ type ReviewRow = {
   id: string;
   name: string;
   username: string;
-  email: string;
   platform: string;
   customPlatformName?: string;
   profileUrl: string;
-  verificationCode: string;
   creatorNote?: string;
   status: ReviewStatus;
   adminNote?: string;
@@ -30,6 +28,7 @@ export function VerificationTable() {
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
   const [notes, setNotes] = useState<Record<string, string>>({});
+  const [observedCodes, setObservedCodes] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState("");
   const [message, setMessage] = useState<{ tone: "error" | "success"; text: string } | null>(null);
@@ -61,7 +60,7 @@ export function VerificationTable() {
       const response = await fetch("/api/admin/verifications", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ requestId: row.id, action, note: notes[row.id] ?? "" }),
+        body: JSON.stringify({ requestId: row.id, action, note: notes[row.id] ?? "", observedCode: observedCodes[row.id] ?? "" }),
       });
       const result = await response.json();
       if (!response.ok) throw new Error(result.error || "Could not review verification.");
@@ -110,7 +109,7 @@ export function VerificationTable() {
                     <h2 className="font-display text-xl font-bold">{row.name}</h2>
                     <Badge tone={row.status === "approved" ? "green" : row.status === "pending" ? "yellow" : "neutral"}>{row.status}</Badge>
                   </div>
-                  <p className="mt-1 text-sm text-[var(--text-secondary)]">@{row.username} · {row.email}</p>
+                  <p className="mt-1 text-sm text-[var(--text-secondary)]">@{row.username}</p>
                   <p className="mt-3 text-xs uppercase text-[var(--text-muted)]">{row.platform === "other" ? row.customPlatformName : row.platform} · Submitted {new Date(row.submittedAt).toLocaleString()}</p>
                 </div>
                 <a href={row.profileUrl} target="_blank" rel="noopener noreferrer" className="bridge-button-secondary max-w-full px-4 py-2 text-sm">
@@ -119,12 +118,12 @@ export function VerificationTable() {
               </div>
               <div className="mt-4 grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(260px,380px)]">
                 <dl className="grid gap-3 rounded-[8px] border border-white/10 bg-black/20 p-4 text-sm sm:grid-cols-2">
-                  <div><dt className="bridge-label">Verification code</dt><dd className="mt-1 break-all font-mono font-bold">{row.verificationCode}</dd></div>
                   <div><dt className="bridge-label">Profile URL</dt><dd className="mt-1 break-all text-cyan-100">{row.profileUrl}</dd></div>
                   <div className="sm:col-span-2"><dt className="bridge-label">Creator note</dt><dd className="mt-1 text-[var(--text-secondary)]">{row.creatorNote || "No note provided."}</dd></div>
                   {row.reviewedAt ? <div className="sm:col-span-2"><dt className="bridge-label">Reviewed</dt><dd className="mt-1">{new Date(row.reviewedAt).toLocaleString()}</dd></div> : null}
                 </dl>
                 <div>
+                  {row.status === "pending" ? <label><span className="bridge-label">Code observed on public profile</span><input value={observedCodes[row.id] ?? ""} onChange={(event) => setObservedCodes((current) => ({ ...current, [row.id]: event.target.value }))} autoComplete="off" className="bridge-input mt-2" /></label> : null}
                   <label><span className="bridge-label">Admin review note{row.status === "pending" ? " (required for rejection)" : ""}</span>
                     <textarea value={notes[row.id] ?? ""} onChange={(event) => setNotes((current) => ({ ...current, [row.id]: event.target.value }))} disabled={row.status !== "pending"} maxLength={500} className="bridge-input mt-2 min-h-24" />
                   </label>

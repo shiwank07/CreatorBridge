@@ -7,9 +7,11 @@ import { handleRouteError, parseJsonBody } from "@/lib/api-errors";
 import { connectDB, hasMongoUri } from "@/lib/db";
 import { CreatorProfile } from "@/lib/models/CreatorProfile";
 import { CreatorVerificationRequest } from "@/lib/models/CreatorVerificationRequest";
+import { CreatorVerificationAudit } from "@/lib/models/CreatorVerificationAudit";
 import { User } from "@/lib/models/User";
 import { notificationService } from "@/lib/notifications/notification-service";
-import { isVerificationCode } from "@/lib/verification-code";
+import { deriveAudience, legacyPlatformAccounts } from "@/lib/creator-platforms";
+import { isCreatorVerificationExpired, matchesCreatorVerificationCode } from "@/lib/creator-verification";
 
 const listSchema = z.object({
   status: z.enum(["pending", "approved", "rejected"]).default("pending"),
@@ -20,20 +22,20 @@ const listSchema = z.object({
 
 const updateSchema = z.object({
   requestId: z.string().min(1),
-  action: z.enum(["approve", "reject"]),
+  action: z.enum(["approve", "reject", "revoke"]),
   note: z.string().trim().max(500).default(""),
-}).refine((value) => value.action !== "reject" || value.note.length >= 2, {
+  observedCode: z.string().trim().max(32).default(""),
+}).refine((value) => value.action === "approve" || value.note.length >= 2, {
   message: "Add a rejection reason.",
   path: ["note"],
 });
 
 type AggregatedVerification = {
   _id: { toString(): string };
-  user: { name: string; username: string; email: string };
+  user: { name: string; username: string };
   platform: string;
   customPlatformName?: string;
   profileUrl: string;
-  verificationCode: string;
   creatorNote?: string;
   status: string;
   adminNote?: string;
@@ -89,11 +91,9 @@ export async function GET(req: Request) {
       id: String(row._id),
       name: row.user.name,
       username: row.user.username,
-      email: row.user.email,
       platform: row.platform,
       customPlatformName: row.customPlatformName,
       profileUrl: row.profileUrl,
-      verificationCode: row.verificationCode,
       creatorNote: row.creatorNote,
       status: row.status,
       adminNote: row.adminNote,
@@ -117,11 +117,9 @@ export async function PATCH(req: Request) {
     if (!parsed.success) return NextResponse.json({ error: parsed.error.issues[0]?.message }, { status: 400 });
 
     await connectDB();
-    const request = await CreatorVerificationRequest.findOne({ _id: parsed.data.requestId, status: "pending" });
-    if (!request) return NextResponse.json({ error: "Pending verification request not found." }, { status: 404 });
-    if (!isVerificationCode(request.verificationCode)) {
-      return NextResponse.json({ error: "The request does not contain a valid Branzzo verification code." }, { status: 400 });
-    }
+    const allowedStatus = parsed.data.action === "revoke" ? "approved" : "pending";
+    const request = await CreatorVerificationRequest.findOne({ _id: parsed.data.requestId, status: allowedStatus }).select("+codeHash +codeSalt");
+    if (!request) return NextResponse.json({ error: "Verification request is no longer actionable." }, { status: 404 });
 
     const profile = await CreatorProfile.findById(request.creatorId);
     if (!profile) return NextResponse.json({ error: "Creator profile not found." }, { status: 404 });
@@ -130,27 +128,32 @@ export async function PATCH(req: Request) {
 
     const now = new Date();
     const approved = parsed.data.action === "approve";
+    const revoked = parsed.data.action === "revoke";
+    if (approved && (isCreatorVerificationExpired(request.codeExpiresAt, now) || !matchesCreatorVerificationCode(parsed.data.observedCode, request.codeSalt, request.codeHash))) return NextResponse.json({ error: "The observed profile code is invalid or expired." }, { status: 400 });
     const updated = await CreatorVerificationRequest.updateOne(
-      { _id: request._id, status: "pending" },
-      { $set: { status: approved ? "approved" : "rejected", adminNote: parsed.data.note, reviewedBy: admin.userId, reviewedAt: now } },
+      { _id: request._id, status: allowedStatus },
+      { $set: { status: revoked ? "revoked" : approved ? "approved" : "rejected", adminNote: parsed.data.note, reviewedBy: admin.userId, reviewedAt: now, consumedAt: now, codeHash: "", codeSalt: "" } },
     );
     if (updated.modifiedCount !== 1) return NextResponse.json({ error: "This request was already reviewed." }, { status: 409 });
 
+    const accounts = legacyPlatformAccounts(profile.toObject() as unknown as Record<string, unknown>).map((account) => account.id === request.platformAccountId ? { ...account, verification: approved ? { status: "verified" as const, method: "manual_admin" as const, verifiedAt: now, verifiedBy: admin.userId } : revoked ? { status: "unverified" as const } : { status: "rejected" as const, method: "manual_admin" as const, rejectedAt: now, rejectedBy: admin.userId, rejectionReason: parsed.data.note } } : account);
+    const audience = deriveAudience(accounts);
     await CreatorProfile.updateOne(
       { _id: profile._id },
-      {
-        $set: {
-          verificationStatus: approved ? "verified" : "rejected",
+      { $set: {
+          platformAccounts: accounts,
+          ...audience,
+          verificationStatus: audience.isVerifiedCreator ? "verified" : revoked ? "unverified" : approved ? "verified" : "rejected",
           verificationNote: parsed.data.note,
           verificationRejectedReason: approved ? "" : parsed.data.note,
           verificationReviewedAt: now,
           verificationReviewedByAdminId: admin.userId,
           verifiedAt: approved ? now : null,
           lastVerifiedAt: approved ? now : profile.lastVerifiedAt,
-        },
-      },
+        } },
     );
-    await User.updateOne({ _id: user._id }, { $set: { isVerified: approved } });
+    await User.updateOne({ _id: user._id }, { $set: { isVerified: audience.isVerifiedCreator } });
+    await CreatorVerificationAudit.create({ creatorId: profile._id, platformAccountId: request.platformAccountId, requestId: request._id, action: parsed.data.action, actorId: admin.userId, reason: parsed.data.note });
 
     if (approved) {
       await notificationService.notifyVerificationApproved({ user, accountType: "creator", note: parsed.data.note, statusLabel: "Verified Creator", eventId: request._id.toString() });

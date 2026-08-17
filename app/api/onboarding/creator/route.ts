@@ -14,6 +14,7 @@ import { isCreatorVerifiedStatus } from "@/lib/verification";
 import { normalizeYoutubeChannelKey } from "@/lib/verification-helpers";
 import { onboardingRoleFilter } from "@/lib/onboarding-role";
 import { syncClerkNavigationMetadata } from "@/lib/clerk-navigation-metadata";
+import { deriveAudience, legacyPlatformAccounts, preparePlatformAccounts } from "@/lib/creator-platforms";
 
 function hasNumberChanged(previous?: number | null, next?: number | null) {
   return Number(previous ?? 0) !== Number(next ?? 0);
@@ -105,6 +106,13 @@ export async function POST(req: Request) {
     if (!user) return NextResponse.json({ error: "This account cannot complete creator onboarding.", code: "ACCOUNT_ALREADY_BRAND" }, { status: 409 });
 
     const existingProfile = await ScopedCreatorProfile.findOne({ userId: user._id });
+    const existingAccounts = existingProfile ? legacyPlatformAccounts(existingProfile.toObject() as unknown as Record<string, unknown>) : [];
+    const submittedAccounts = parsed.data.platformAccounts.length ? preparePlatformAccounts(parsed.data.platformAccounts, new Set(existingAccounts.map((account) => account.id))) : existingAccounts;
+    const platformAccounts = submittedAccounts.map((account) => {
+      const previous = existingAccounts.find((candidate) => candidate.id === account.id || candidate.normalizedProfileUrl === account.normalizedProfileUrl);
+      return previous ? { ...account, id: previous.id, verification: previous.verification, createdAt: previous.createdAt ?? account.createdAt } : account;
+    });
+    const audience = deriveAudience(platformAccounts);
     const platformChanged = Boolean(
       existingProfile &&
         (existingProfile.youtubeUrl !== parsed.data.youtubeUrl ||
@@ -152,12 +160,14 @@ export async function POST(req: Request) {
           niche: parsed.data.niche,
           country: parsed.data.country,
           languages: parsed.data.languages,
-          youtubeUrl: parsed.data.youtubeUrl,
-          youtubeHandle: parsed.data.youtubeHandle,
-          subscribers: parsed.data.subscribers,
-          claimedSubscribers: parsed.data.subscribers,
-          claimedAverageViews: parsed.data.avgViews,
-          claimedEngagementRate: parsed.data.engagementRate,
+          platformAccounts,
+          ...audience,
+          youtubeUrl: parsed.data.platformAccounts.length ? existingProfile?.youtubeUrl ?? "" : parsed.data.youtubeUrl,
+          youtubeHandle: parsed.data.platformAccounts.length ? existingProfile?.youtubeHandle ?? "" : parsed.data.youtubeHandle,
+          subscribers: parsed.data.platformAccounts.length ? existingProfile?.subscribers ?? 0 : parsed.data.subscribers,
+          claimedSubscribers: parsed.data.platformAccounts.length ? existingProfile?.claimedSubscribers ?? existingProfile?.subscribers ?? 0 : parsed.data.subscribers,
+          claimedAverageViews: parsed.data.platformAccounts.length ? existingProfile?.claimedAverageViews ?? existingProfile?.avgViews ?? 0 : parsed.data.avgViews,
+          claimedEngagementRate: parsed.data.platformAccounts.length ? existingProfile?.claimedEngagementRate ?? 0 : parsed.data.engagementRate,
           statsVerificationStatus,
           verificationStatus,
           verificationCode,
@@ -178,10 +188,10 @@ export async function POST(req: Request) {
                 verifiedAt: existingProfile?.verifiedAt ?? existingProfile?.lastVerifiedAt ?? null,
               }
             : {}),
-          avgViews: parsed.data.avgViews,
-          instagramUrl: parsed.data.instagramUrl,
-          instagramFollowers: parsed.data.instagramFollowers,
-          podcastUrl: parsed.data.podcastUrl,
+          avgViews: parsed.data.platformAccounts.length ? existingProfile?.avgViews ?? 0 : parsed.data.avgViews,
+          instagramUrl: parsed.data.platformAccounts.length ? existingProfile?.instagramUrl ?? "" : parsed.data.instagramUrl,
+          instagramFollowers: parsed.data.platformAccounts.length ? existingProfile?.instagramFollowers ?? 0 : parsed.data.instagramFollowers,
+          podcastUrl: parsed.data.platformAccounts.length ? existingProfile?.podcastUrl ?? "" : parsed.data.podcastUrl,
           sponsorshipRate: parsed.data.sponsorshipRate,
           rateType: parsed.data.rateType,
           pastBrands: parsed.data.pastBrands,
@@ -199,9 +209,7 @@ export async function POST(req: Request) {
       { upsert: true, new: true },
     );
 
-    if (platformChanged) {
-      await ScopedUser.updateOne({ _id: user._id }, { $set: { isVerified: false } });
-    }
+    await ScopedUser.updateOne({ _id: user._id }, { $set: { isVerified: audience.isVerifiedCreator || (!parsed.data.platformAccounts.length && isCreatorVerifiedStatus(verificationStatus)) } });
 
     await syncClerkNavigationMetadata(await clerkClient(), user);
 
@@ -215,7 +223,6 @@ export async function POST(req: Request) {
     return NextResponse.json({
       ok: true,
       username: parsed.data.username,
-      verificationCode: verificationCode || undefined,
     });
     });
   } catch (error) {

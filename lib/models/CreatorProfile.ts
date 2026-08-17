@@ -1,6 +1,7 @@
 import mongoose, { type Document, type Model, Schema } from "mongoose";
 
 import { CREATOR_AVAILABILITY_STATUSES, type CreatorAvailabilityStatus } from "@/lib/availability";
+import { AUDIENCE_TYPES, PLATFORM_KINDS, PLATFORM_VERIFICATION_STATUSES, type CreatorPlatformAccount } from "@/lib/creator-platforms";
 
 export type VerificationStatus =
   | "unverified"
@@ -23,6 +24,14 @@ export interface ICreatorProfile extends Document {
   niche: string[];
   country?: string;
   languages: string[];
+  platformAccounts: CreatorPlatformAccount[];
+  topAudienceCount: number;
+  topAudienceAccountId?: string;
+  topAudiencePlatform?: string;
+  topVerifiedAudienceCount: number;
+  topVerifiedAudienceAccountId?: string;
+  topVerifiedAudiencePlatform?: string;
+  foundingCreator?: { number: number; status: "active" | "revoked"; grantedAt: Date; grantedBy: string; revokedAt?: Date | null; revokedBy?: string; revocationReason?: string };
   youtubeUrl?: string;
   youtubeHandle?: string;
   subscribers?: number;
@@ -95,6 +104,16 @@ const CreatorProfileSchema = new Schema<ICreatorProfile>(
     niche: [{ type: String, index: true }],
     country: { type: String, default: "" },
     languages: [{ type: String }],
+    platformAccounts: [{
+      id: { type: String, required: true }, platform: { type: String, enum: PLATFORM_KINDS, required: true }, customPlatformName: { type: String, trim: true, maxlength: 50, default: "" },
+      profileUrl: { type: String, required: true, maxlength: 500 }, normalizedProfileUrl: { type: String, required: true, maxlength: 500 }, handle: { type: String, trim: true, maxlength: 80, default: "" },
+      audienceType: { type: String, enum: AUDIENCE_TYPES, required: true }, audienceCount: { type: Number, min: 0, max: Number.MAX_SAFE_INTEGER, required: true }, averageViews: { type: Number, min: 0, max: Number.MAX_SAFE_INTEGER }, engagementRate: { type: Number, min: 0, max: 100 }, isPrimary: { type: Boolean, default: false },
+      verification: { status: { type: String, enum: PLATFORM_VERIFICATION_STATUSES, default: "unverified" }, method: { type: String, enum: ["bio_code", "manual_admin", "legacy"] }, verifiedAt: { type: Date, default: null }, verifiedBy: { type: String, default: "" }, rejectedAt: { type: Date, default: null }, rejectedBy: { type: String, default: "" }, rejectionReason: { type: String, maxlength: 500, default: "" } },
+      createdAt: { type: Date, default: Date.now }, updatedAt: { type: Date, default: Date.now },
+    }],
+    topAudienceCount: { type: Number, min: 0, default: 0, index: true }, topAudienceAccountId: { type: String, default: "" }, topAudiencePlatform: { type: String, enum: PLATFORM_KINDS },
+    topVerifiedAudienceCount: { type: Number, min: 0, default: 0, index: true }, topVerifiedAudienceAccountId: { type: String, default: "" }, topVerifiedAudiencePlatform: { type: String, enum: PLATFORM_KINDS },
+    foundingCreator: { number: { type: Number, min: 1, max: 100 }, status: { type: String, enum: ["active", "revoked"] }, grantedAt: Date, grantedBy: String, revokedAt: Date, revokedBy: String, revocationReason: { type: String, maxlength: 500 } },
     youtubeUrl: { type: String, default: "" },
     youtubeHandle: { type: String, default: "" },
     subscribers: { type: Number, default: 0, min: 0 },
@@ -187,6 +206,9 @@ CreatorProfileSchema.index({ verificationPlatform: 1 });
 CreatorProfileSchema.index({ claimedSubscribers: 1 });
 CreatorProfileSchema.index({ claimedAverageViews: 1 });
 CreatorProfileSchema.index({ claimedEngagementRate: 1 });
+CreatorProfileSchema.index({ "platformAccounts.platform": 1, topAudienceCount: -1 });
+CreatorProfileSchema.index({ "platformAccounts.verification.status": 1, topVerifiedAudienceCount: -1 });
+CreatorProfileSchema.index({ "foundingCreator.number": 1 }, { unique: true, sparse: true });
 CreatorProfileSchema.index({ sponsorshipRate: 1 });
 CreatorProfileSchema.index({ bio: "text", niche: "text", country: "text", languages: "text", verificationPlatform: "text" });
 
