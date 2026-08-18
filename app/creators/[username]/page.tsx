@@ -222,13 +222,13 @@ export default async function CreatorProfilePage({ params }: { params: CreatorPr
             ) : null}
           </section> : null}
 
-          <WorkingHistoryCard
+          {historySummary.completed > 0 ? <WorkingHistoryCard
             accountType="creator"
             summary={historySummary}
             showDetails={false}
             showPrivateDeclined={false}
             className="bridge-card p-5"
-          />
+          /> : null}
 
           {creator.sampleWorkUrls.length > 0 ? <section className="bridge-card p-5">
             <div className="flex items-center gap-2">
