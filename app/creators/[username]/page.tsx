@@ -171,50 +171,45 @@ export default async function CreatorProfilePage({ params }: { params: CreatorPr
               </p>
             ) : null}
             <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-              <StatBox
+              {publicSubscriberCount > 0 ? <StatBox
                 label={`Top platform audience${creator.topAudiencePlatform ? ` · ${PLATFORM_DEFINITIONS[creator.topAudiencePlatform].label}` : ""}`}
                 value={statNumberLabel(publicSubscriberCount)}
-                muted={publicSubscriberCount <= 0}
-              />
+              /> : null}
               {publicAverageViews > 0 ? <StatBox label="Avg Views" value={statNumberLabel(publicAverageViews)} /> : null}
               {publicEngagementRate > 0 ? <StatBox label="Engagement" value={percentLabel(publicEngagementRate)} /> : null}
               {creator.topVerifiedAudienceCount && creator.topVerifiedAudienceCount > 0 ? <StatBox label="Verified audience" value={statNumberLabel(creator.topVerifiedAudienceCount)} /> : null}
             </div>
           </section>
 
-          <section className="bridge-card p-5">
+          {creator.bio || creator.country || creator.languages.length > 0 ? <section className="bridge-card p-5">
             <h2 className="font-display text-2xl font-bold">About</h2>
-            <p className="mt-4 text-sm leading-7 text-[var(--text-secondary)]">
-              {creator.bio}
-            </p>
+            {creator.bio ? <p className="mt-4 text-sm leading-7 text-[var(--text-secondary)]">{creator.bio}</p> : null}
             <div className="mt-5 grid gap-3 sm:grid-cols-3">
-              <div className="bridge-panel p-3">
+              {creator.country ? <div className="bridge-panel p-3">
                 <MapPin size={16} className="text-[var(--cyan)]" />
                 <p className="mt-2 text-xs text-[var(--text-secondary)]">Country</p>
                 <p className="mt-1 font-semibold">{creator.country}</p>
-              </div>
-              <div className="bridge-panel p-3 sm:col-span-2">
+              </div> : null}
+              {creator.languages.length > 0 ? <div className="bridge-panel p-3 sm:col-span-2">
                 <Languages size={16} className="text-[var(--cyan)]" />
                 <p className="mt-2 text-xs text-[var(--text-secondary)]">Languages</p>
                 <div className="mt-2 flex flex-wrap gap-2">
-                  {creator.languages.length > 0 ? (
-                    creator.languages.map((language) => (
+                  {creator.languages.map((language) => (
                       <Badge key={language} tone="neutral">
                         {language}
                       </Badge>
-                    ))
-                  ) : null}
+                    ))}
                 </div>
-              </div>
+              </div> : null}
             </div>
-          </section>
+          </section> : null}
 
-          <section className="bridge-card p-5">
+          {creator.pricingChoice || (creator.sponsorshipRate ?? 0) > 0 || creator.rateType || creator.pastBrands.length > 0 ? <section className="bridge-card p-5">
             <h2 className="font-display text-2xl font-bold">Sponsorship Info</h2>
             <div className="mt-5 grid gap-3 sm:grid-cols-3">
-              <StatBox label={creator.pricingChoice === "contact_for_pricing" ? "Pricing" : "Starting Price"} value={priceLabel(creator.sponsorshipRate, creator.pricingChoice === "contact_for_pricing")} />
-              <StatBox label="Rate Type" value={rateType} />
-              <StatBox label="Past Brands" value={String(creator.pastBrands.length)} />
+              {creator.pricingChoice === "contact_for_pricing" || (creator.sponsorshipRate ?? 0) > 0 ? <StatBox label={creator.pricingChoice === "contact_for_pricing" ? "Pricing" : "Starting Price"} value={priceLabel(creator.sponsorshipRate, creator.pricingChoice === "contact_for_pricing")} /> : null}
+              {creator.rateType ? <StatBox label="Rate Type" value={rateType} /> : null}
+              {creator.pastBrands.length > 0 ? <StatBox label="Past Brands" value={String(creator.pastBrands.length)} /> : null}
             </div>
             {creator.pastBrands.length > 0 ? (
               <div className="mt-5 flex flex-wrap gap-2">
@@ -225,7 +220,7 @@ export default async function CreatorProfilePage({ params }: { params: CreatorPr
                 ))}
               </div>
             ) : null}
-          </section>
+          </section> : null}
 
           <WorkingHistoryCard
             accountType="creator"
@@ -235,7 +230,7 @@ export default async function CreatorProfilePage({ params }: { params: CreatorPr
             className="bridge-card p-5"
           />
 
-          <section className="bridge-card p-5">
+          {creator.sampleWorkUrls.length > 0 ? <section className="bridge-card p-5">
             <div className="flex items-center gap-2">
               <Tags size={20} className="text-[var(--cyan)]" />
               <h2 className="font-display text-2xl font-bold">Sample Work</h2>
@@ -255,10 +250,8 @@ export default async function CreatorProfilePage({ params }: { params: CreatorPr
                   </Link>
                 ))}
               </div>
-            ) : (
-              <p className="mt-4 text-sm text-[var(--text-secondary)]">Sample work links will appear after the creator adds them.</p>
-            )}
-          </section>
+            ) : null}
+          </section> : null}
         </div>
 
         <aside className="space-y-4 lg:sticky lg:top-24 lg:self-start">

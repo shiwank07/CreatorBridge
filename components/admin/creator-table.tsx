@@ -116,6 +116,7 @@ export function CreatorTable({ creators }: CreatorTableProps) {
     const isHidden = creator.accountStatus === "hidden";
     const isSuspended = creator.accountStatus === "suspended";
     const isPending = verificationTone(creator.verificationStatus) === "yellow";
+    const isPublic = creator.accountStatus === "active" && !isRejected;
     const actions: { action: CreatorAction; label: string; icon: typeof BadgeCheck; className: string }[] = [
       ...(!isRejected
         ? [{ action: "reject_verification" as const, label: "Reject Verification", icon: XCircle, className: "border-red-900 text-red-200" }]
@@ -133,13 +134,13 @@ export function CreatorTable({ creators }: CreatorTableProps) {
 
     return (
       <div className="flex flex-nowrap items-start gap-2">
-        <Link
+        {isPublic ? <Link
           href={`/creators/${creator.username}`}
           className="bridge-action-button border-[var(--border)] text-[var(--text-secondary)]"
         >
           View
           <ExternalLink size={14} />
-        </Link>
+        </Link> : <span className="bridge-action-button cursor-not-allowed border-[var(--border)] text-[var(--text-muted)]" title={`Public profile unavailable: ${isRejected ? "verification rejected" : creator.accountStatus}`} aria-disabled="true">Not public <EyeOff size={14} /></span>}
         {isPending ? (
           <button
             type="button"

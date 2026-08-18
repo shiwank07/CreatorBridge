@@ -19,7 +19,7 @@ export async function getPublicMarketplaceStats(): Promise<PublicMarketplaceStat
   if (!hasMongoUri()) return EMPTY_STATS;
   try {
     await connectDB();
-    const publicUserFilter = { onboardingComplete: true, accountStatus: "active" as const };
+    const publicUserFilter = { accountStatus: "active" as const };
     const [creators, brands, collaborations] = await withServerTiming("homepage.statistics.query", () => Promise.all([
       User.countDocuments({ ...publicUserFilter, role: "creator" }).maxTimeMS(MONGO_QUERY_TIMEOUT_MS),
       User.countDocuments({ ...publicUserFilter, role: "brand" }).maxTimeMS(MONGO_QUERY_TIMEOUT_MS),

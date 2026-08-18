@@ -28,14 +28,6 @@ type BrandDocumentWithUser = {
   completionMissingFields?: string[];
 };
 
-export const BRAND_DISCOVERY_COMPLETENESS_FILTER: Record<string, unknown> = { $and: [
-  { companyName: { $type: "string", $regex: /\S/ } }, { contactName: { $type: "string", $regex: /\S/ } },
-  { contactRole: { $type: "string", $regex: /\S/ } }, { notes: { $type: "string", $regex: /\S.{48,}\S/ } },
-  { industry: { $type: "string", $regex: /\S/ } }, { companySize: { $type: "string", $regex: /\S/ } },
-  { country: { $type: "string", $regex: /\S/ } }, { $or: [{ website: /^https:\/\//i }, { businessSocialUrl: /^https:\/\//i }] },
-  { $or: [{ termsAccepted: true }, { termsAcceptedAt: { $type: "date" } }] },
-] };
-
 function mapBrand(doc: BrandDocumentWithUser): BrandProfileData {
   const user = doc.userId;
 
@@ -71,14 +63,14 @@ export async function getPublicBrands(limit = 6): Promise<BrandProfileData[]> {
   if (!hasMongoUri()) return [];
   try {
     await connectDB();
-    const profiles = await BrandProfile.find({ displayPublicly: true, ...BRAND_DISCOVERY_COMPLETENESS_FILTER })
+    const profiles = await BrandProfile.find({ displayPublicly: true })
       .select("_id userId companyName contactName contactRole website businessSocialUrl industry companySize country notes verificationStatus verificationNote companyRegistrationText createdAt displayPublicly phoneNumber phoneVerified profileComplete completionPercentage completionMissingFields")
       .sort({ verificationStatus: -1, updatedAt: -1 })
       .limit(Math.min(Math.max(limit, 1), 24))
       .maxTimeMS(MONGO_QUERY_TIMEOUT_MS)
       .populate({
         path: "userId",
-        match: { role: "brand", onboardingComplete: true, accountStatus: "active" },
+        match: { role: "brand", accountStatus: "active" },
         select: "username avatar isVerified emailVerified phoneVerified",
       })
       .lean()
@@ -97,17 +89,16 @@ export async function getBrandByUsername(username: string): Promise<BrandProfile
   try {
     await connectDB();
     const user = await User.findOne({
-      username: username.toLowerCase(),
+      username: username.trim().toLowerCase(),
       role: "brand",
-      onboardingComplete: true,
-      accountStatus: { $nin: ["hidden", "suspended"] },
+      accountStatus: "active",
     }).maxTimeMS(MONGO_QUERY_TIMEOUT_MS);
     if (!user) return null;
 
     const profile = await BrandProfile.findOne({ userId: user._id })
       .populate({
         path: "userId",
-        match: { role: "brand", onboardingComplete: true, accountStatus: { $nin: ["hidden", "suspended"] } },
+        match: { role: "brand", accountStatus: "active" },
       })
       .maxTimeMS(MONGO_QUERY_TIMEOUT_MS)
       .exec();
@@ -123,9 +114,9 @@ export async function getPublicBrandByUsername(username: string): Promise<BrandP
   if (!hasMongoUri()) return null;
   try {
     await connectDB();
-    const user = await User.findOne({ username: username.toLowerCase(), role: "brand", onboardingComplete: true, accountStatus: "active" }).lean();
+    const user = await User.findOne({ username: username.trim().toLowerCase(), role: "brand", accountStatus: "active" }).lean();
     if (!user) return null;
-    const profile = await BrandProfile.findOne({ userId: user._id, displayPublicly: true, ...BRAND_DISCOVERY_COMPLETENESS_FILTER }).lean();
+    const profile = await BrandProfile.findOne({ userId: user._id, displayPublicly: true }).lean();
     return profile ? mapBrand({ ...profile, userId: user } as unknown as BrandDocumentWithUser) : null;
   } catch { return null; }
 }

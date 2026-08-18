@@ -56,7 +56,7 @@ export function CreatorCard({ creator, viewerState, viewerRole, initialSaved = f
     creator.podcastUrl ? { label: "Podcast", icon: Radio } : null,
     hasCustomPlatform ? { label: customPlatformLabel, icon: Globe2 } : null,
   ].filter(Boolean) as { label: string; icon: typeof TvMinimalPlay }[];
-  const primaryPlatform = platforms[0]?.label ?? (platformDisplayName(creator.verificationPlatform, creator.customPlatformName) || "Platform not listed");
+  const primaryPlatform = platforms[0]?.label ?? platformDisplayName(creator.verificationPlatform, creator.customPlatformName);
   const topAccount = creator.platformAccounts?.find((account) => account.id === creator.topAudienceAccountId);
   const audienceLabel = topAccount ? `${topAccount.audienceType[0].toUpperCase()}${topAccount.audienceType.slice(1)}` : "Audience";
 
@@ -111,7 +111,7 @@ export function CreatorCard({ creator, viewerState, viewerRole, initialSaved = f
         </div>
 
         <div className="mt-5 flex flex-wrap gap-2">
-          <Badge tone="neutral">{primaryPlatform}</Badge>
+          {primaryPlatform ? <Badge tone="neutral">{primaryPlatform}</Badge> : null}
           {creator.niche.slice(0, 3).map((niche) => (
             <Badge key={niche} className="border-violet-300/20 bg-violet-400/10 text-violet-100">
               {niche}
@@ -122,16 +122,14 @@ export function CreatorCard({ creator, viewerState, viewerRole, initialSaved = f
           </Badge>
         </div>
 
-        <p className="mt-4 line-clamp-3 min-h-[4.5rem] text-sm leading-6 text-[var(--text-secondary)]">
-          {creator.bio}
-        </p>
+        {creator.bio ? <p className="mt-4 line-clamp-3 text-sm leading-6 text-[var(--text-secondary)]">{creator.bio}</p> : null}
 
         <div className="mt-5 grid grid-cols-2 gap-2">
           {[
-            { label: `Top ${audienceLabel}`, value: formatNumber(subscriberCount) },
+            ...(subscriberCount > 0 ? [{ label: `Top ${audienceLabel}`, value: formatNumber(subscriberCount) }] : []),
             ...(averageViews > 0 ? [{ label: "Avg Views", value: formatNumber(averageViews) }] : []),
             ...(engagement > 0 ? [{ label: "Engagement", value: `${engagement.toFixed(1)}%` }] : []),
-            { label: creator.pricingChoice === "contact_for_pricing" ? "Pricing" : "Starting Price", value: creator.pricingChoice === "contact_for_pricing" ? "Contact for pricing" : formatINR(creator.sponsorshipRate ?? 0) },
+            ...(creator.pricingChoice === "contact_for_pricing" ? [{ label: "Pricing", value: "Contact for pricing" }] : creator.sponsorshipRate && creator.sponsorshipRate > 0 ? [{ label: "Starting Price", value: formatINR(creator.sponsorshipRate) }] : []),
           ].map((stat) => (
             <div key={stat.label} className="min-w-0 rounded-[8px] bg-white/[0.04] p-3.5">
               <p className="break-words font-mono text-base font-bold text-white">
@@ -143,14 +141,14 @@ export function CreatorCard({ creator, viewerState, viewerRole, initialSaved = f
         </div>
 
         <div className="mt-4 grid gap-2 text-sm text-[var(--text-secondary)]">
-          <div className="flex min-w-0 items-center gap-2">
+          {creator.languages.length > 0 ? <div className="flex min-w-0 items-center gap-2">
             <Languages size={15} className="shrink-0 text-cyan-200" />
             <span className="truncate">{creator.languages.slice(0, 3).join(", ")}</span>
-          </div>
-          <div className="flex min-w-0 items-center gap-2">
+          </div> : null}
+          {creator.country ? <div className="flex min-w-0 items-center gap-2">
             <Globe2 size={15} className="shrink-0 text-violet-200" />
             <span className="truncate">{creator.country}</span>
-          </div>
+          </div> : null}
         </div>
 
         <div className="mt-5 grid gap-2">

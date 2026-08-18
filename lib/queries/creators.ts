@@ -14,6 +14,7 @@ import { isConfiguredAdminId } from "@/lib/clerk-navigation-metadata";
 import { deriveAudience, legacyPlatformAccounts, type CreatorPlatformAccount, type PlatformKind } from "@/lib/creator-platforms";
 
 const CREATOR_PUBLIC_USER_SELECT = "_id username name avatar isFeatured isVerified emailVerified phoneNumber phoneVerified";
+export const CREATOR_PUBLIC_PROFILE_FILTER: Record<string, unknown> = { verificationStatus: { $ne: "rejected" } };
 const CREATOR_PUBLIC_PROFILE_SELECT = [
   "_id", "userId", "bio", "phoneNumber", "phoneVerified", "niche", "country", "languages", "youtubeUrl", "youtubeHandle",
   "instagramUrl", "podcastUrl", "subscribers", "claimedSubscribers", "verifiedSubscribers", "claimedAverageViews",
@@ -21,17 +22,6 @@ const CREATOR_PUBLIC_PROFILE_SELECT = [
   "verificationPlatform", "customPlatformName", "verificationProfileUrl", "avgViews", "instagramFollowers", "sponsorshipRate",
   "pricingChoice", "rateType", "pastBrands", "sampleWorkUrls", "isOpenToDeals", "availabilityStatus", "verifiedAt", "lastVerifiedAt", "createdAt", "platformAccounts", "topAudienceCount", "topAudienceAccountId", "topAudiencePlatform", "topVerifiedAudienceCount", "topVerifiedAudiencePlatform", "foundingCreator", "profileComplete", "completionPercentage", "completionMissingFields",
 ].join(" ");
-
-// Never trust profileComplete alone: these minimum fields are required for both
-// persisted-completion and legacy records that predate the metadata field.
-export const CREATOR_DISCOVERY_COMPLETENESS_FILTER: Record<string, unknown> = { $and: [
-  { bio: { $type: "string", $regex: /\S.{48,}\S/ } }, { niche: { $exists: true, $ne: [] } },
-  { languages: { $exists: true, $ne: [] } }, { country: { $type: "string", $regex: /\S/ } },
-  { availabilityStatus: { $in: ["open_to_deals", "limited_availability", "unavailable", "closed"] } },
-  { platformAccounts: { $elemMatch: { id: { $type: "string", $ne: "" }, profileUrl: /^https:\/\//i, audienceCount: { $gt: 0 }, isPrimary: true } } },
-  { platformAccounts: { $not: { $elemMatch: { audienceCount: { $lte: 0 } } } } },
-  { $or: [{ pricingChoice: "contact_for_pricing" }, { sponsorshipRate: { $gt: 0 } }] },
-] };
 
 export type CreatorFilters = {
   search?: string;
@@ -549,7 +539,7 @@ export async function getCreatorDiscoveryPage(filters: CreatorDiscoveryFilters =
     await connectDB();
     const pageSize = Math.min(Math.max(filters.pageSize ?? 20, 1), 24);
     const requestedPage = Math.max(filters.page ?? 1, 1);
-    const profileMatch: Record<string, unknown>[] = [CREATOR_DISCOVERY_COMPLETENESS_FILTER];
+    const profileMatch: Record<string, unknown>[] = [CREATOR_PUBLIC_PROFILE_FILTER];
     const postLookupMatch: Record<string, unknown>[] = [];
     const search = filters.search?.trim();
     if (search) {
@@ -597,7 +587,7 @@ export async function getCreatorDiscoveryPage(filters: CreatorDiscoveryFilters =
       ...(profileMatch.length ? [{ $match: { $and: profileMatch } } as PipelineStage.Match] : []),
       { $lookup: { from: "users", localField: "userId", foreignField: "_id", as: "user" } },
       { $unwind: "$user" },
-      { $match: { "user.role": "creator", "user.onboardingComplete": true, "user.accountStatus": "active", "user.avatar": { $type: "string", $ne: "" }, "user.name": { $type: "string", $ne: "" } } },
+      { $match: { "user.role": "creator", "user.accountStatus": "active" } },
       { $addFields: {
         publicAudience: { $ifNull: ["$topAudienceCount", { $max: [{ $ifNull: ["$claimedSubscribers", { $ifNull: ["$subscribers", 0] }] }, { $ifNull: ["$instagramFollowers", 0] }] }] },
         publicVerifiedAudience: { $ifNull: ["$topVerifiedAudienceCount", { $cond: [{ $in: ["$verificationStatus", ["verified", "ownership_verified", "stats_verified"]] }, { $ifNull: ["$verifiedSubscribers", { $ifNull: ["$claimedSubscribers", 0] }] }, 0] }] },
@@ -656,8 +646,8 @@ export async function getSavedCreatorsForBrand(brandUserId: string): Promise<Cre
   await connectDB();
   const saved = await SavedCreator.find({ brandUserId }).sort({ createdAt: -1 }).select("creatorUserId").lean();
   const order = new Map(saved.map((entry, index) => [entry.creatorUserId.toString(), index]));
-  const profiles = await CreatorProfile.find({ userId: { $in: saved.map((entry) => entry.creatorUserId) }, ...CREATOR_DISCOVERY_COMPLETENESS_FILTER })
-    .populate({ path: "userId", match: { role: "creator", onboardingComplete: true, accountStatus: "active" } })
+  const profiles = await CreatorProfile.find({ userId: { $in: saved.map((entry) => entry.creatorUserId) }, ...CREATOR_PUBLIC_PROFILE_FILTER })
+    .populate({ path: "userId", match: { role: "creator", accountStatus: "active" } })
     .exec();
   return profiles
     .filter((profile) => Boolean(profile.userId))
@@ -672,7 +662,7 @@ export async function getCreators(filters: CreatorFilters = {}): Promise<Creator
     await connectDB();
 
     const profileQuery: Record<string, unknown> = {};
-    const andClauses: Record<string, unknown>[] = [CREATOR_DISCOVERY_COMPLETENESS_FILTER];
+    const andClauses: Record<string, unknown>[] = [CREATOR_PUBLIC_PROFILE_FILTER];
 
     if (filters.niche) andClauses.push({ niche: filters.niche });
     if (filters.country) andClauses.push({ country: new RegExp(`^${filters.country}$`, "i") });
@@ -693,7 +683,7 @@ export async function getCreators(filters: CreatorFilters = {}): Promise<Creator
     if (filters.search) {
       const regex = new RegExp(escapeRegex(filters.search.trim()), "i");
       const users = await User.find({
-        accountStatus: { $nin: ["hidden", "suspended"] },
+        accountStatus: "active",
         $or: [{ name: regex }, { username: regex }],
       })
         .select("_id")
@@ -710,7 +700,7 @@ export async function getCreators(filters: CreatorFilters = {}): Promise<Creator
       .select(CREATOR_PUBLIC_PROFILE_SELECT)
       .populate({
         path: "userId",
-        match: { role: "creator", onboardingComplete: true, accountStatus: { $nin: ["hidden", "suspended"] }, avatar: { $ne: "" } },
+        match: { role: "creator", accountStatus: "active" },
         select: CREATOR_PUBLIC_USER_SELECT,
       })
       .limit(Math.max(filters.limit ?? 24, 100))
@@ -734,25 +724,25 @@ export async function getFeaturedCreators(limit = 6) {
 }
 
 export async function getCreatorByUsername(username: string): Promise<CreatorCardData | null> {
+  const normalizedUsername = username.trim().toLowerCase();
   if (!hasMongoUri()) {
-    return demoCreators.find((creator) => creator.username === username) ?? null;
+    return demoCreators.find((creator) => creator.username === normalizedUsername) ?? null;
   }
 
   try {
     await connectDB();
     const profile = await withServerTiming("creator-profile.query", async () => {
       const user = await User.findOne({
-        username: username.toLowerCase(),
+        username: normalizedUsername,
         role: "creator",
-        onboardingComplete: true,
-        accountStatus: { $nin: ["hidden", "suspended"] },
+        accountStatus: "active",
       })
         .select(CREATOR_PUBLIC_USER_SELECT)
         .maxTimeMS(MONGO_QUERY_TIMEOUT_MS)
         .lean()
         .exec();
       if (!user) return null;
-      const publicProfile = await CreatorProfile.findOne({ userId: user._id, ...CREATOR_DISCOVERY_COMPLETENESS_FILTER })
+      const publicProfile = await CreatorProfile.findOne({ userId: user._id, ...CREATOR_PUBLIC_PROFILE_FILTER })
         .select(CREATOR_PUBLIC_PROFILE_SELECT)
         .maxTimeMS(MONGO_QUERY_TIMEOUT_MS)
         .lean()
@@ -768,25 +758,25 @@ export async function getCreatorByUsername(username: string): Promise<CreatorCar
 }
 
 export async function getCreatorPrivateProfileByUsername(username: string): Promise<CreatorPrivateProfileData | null> {
+  const normalizedUsername = username.trim().toLowerCase();
   if (!hasMongoUri()) {
-    const creator = demoCreators.find((item) => item.username === username);
+    const creator = demoCreators.find((item) => item.username === normalizedUsername);
     return creator ? { ...creator } : null;
   }
 
   try {
     await connectDB();
     const user = await User.findOne({
-      username: username.toLowerCase(),
+      username: normalizedUsername,
       role: "creator",
-      onboardingComplete: true,
-      accountStatus: { $nin: ["hidden", "suspended"] },
+      accountStatus: "active",
     });
     if (!user) return null;
 
     const profile = await CreatorProfile.findOne({ userId: user._id })
       .populate({
         path: "userId",
-        match: { role: "creator", onboardingComplete: true, accountStatus: { $nin: ["hidden", "suspended"] } },
+        match: { role: "creator", accountStatus: "active" },
       })
       .exec();
     if (!profile) return null;
