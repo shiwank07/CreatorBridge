@@ -19,8 +19,19 @@ const CREATOR_PUBLIC_PROFILE_SELECT = [
   "instagramUrl", "podcastUrl", "subscribers", "claimedSubscribers", "verifiedSubscribers", "claimedAverageViews",
   "verifiedAverageViews", "claimedEngagementRate", "verifiedEngagementRate", "statsVerificationStatus", "verificationStatus",
   "verificationPlatform", "customPlatformName", "verificationProfileUrl", "avgViews", "instagramFollowers", "sponsorshipRate",
-  "rateType", "pastBrands", "sampleWorkUrls", "isOpenToDeals", "availabilityStatus", "verifiedAt", "lastVerifiedAt", "createdAt", "platformAccounts", "topAudienceCount", "topAudienceAccountId", "topAudiencePlatform", "topVerifiedAudienceCount", "topVerifiedAudiencePlatform", "foundingCreator",
+  "pricingChoice", "rateType", "pastBrands", "sampleWorkUrls", "isOpenToDeals", "availabilityStatus", "verifiedAt", "lastVerifiedAt", "createdAt", "platformAccounts", "topAudienceCount", "topAudienceAccountId", "topAudiencePlatform", "topVerifiedAudienceCount", "topVerifiedAudiencePlatform", "foundingCreator", "profileComplete", "completionPercentage", "completionMissingFields",
 ].join(" ");
+
+// Never trust profileComplete alone: these minimum fields are required for both
+// persisted-completion and legacy records that predate the metadata field.
+export const CREATOR_DISCOVERY_COMPLETENESS_FILTER: Record<string, unknown> = { $and: [
+  { bio: { $type: "string", $regex: /\S.{48,}\S/ } }, { niche: { $exists: true, $ne: [] } },
+  { languages: { $exists: true, $ne: [] } }, { country: { $type: "string", $regex: /\S/ } },
+  { availabilityStatus: { $in: ["open_to_deals", "limited_availability", "unavailable", "closed"] } },
+  { platformAccounts: { $elemMatch: { id: { $type: "string", $ne: "" }, profileUrl: /^https:\/\//i, audienceCount: { $gt: 0 }, isPrimary: true } } },
+  { platformAccounts: { $not: { $elemMatch: { audienceCount: { $lte: 0 } } } } },
+  { $or: [{ pricingChoice: "contact_for_pricing" }, { sponsorshipRate: { $gt: 0 } }] },
+] };
 
 export type CreatorFilters = {
   search?: string;
@@ -93,6 +104,7 @@ type CreatorDocumentWithUser = {
   avgViews?: number;
   instagramFollowers?: number;
   sponsorshipRate?: number;
+  pricingChoice?: "starting_price" | "contact_for_pricing";
   rateType?: "per_video" | "per_post" | "per_campaign";
   pastBrands?: string[];
   sampleWorkUrls?: string[];
@@ -372,6 +384,7 @@ function mapCreator(doc: CreatorDocumentWithUser, options?: { includePrivatePaym
     avgViews: getPublicAverageViews(subscriberSnapshot),
     instagramFollowers: doc.instagramFollowers,
     sponsorshipRate: doc.sponsorshipRate,
+    pricingChoice: doc.pricingChoice ?? (Number(doc.sponsorshipRate) > 0 ? "starting_price" : undefined),
     rateType: doc.rateType,
     pastBrands: doc.pastBrands ?? [],
     sampleWorkUrls: doc.sampleWorkUrls ?? [],
@@ -536,7 +549,7 @@ export async function getCreatorDiscoveryPage(filters: CreatorDiscoveryFilters =
     await connectDB();
     const pageSize = Math.min(Math.max(filters.pageSize ?? 20, 1), 24);
     const requestedPage = Math.max(filters.page ?? 1, 1);
-    const profileMatch: Record<string, unknown>[] = [];
+    const profileMatch: Record<string, unknown>[] = [CREATOR_DISCOVERY_COMPLETENESS_FILTER];
     const postLookupMatch: Record<string, unknown>[] = [];
     const search = filters.search?.trim();
     if (search) {
@@ -584,7 +597,7 @@ export async function getCreatorDiscoveryPage(filters: CreatorDiscoveryFilters =
       ...(profileMatch.length ? [{ $match: { $and: profileMatch } } as PipelineStage.Match] : []),
       { $lookup: { from: "users", localField: "userId", foreignField: "_id", as: "user" } },
       { $unwind: "$user" },
-      { $match: { "user.role": "creator", "user.onboardingComplete": true, "user.accountStatus": "active" } },
+      { $match: { "user.role": "creator", "user.onboardingComplete": true, "user.accountStatus": "active", "user.avatar": { $type: "string", $ne: "" }, "user.name": { $type: "string", $ne: "" } } },
       { $addFields: {
         publicAudience: { $ifNull: ["$topAudienceCount", { $max: [{ $ifNull: ["$claimedSubscribers", { $ifNull: ["$subscribers", 0] }] }, { $ifNull: ["$instagramFollowers", 0] }] }] },
         publicVerifiedAudience: { $ifNull: ["$topVerifiedAudienceCount", { $cond: [{ $in: ["$verificationStatus", ["verified", "ownership_verified", "stats_verified"]] }, { $ifNull: ["$verifiedSubscribers", { $ifNull: ["$claimedSubscribers", 0] }] }, 0] }] },
@@ -598,7 +611,7 @@ export async function getCreatorDiscoveryPage(filters: CreatorDiscoveryFilters =
         instagramUrl: 1, podcastUrl: 1, subscribers: 1, claimedSubscribers: 1, verifiedSubscribers: 1,
         claimedAverageViews: 1, verifiedAverageViews: 1, claimedEngagementRate: 1, verifiedEngagementRate: 1,
         statsVerificationStatus: 1, verificationStatus: 1, verificationPlatform: 1, customPlatformName: 1,
-        verificationProfileUrl: 1, avgViews: 1, instagramFollowers: 1, sponsorshipRate: 1, rateType: 1,
+        verificationProfileUrl: 1, avgViews: 1, instagramFollowers: 1, sponsorshipRate: 1, pricingChoice: 1, rateType: 1,
         pastBrands: 1, sampleWorkUrls: 1, isOpenToDeals: 1, availabilityStatus: 1, verifiedAt: 1,
         lastVerifiedAt: 1, createdAt: 1, publicSubscribers: 1, publicAudience: 1, publicVerifiedAudience: 1, publicAverageViews: 1, publicEngagement: 1, platformAccounts: 1, topAudienceCount: 1, topAudienceAccountId: 1, topAudiencePlatform: 1, topVerifiedAudienceCount: 1, topVerifiedAudiencePlatform: 1, foundingCreator: 1,
         "user._id": 1, "user.username": 1, "user.name": 1, "user.avatar": 1, "user.isFeatured": 1,
@@ -643,7 +656,7 @@ export async function getSavedCreatorsForBrand(brandUserId: string): Promise<Cre
   await connectDB();
   const saved = await SavedCreator.find({ brandUserId }).sort({ createdAt: -1 }).select("creatorUserId").lean();
   const order = new Map(saved.map((entry, index) => [entry.creatorUserId.toString(), index]));
-  const profiles = await CreatorProfile.find({ userId: { $in: saved.map((entry) => entry.creatorUserId) } })
+  const profiles = await CreatorProfile.find({ userId: { $in: saved.map((entry) => entry.creatorUserId) }, ...CREATOR_DISCOVERY_COMPLETENESS_FILTER })
     .populate({ path: "userId", match: { role: "creator", onboardingComplete: true, accountStatus: "active" } })
     .exec();
   return profiles
@@ -659,7 +672,7 @@ export async function getCreators(filters: CreatorFilters = {}): Promise<Creator
     await connectDB();
 
     const profileQuery: Record<string, unknown> = {};
-    const andClauses: Record<string, unknown>[] = [];
+    const andClauses: Record<string, unknown>[] = [CREATOR_DISCOVERY_COMPLETENESS_FILTER];
 
     if (filters.niche) andClauses.push({ niche: filters.niche });
     if (filters.country) andClauses.push({ country: new RegExp(`^${filters.country}$`, "i") });
@@ -697,7 +710,7 @@ export async function getCreators(filters: CreatorFilters = {}): Promise<Creator
       .select(CREATOR_PUBLIC_PROFILE_SELECT)
       .populate({
         path: "userId",
-        match: { role: "creator", onboardingComplete: true, accountStatus: { $nin: ["hidden", "suspended"] } },
+        match: { role: "creator", onboardingComplete: true, accountStatus: { $nin: ["hidden", "suspended"] }, avatar: { $ne: "" } },
         select: CREATOR_PUBLIC_USER_SELECT,
       })
       .limit(Math.max(filters.limit ?? 24, 100))
@@ -739,7 +752,7 @@ export async function getCreatorByUsername(username: string): Promise<CreatorCar
         .lean()
         .exec();
       if (!user) return null;
-      const publicProfile = await CreatorProfile.findOne({ userId: user._id })
+      const publicProfile = await CreatorProfile.findOne({ userId: user._id, ...CREATOR_DISCOVERY_COMPLETENESS_FILTER })
         .select(CREATOR_PUBLIC_PROFILE_SELECT)
         .maxTimeMS(MONGO_QUERY_TIMEOUT_MS)
         .lean()

@@ -49,16 +49,16 @@ function displayUrl(url: string) {
   }
 }
 
-function statNumberLabel(value?: number | null, fallback = "Stats pending") {
-  return value && value > 0 ? formatNumber(value) : fallback;
+function statNumberLabel(value?: number | null) {
+  return formatNumber(value ?? 0);
 }
 
-function priceLabel(value?: number | null) {
-  return value && value > 0 ? formatINR(value) : "Pricing not set";
+function priceLabel(value?: number | null, contactForPricing = false) {
+  return contactForPricing ? "Contact for pricing" : formatINR(value ?? 0);
 }
 
 function percentLabel(value?: number | null) {
-  return value && value > 0 ? `${value.toFixed(1)}%` : "Stats pending";
+  return `${(value ?? 0).toFixed(1)}%`;
 }
 
 function dateLabel(value?: string) {
@@ -173,25 +173,25 @@ export default async function CreatorProfilePage({ params }: { params: CreatorPr
             <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
               <StatBox
                 label={`Top platform audience${creator.topAudiencePlatform ? ` · ${PLATFORM_DEFINITIONS[creator.topAudiencePlatform].label}` : ""}`}
-                value={statNumberLabel(publicSubscriberCount, "Not added yet")}
+                value={statNumberLabel(publicSubscriberCount)}
                 muted={publicSubscriberCount <= 0}
               />
-              <StatBox label="Avg Views" value={statNumberLabel(publicAverageViews)} muted={publicAverageViews <= 0} />
-              <StatBox label="Engagement" value={percentLabel(publicEngagementRate)} muted={publicEngagementRate <= 0} />
-              <StatBox label="Verified audience" value={statNumberLabel(creator.topVerifiedAudienceCount, "None verified") } muted={!creator.topVerifiedAudienceCount} />
+              {publicAverageViews > 0 ? <StatBox label="Avg Views" value={statNumberLabel(publicAverageViews)} /> : null}
+              {publicEngagementRate > 0 ? <StatBox label="Engagement" value={percentLabel(publicEngagementRate)} /> : null}
+              {creator.topVerifiedAudienceCount && creator.topVerifiedAudienceCount > 0 ? <StatBox label="Verified audience" value={statNumberLabel(creator.topVerifiedAudienceCount)} /> : null}
             </div>
           </section>
 
           <section className="bridge-card p-5">
             <h2 className="font-display text-2xl font-bold">About</h2>
             <p className="mt-4 text-sm leading-7 text-[var(--text-secondary)]">
-              {creator.bio || "This creator is still polishing their profile details."}
+              {creator.bio}
             </p>
             <div className="mt-5 grid gap-3 sm:grid-cols-3">
               <div className="bridge-panel p-3">
                 <MapPin size={16} className="text-[var(--cyan)]" />
                 <p className="mt-2 text-xs text-[var(--text-secondary)]">Country</p>
-                <p className="mt-1 font-semibold">{creator.country || "Not listed"}</p>
+                <p className="mt-1 font-semibold">{creator.country}</p>
               </div>
               <div className="bridge-panel p-3 sm:col-span-2">
                 <Languages size={16} className="text-[var(--cyan)]" />
@@ -203,9 +203,7 @@ export default async function CreatorProfilePage({ params }: { params: CreatorPr
                         {language}
                       </Badge>
                     ))
-                  ) : (
-                    <span className="text-sm text-[var(--text-secondary)]">Not listed</span>
-                  )}
+                  ) : null}
                 </div>
               </div>
             </div>
@@ -214,7 +212,7 @@ export default async function CreatorProfilePage({ params }: { params: CreatorPr
           <section className="bridge-card p-5">
             <h2 className="font-display text-2xl font-bold">Sponsorship Info</h2>
             <div className="mt-5 grid gap-3 sm:grid-cols-3">
-              <StatBox label="Base Rate" value={priceLabel(creator.sponsorshipRate)} muted={!creator.sponsorshipRate} />
+              <StatBox label={creator.pricingChoice === "contact_for_pricing" ? "Pricing" : "Starting Price"} value={priceLabel(creator.sponsorshipRate, creator.pricingChoice === "contact_for_pricing")} />
               <StatBox label="Rate Type" value={rateType} />
               <StatBox label="Past Brands" value={String(creator.pastBrands.length)} />
             </div>

@@ -3,6 +3,7 @@ import mongoose from "mongoose";
 import { connectDB, hasMongoUri } from "@/lib/db";
 import { BrandInquiry } from "@/lib/models/BrandInquiry";
 import { BrandProfile } from "@/lib/models/BrandProfile";
+import { evaluateBrandProfileCompleteness, evaluateCreatorProfileCompleteness } from "@/lib/profile-completion";
 import { CreatorProfile } from "@/lib/models/CreatorProfile";
 import { EmailNotification } from "@/lib/models/EmailNotification";
 import { User } from "@/lib/models/User";
@@ -172,6 +173,7 @@ type AdminCreatorDocument = {
   topAudienceCount?: number;
   topVerifiedAudienceCount?: number;
   foundingCreator?: { number: number; status: "active" | "revoked" };
+  [key: string]: unknown;
 };
 
 type AdminBrandDocument = {
@@ -181,6 +183,7 @@ type AdminBrandDocument = {
     companyName?: string;
     contactEmail?: string;
     verificationStatus?: BrandVerificationData["verificationStatus"];
+    [key: string]: unknown;
   };
   name: string;
   username: string;
@@ -419,6 +422,7 @@ function mapAdminCreator(doc: AdminCreatorDocument): AdminCreatorData {
     username: user.username,
     email: user.email,
     verificationStatus: doc.verificationStatus ?? (user.isVerified ? "verified" : "unverified"),
+    profileStatus: evaluateCreatorProfileCompleteness(doc as unknown as Record<string, unknown>, user as unknown as Record<string, unknown>).isComplete ? "complete" : "incomplete",
     accountStatus: accountStatus(user),
     joinedDate: user.createdAt?.toISOString() ?? doc.createdAt?.toISOString(),
     platformAccounts: doc.platformAccounts ?? [],
@@ -439,7 +443,7 @@ function mapAdminBrand(doc: AdminBrandDocument): AdminBrandData {
     username: doc.username,
     email: doc.email,
     verificationStatus: profile?.verificationStatus ?? (doc.isVerified ? "verified" : "unverified"),
-    profileStatus: doc.onboardingComplete && profile ? "complete" : "incomplete",
+    profileStatus: profile && evaluateBrandProfileCompleteness(profile as unknown as Record<string, unknown>, doc as unknown as Record<string, unknown>).isComplete ? "complete" : "incomplete",
     accountStatus: accountStatus(doc),
     collaborationCount: doc.collaborationCount ?? 0,
     joinedDate: doc.createdAt?.toISOString(),
@@ -754,7 +758,7 @@ export async function getAdminCreatorsPage(filters: AdminPageFilters = {}): Prom
     const data = demoCreators.map((creator) => ({
       userId: creator.id, profileId: creator.id, avatar: creator.avatar, name: creator.name,
       username: creator.username, email: `${creator.username}@example.com`,
-      verificationStatus: creator.verificationStatus, accountStatus: "active" as const, joinedDate: creator.createdAt,
+      verificationStatus: creator.verificationStatus, profileStatus: "complete" as const, accountStatus: "active" as const, joinedDate: creator.createdAt,
     }));
     const normalized = normalizePageRequest(filters, data.length);
     return pageResult(data.slice(normalized.skip, normalized.skip + normalized.limit), filters, data.length);

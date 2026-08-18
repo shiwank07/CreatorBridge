@@ -98,7 +98,7 @@ export default async function OnboardingPage({ searchParams }: { searchParams: O
       {selectedRole === "creator" ? (
         <CreatorOnboardingForm initialName={fallbackName} initialUsername={initialUsername} initialAvatar={clerkUser.imageUrl} />
       ) : selectedRole === "brand" ? (
-        <BrandOnboardingForm initialContactName={fallbackName} initialEmail={email} />
+        <BrandOnboardingForm initialContactName={fallbackName} initialEmail={email} initialUsername={initialUsername} />
       ) : null}
       </main>
     </>

@@ -90,6 +90,7 @@ export type CreatorCardData = {
   avgViews?: number;
   instagramFollowers?: number;
   sponsorshipRate?: number;
+  pricingChoice?: "starting_price" | "contact_for_pricing";
   rateType?: "per_video" | "per_post" | "per_campaign";
   pastBrands: string[];
   sampleWorkUrls: string[];
@@ -145,6 +146,7 @@ export type BrandProfileData = {
   contactRole?: string;
   contactEmail?: string;
   website?: string;
+  businessSocialUrl?: string;
   industry: string;
   companySize?: string;
   country?: string;
@@ -157,6 +159,9 @@ export type BrandProfileData = {
   phoneVerified?: boolean;
   createdAt?: string;
   displayPublicly?: boolean;
+  profileComplete?: boolean;
+  completionPercentage?: number;
+  completionMissingFields?: string[];
 };
 
 export type BrandVerificationData = BrandProfileData & {
@@ -288,6 +293,7 @@ export type AdminCreatorData = {
   username: string;
   email: string;
   verificationStatus: VerificationStatus;
+  profileStatus: "complete" | "incomplete";
   accountStatus: AccountStatus;
   joinedDate?: string;
   platformAccounts?: CreatorPlatformAccount[];

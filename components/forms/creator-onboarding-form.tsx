@@ -41,6 +41,7 @@ type CreatorOnboardingFormProps = {
     instagramFollowers?: string;
     podcastUrl?: string;
     sponsorshipRate?: string;
+    pricingChoice?: "starting_price" | "contact_for_pricing";
     rateType?: "per_video" | "per_post" | "per_campaign";
     pastBrandsText?: string;
     sampleWorkText?: string;
@@ -76,6 +77,7 @@ type FormState = {
   instagramFollowers: string;
   podcastUrl: string;
   sponsorshipRate: string;
+  pricingChoice: "starting_price" | "contact_for_pricing";
   rateType: "per_video" | "per_post" | "per_campaign";
   pastBrandsText: string;
   sampleWorkText: string;
@@ -102,6 +104,7 @@ export function CreatorOnboardingForm({
   const { user } = useUser();
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState("");
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string[]>>({});
   const [success, setSuccess] = useState("");
   const legacyAccounts: PlatformAccountDraft[] = initialValues?.platformAccounts?.map((account) => ({ ...account, customPlatformName: account.customPlatformName ?? "", handle: account.handle ?? "", audienceCount: String(account.audienceCount), averageViews: account.averageViews ? String(account.averageViews) : "", engagementRate: account.engagementRate ? String(account.engagementRate) : "" })) ?? [];
   const [platformAccounts, setPlatformAccounts] = useState<PlatformAccountDraft[]>(legacyAccounts.length ? legacyAccounts : [emptyPlatformAccount(INITIAL_PLATFORM_ACCOUNT_DRAFT_ID, true)]);
@@ -123,6 +126,7 @@ export function CreatorOnboardingForm({
     instagramFollowers: initialValues?.instagramFollowers ?? "",
     podcastUrl: initialValues?.podcastUrl ?? "",
     sponsorshipRate: initialValues?.sponsorshipRate ?? "",
+    pricingChoice: initialValues?.pricingChoice ?? (initialValues?.sponsorshipRate ? "starting_price" : "contact_for_pricing"),
     rateType: initialValues?.rateType ?? "per_video",
     pastBrandsText: initialValues?.pastBrandsText ?? "",
     sampleWorkText: initialValues?.sampleWorkText ?? "",
@@ -150,6 +154,7 @@ export function CreatorOnboardingForm({
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError("");
+    setFieldErrors({});
     setSuccess("");
     setIsSaving(true);
 
@@ -172,6 +177,7 @@ export function CreatorOnboardingForm({
       instagramFollowers: Number(form.instagramFollowers || 0),
       podcastUrl: form.podcastUrl,
       sponsorshipRate: Number(form.sponsorshipRate || 0),
+      pricingChoice: form.pricingChoice,
       rateType: form.rateType,
       pastBrands: splitList(form.pastBrandsText),
       sampleWorkUrls: splitList(form.sampleWorkText),
@@ -190,6 +196,9 @@ export function CreatorOnboardingForm({
 
       if (!response.ok) {
         setError(result.error ?? "Could not save your creator profile.");
+        setFieldErrors(result.fieldErrors ?? {});
+        const firstField = Object.keys(result.fieldErrors ?? {})[0];
+        if (firstField) window.requestAnimationFrame(() => document.querySelector<HTMLElement>(`[name="${firstField}"]`)?.focus());
         return;
       }
 
@@ -207,8 +216,9 @@ export function CreatorOnboardingForm({
   return (
     <form onSubmit={onSubmit} aria-busy={isSaving} className="space-y-6">
       {error ? (
-        <div role="alert" className="rounded-[8px] border border-red-900 bg-red-950/40 px-4 py-3 text-sm text-red-200">
-          {error}
+        <div role="alert" aria-live="assertive" className="rounded-[8px] border border-red-900 bg-red-950/40 px-4 py-3 text-sm text-red-200">
+          <p className="font-semibold">{error}</p>
+          {Object.keys(fieldErrors).length ? <ul className="mt-2 list-disc space-y-1 pl-5">{Object.entries(fieldErrors).flatMap(([key, messages]) => messages.map((message) => <li key={`${key}-${message}`}>{message}</li>))}</ul> : null}
         </div>
       ) : null}
       {success ? (
@@ -223,11 +233,12 @@ export function CreatorOnboardingForm({
         <div className="mt-5 grid gap-4 lg:grid-cols-2">
           <label>
             <span className="bridge-label">Creator name</span>
-            <input value={form.name} onChange={(event) => setField("name", event.target.value)} className="bridge-input mt-2" required />
+            <input name="name" value={form.name} onChange={(event) => setField("name", event.target.value)} className="bridge-input mt-2" required />
           </label>
           <label>
             <span className="bridge-label">Username</span>
             <input
+              name="username"
               value={form.username}
               onChange={(event) => setField("username", event.target.value.toLowerCase().replace(/[^a-z0-9]/g, ""))}
               className="bridge-input mt-2"
@@ -243,6 +254,7 @@ export function CreatorOnboardingForm({
           <label className="lg:col-span-2">
             <span className="bridge-label">Bio</span>
             <textarea
+              name="bio"
               value={form.bio}
               onChange={(event) => setField("bio", event.target.value)}
               className="bridge-input mt-2 min-h-32"
@@ -276,18 +288,18 @@ export function CreatorOnboardingForm({
         <div className="mt-5 grid gap-4 lg:grid-cols-2">
           <label>
             <span className="bridge-label">Country</span>
-            <input value={form.country} onChange={(event) => setField("country", event.target.value)} className="bridge-input mt-2" required />
+            <input name="country" value={form.country} onChange={(event) => setField("country", event.target.value)} className="bridge-input mt-2" required />
           </label>
           <label>
             <span className="bridge-label">Languages</span>
-            <input value={form.languagesText} onChange={(event) => setField("languagesText", event.target.value)} className="bridge-input mt-2" />
+            <input name="languages" value={form.languagesText} onChange={(event) => setField("languagesText", event.target.value)} className="bridge-input mt-2" />
           </label>
         </div>
       </section>
 
       <section className="bridge-card min-w-0 p-5">
         <h2 className="font-display text-xl font-bold">Platform accounts</h2>
-        <p className="mt-2 text-sm text-[var(--text-secondary)]">Add every account you want brands to see. Your largest single account becomes the headline audience.</p>
+        <p id="platform-help" className="mt-2 text-sm text-[var(--text-secondary)]">Add at least one public HTTPS profile URL and its positive audience count so brands can evaluate reach. YouTube is not required.</p>
         <div className="mt-5 space-y-4">
           {platformAccounts.map((account, index) => {
             const definition = PLATFORM_DEFINITIONS[account.platform];
@@ -297,10 +309,10 @@ export function CreatorOnboardingForm({
               <div className="grid min-w-0 gap-4 sm:grid-cols-2">
                 <label><span className="bridge-label">Platform</span><select aria-label={`Platform for account ${index + 1}`} value={account.platform} onChange={(event) => { const platform = event.target.value as PlatformKind; update({ platform, audienceType: PLATFORM_DEFINITIONS[platform].audienceType, customPlatformName: platform === "other" ? account.customPlatformName : "" }); }} className="bridge-input mt-2">{PLATFORM_KINDS.map((platform) => <option key={platform} value={platform}>{PLATFORM_DEFINITIONS[platform].label}</option>)}</select></label>
                 {account.platform === "other" ? <label><span className="bridge-label">Platform name</span><input required maxLength={50} value={account.customPlatformName} onChange={(event) => update({ customPlatformName: event.target.value })} className="bridge-input mt-2" /></label> : null}
-                <label className="sm:col-span-2"><span className="bridge-label">{definition.label} profile URL</span><input required type="url" value={account.profileUrl} onChange={(event) => update({ profileUrl: event.target.value })} className="bridge-input mt-2 min-w-0" placeholder="https://..." /></label>
+                <label className="sm:col-span-2"><span className="bridge-label">{definition.label} profile URL *</span><input name="platformAccounts" required aria-describedby="platform-help" type="url" value={account.profileUrl} onChange={(event) => update({ profileUrl: event.target.value })} className="bridge-input mt-2 min-w-0" placeholder="https://..." /></label>
                 <label><span className="bridge-label">Handle (optional)</span><input maxLength={80} value={account.handle} onChange={(event) => update({ handle: event.target.value })} className="bridge-input mt-2" placeholder="@creator" /></label>
                 {account.platform === "other" ? <label><span className="bridge-label">Audience type</span><select value={account.audienceType} onChange={(event) => update({ audienceType: event.target.value as AudienceType })} className="bridge-input mt-2">{AUDIENCE_TYPES.map((type) => <option key={type} value={type}>{type[0].toUpperCase() + type.slice(1)}</option>)}</select></label> : null}
-                <label><span className="bridge-label">{account.audienceType[0].toUpperCase() + account.audienceType.slice(1)}</span><input required min="0" step="1" type="number" value={account.audienceCount} onChange={(event) => update({ audienceCount: event.target.value })} className="bridge-input mt-2" /></label>
+                <label><span className="bridge-label">{account.audienceType[0].toUpperCase() + account.audienceType.slice(1)} *</span><input required min="1" step="1" type="number" value={account.audienceCount} onChange={(event) => update({ audienceCount: event.target.value })} className="bridge-input mt-2" /></label>
                 <label><span className="bridge-label">{account.platform === "instagram" ? "Average Reel views" : account.platform === "kick" || account.platform === "twitch" ? "Average concurrent viewers" : "Average views (optional)"}</span><input min="0" step="1" type="number" value={account.averageViews} onChange={(event) => update({ averageViews: event.target.value })} className="bridge-input mt-2" /></label>
               </div>
               <div className="mt-4 flex flex-wrap items-center justify-between gap-3"><label className="flex items-center gap-2 text-sm"><input type="radio" name="primaryPlatform" checked={account.isPrimary} onChange={() => setPlatformAccounts((current) => current.map((item) => ({ ...item, isPrimary: item.id === account.id })))} /> Primary account</label>{platformAccounts.length > 1 ? <button type="button" onClick={() => setPlatformAccounts((current) => { const remaining = current.filter((item) => item.id !== account.id); if (account.isPrimary && remaining[0]) remaining[0] = { ...remaining[0], isPrimary: true }; return remaining; })} className="bridge-button-secondary"><Trash2 size={16} /> Remove</button> : null}</div>
@@ -313,10 +325,8 @@ export function CreatorOnboardingForm({
       <section className="bridge-card p-5">
         <h2 className="font-display text-xl font-bold">Rates and proof</h2>
         <div className="mt-5 grid gap-4 lg:grid-cols-2">
-          <label>
-            <span className="bridge-label">Base sponsorship rate in INR</span>
-            <input value={form.sponsorshipRate} onChange={(event) => setField("sponsorshipRate", event.target.value)} className="bridge-input mt-2" inputMode="numeric" />
-          </label>
+          <label><span className="bridge-label">Pricing choice *</span><select value={form.pricingChoice} onChange={(event) => { const choice = event.target.value as FormState["pricingChoice"]; setField("pricingChoice", choice); if (choice === "contact_for_pricing") setField("sponsorshipRate", ""); }} className="bridge-input mt-2"><option value="starting_price">Publish a starting price</option><option value="contact_for_pricing">Contact for pricing</option></select></label>
+          {form.pricingChoice === "starting_price" ? <label><span className="bridge-label">Starting sponsorship price in INR *</span><input required min="1" step="1" type="number" value={form.sponsorshipRate} onChange={(event) => setField("sponsorshipRate", event.target.value)} className="bridge-input mt-2" inputMode="numeric" /></label> : null}
           <label>
             <span className="bridge-label">Rate type</span>
             <select value={form.rateType} onChange={(event) => setField("rateType", event.target.value as FormState["rateType"])} className="bridge-input mt-2">

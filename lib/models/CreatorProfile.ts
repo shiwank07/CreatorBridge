@@ -65,6 +65,7 @@ export interface ICreatorProfile extends Document {
   twitterFollowers?: number;
   podcastUrl?: string;
   sponsorshipRate?: number;
+  pricingChoice?: "starting_price" | "contact_for_pricing";
   rateNegotiable: boolean;
   rateType?: "per_video" | "per_post" | "per_campaign";
   pastBrands: string[];
@@ -90,6 +91,10 @@ export interface ICreatorProfile extends Document {
   profileViews: number;
   completedCampaigns: number;
   totalDeals: number;
+  profileComplete?: boolean;
+  completionPercentage?: number;
+  completionMissingFields: string[];
+  completionEvaluatedAt?: Date | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -157,6 +162,7 @@ const CreatorProfileSchema = new Schema<ICreatorProfile>(
     twitterFollowers: { type: Number, default: 0, min: 0 },
     podcastUrl: { type: String, default: "" },
     sponsorshipRate: { type: Number, default: 0, min: 0 },
+    pricingChoice: { type: String, enum: ["starting_price", "contact_for_pricing"] },
     rateNegotiable: { type: Boolean, default: true },
     rateType: { type: String, enum: ["per_video", "per_post", "per_campaign"], default: "per_video" },
     pastBrands: [{ type: String }],
@@ -174,6 +180,10 @@ const CreatorProfileSchema = new Schema<ICreatorProfile>(
     bankAccountNumber: { type: String, trim: true, maxlength: 40, default: "", select: false },
     ifsc: { type: String, trim: true, uppercase: true, maxlength: 20, default: "" },
     preferredPaymentNote: { type: String, trim: true, maxlength: 500, default: "" },
+    profileComplete: { type: Boolean, index: true },
+    completionPercentage: { type: Number, min: 0, max: 100, default: 0 },
+    completionMissingFields: [{ type: String }],
+    completionEvaluatedAt: { type: Date, default: null },
     paymentDetails: {
       preferredMethod: { type: String, enum: ["upi", "bank"], default: "upi" },
       upiId: { type: String, trim: true, maxlength: 120, default: "", select: false },

@@ -72,6 +72,7 @@ export default async function CreatorProfileEditPage() {
             instagramFollowers: numberInput(creator?.instagramFollowers),
             podcastUrl: creator?.podcastUrl ?? "",
             sponsorshipRate: numberInput(creator?.sponsorshipRate),
+            pricingChoice: creator?.pricingChoice ?? (creator?.sponsorshipRate ? "starting_price" : "contact_for_pricing"),
             rateType: creator?.rateType ?? "per_video",
             pastBrandsText: creator?.pastBrands.join(", ") ?? "",
             sampleWorkText: creator?.sampleWorkUrls.join("\n") ?? "",

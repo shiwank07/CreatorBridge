@@ -26,8 +26,8 @@ export const creatorOnboardingSchema = z.object({
     .optional()
     .transform((value) => normalizePhoneNumber(value))
     .refine(isValidPhoneNumber, "Enter a valid phone number, including country code if needed."),
-  avatar: urlish,
-  bio: z.string().trim().min(30, "Bio should be at least 30 characters.").max(500),
+  avatar: urlish.refine((value) => Boolean(value), "Add a profile image."),
+  bio: z.string().trim().min(50, "Bio should be at least 50 characters.").max(500),
   niche: z.array(z.string().trim().min(1)).min(1, "Choose at least one niche.").max(5),
   country: z.string().trim().min(2, "Country is required.").max(80),
   languages: z.array(z.string().trim().min(1)).min(1, "Add at least one language.").max(8),
@@ -40,11 +40,12 @@ export const creatorOnboardingSchema = z.object({
   instagramUrl: urlish,
   instagramFollowers: z.coerce.number().int().nonnegative().optional().default(0),
   podcastUrl: urlish,
+  pricingChoice: z.enum(["starting_price", "contact_for_pricing"]),
   sponsorshipRate: z.coerce.number().int().nonnegative().optional().default(0),
   rateType: z.enum(["per_video", "per_post", "per_campaign"]).default("per_video"),
   pastBrands: z.array(z.string().trim().min(1)).max(12).default([]),
   sampleWorkUrls: z.array(z.string().trim().url()).max(8).default([]),
-  availabilityStatus: z.enum(CREATOR_AVAILABILITY_STATUSES).default("open_to_deals"),
+  availabilityStatus: z.enum(CREATOR_AVAILABILITY_STATUSES),
   isOpenToDeals: z.boolean().default(true),
   upiId: z.string().trim().max(120).optional().default(""),
   paypalEmail: z
@@ -62,6 +63,8 @@ export const creatorOnboardingSchema = z.object({
   const normalized = value.platformAccounts.flatMap((account) => { try { return [normalizePlatformUrl(account.profileUrl)]; } catch { return []; } });
   if (new Set(normalized).size !== normalized.length) context.addIssue({ code: "custom", path: ["platformAccounts"], message: "Each platform profile URL must be unique." });
   if (value.platformAccounts.length && value.platformAccounts.filter((account) => account.isPrimary).length !== 1) context.addIssue({ code: "custom", path: ["platformAccounts"], message: "Choose exactly one primary platform account." });
+  if (value.pricingChoice === "starting_price" && value.sponsorshipRate <= 0) context.addIssue({ code: "custom", path: ["sponsorshipRate"], message: "Enter a positive starting price or choose Contact for pricing." });
+  if (value.pricingChoice === "contact_for_pricing" && value.sponsorshipRate !== 0) context.addIssue({ code: "custom", path: ["sponsorshipRate"], message: "Do not send a numeric price when Contact for pricing is selected." });
 });
 
 export type CreatorOnboardingInput = z.infer<typeof creatorOnboardingSchema>;

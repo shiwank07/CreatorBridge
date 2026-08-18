@@ -77,7 +77,8 @@ export function ProfileCompletionCard({ completion, updateHref, className = "rou
       <div className="flex items-center justify-between gap-3">
         <div>
           <p className="bridge-eyebrow">Profile Completion</p>
-          <h2 className="mt-2 font-display text-2xl font-bold">Profile Completion {completion.percent}%</h2>
+          <h2 className="mt-2 font-display text-2xl font-bold">{completion.percent < 100 ? "Complete your profile to appear in discovery" : "Profile eligible for discovery"}</h2>
+          <p className="mt-2 font-mono text-lg font-bold text-cyan-100">{completion.percent}% complete</p>
           <p className="mt-2 text-sm leading-6 text-[var(--text-secondary)]">
             {completion.completedCount} of {completion.totalCount} trust and profile signals are complete.
           </p>

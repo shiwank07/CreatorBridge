@@ -59,7 +59,7 @@ export const platformAccountInputSchema = z.object({
   profileUrl: z.string().trim().max(500),
   handle: z.string().trim().max(80).optional().default(""),
   audienceType: z.enum(AUDIENCE_TYPES),
-  audienceCount: z.coerce.number().int().min(0).max(Number.MAX_SAFE_INTEGER),
+  audienceCount: z.coerce.number().int().positive("Audience must be a positive whole number.").max(Number.MAX_SAFE_INTEGER),
   averageViews: z.coerce.number().int().min(0).max(Number.MAX_SAFE_INTEGER).optional(),
   engagementRate: z.coerce.number().min(0).max(100).optional(),
   isPrimary: z.boolean().default(false),

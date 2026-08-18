@@ -15,6 +15,7 @@ import { normalizeYoutubeChannelKey } from "@/lib/verification-helpers";
 import { onboardingRoleFilter } from "@/lib/onboarding-role";
 import { syncClerkNavigationMetadata } from "@/lib/clerk-navigation-metadata";
 import { deriveAudience, legacyPlatformAccounts, preparePlatformAccounts } from "@/lib/creator-platforms";
+import { completionWriteFields, evaluateCreatorProfileCompleteness } from "@/lib/profile-completion";
 
 function hasNumberChanged(previous?: number | null, next?: number | null) {
   return Number(previous ?? 0) !== Number(next ?? 0);
@@ -38,7 +39,7 @@ export async function POST(req: Request) {
     const body = await parseJsonBody(req);
     const parsed = creatorOnboardingSchema.safeParse(body);
     if (!parsed.success) {
-      return NextResponse.json({ error: parsed.error.issues[0]?.message ?? "Invalid creator profile.", code: "VALIDATION_ERROR" }, { status: 400 });
+      return NextResponse.json({ error: parsed.error.issues[0]?.message ?? "Invalid creator profile.", code: "VALIDATION_ERROR", fieldErrors: parsed.error.flatten().fieldErrors }, { status: 422 });
     }
 
     return await withMongoRequest("creator-onboarding", async (connection) => {
@@ -69,6 +70,18 @@ export async function POST(req: Request) {
       clerkUser?.emailAddresses.find((item) => item.id === clerkUser.primaryEmailAddressId)?.emailAddress ??
       `${userId}@branzzo.local`;
     const emailVerified = Boolean(getClerkEmailVerificationState(clerkUser, email)?.verified);
+    const preexistingProfile = existingUser ? await ScopedCreatorProfile.findOne({ userId: existingUser._id }) : null;
+    const existingAccounts = preexistingProfile ? legacyPlatformAccounts(preexistingProfile.toObject() as unknown as Record<string, unknown>) : [];
+    const submittedAccounts = parsed.data.platformAccounts.length ? preparePlatformAccounts(parsed.data.platformAccounts, new Set(existingAccounts.map((account) => account.id))) : existingAccounts;
+    const platformAccounts = submittedAccounts.map((account) => {
+      const previous = existingAccounts.find((candidate) => candidate.id === account.id || candidate.normalizedProfileUrl === account.normalizedProfileUrl);
+      return previous ? { ...account, id: previous.id, verification: previous.verification, createdAt: previous.createdAt ?? account.createdAt } : account;
+    });
+    const completion = evaluateCreatorProfileCompleteness(
+      { ...parsed.data, platformAccounts },
+      { name: parsed.data.name, username: parsed.data.username, avatar: clerkUser?.imageUrl ?? parsed.data.avatar },
+    );
+    if (!completion.isComplete) return NextResponse.json({ error: "Complete all required creator profile fields.", code: "PROFILE_INCOMPLETE", ...completion }, { status: 422 });
 
     let user;
     try {
@@ -104,14 +117,8 @@ export async function POST(req: Request) {
       throw error;
     }
     if (!user) return NextResponse.json({ error: "This account cannot complete creator onboarding.", code: "ACCOUNT_ALREADY_BRAND" }, { status: 409 });
-
     const existingProfile = await ScopedCreatorProfile.findOne({ userId: user._id });
-    const existingAccounts = existingProfile ? legacyPlatformAccounts(existingProfile.toObject() as unknown as Record<string, unknown>) : [];
-    const submittedAccounts = parsed.data.platformAccounts.length ? preparePlatformAccounts(parsed.data.platformAccounts, new Set(existingAccounts.map((account) => account.id))) : existingAccounts;
-    const platformAccounts = submittedAccounts.map((account) => {
-      const previous = existingAccounts.find((candidate) => candidate.id === account.id || candidate.normalizedProfileUrl === account.normalizedProfileUrl);
-      return previous ? { ...account, id: previous.id, verification: previous.verification, createdAt: previous.createdAt ?? account.createdAt } : account;
-    });
+
     const audience = deriveAudience(platformAccounts);
     const platformChanged = Boolean(
       existingProfile &&
@@ -193,6 +200,7 @@ export async function POST(req: Request) {
           instagramFollowers: parsed.data.platformAccounts.length ? existingProfile?.instagramFollowers ?? 0 : parsed.data.instagramFollowers,
           podcastUrl: parsed.data.platformAccounts.length ? existingProfile?.podcastUrl ?? "" : parsed.data.podcastUrl,
           sponsorshipRate: parsed.data.sponsorshipRate,
+          pricingChoice: parsed.data.pricingChoice,
           rateType: parsed.data.rateType,
           pastBrands: parsed.data.pastBrands,
           sampleWorkUrls: parsed.data.sampleWorkUrls,
@@ -204,6 +212,7 @@ export async function POST(req: Request) {
           bankAccountNumber: parsed.data.bankAccountNumber,
           ifsc: parsed.data.ifsc,
           preferredPaymentNote: parsed.data.preferredPaymentNote,
+          ...completionWriteFields(completion),
         },
       },
       { upsert: true, new: true },

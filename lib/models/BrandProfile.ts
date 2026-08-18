@@ -13,6 +13,7 @@ export interface IBrandProfile extends Document {
   phoneVerified: boolean;
   phoneVerifiedAt?: Date | null;
   website?: string;
+  businessSocialUrl?: string;
   industry: string;
   companySize?: string;
   country?: string;
@@ -30,6 +31,12 @@ export interface IBrandProfile extends Document {
   rejectionReason?: string;
   completedCampaigns: number;
   displayPublicly: boolean;
+  termsAccepted: boolean;
+  termsAcceptedAt?: Date | null;
+  profileComplete?: boolean;
+  completionPercentage?: number;
+  completionMissingFields: string[];
+  completionEvaluatedAt?: Date | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -45,6 +52,7 @@ const BrandProfileSchema = new Schema<IBrandProfile>(
     phoneVerified: { type: Boolean, default: false, index: true },
     phoneVerifiedAt: { type: Date, default: null },
     website: { type: String, trim: true, default: "" },
+    businessSocialUrl: { type: String, trim: true, default: "" },
     industry: { type: String, required: true, trim: true, maxlength: 80, index: true },
     companySize: { type: String, trim: true, maxlength: 80, default: "" },
     country: { type: String, trim: true, maxlength: 80, default: "" },
@@ -71,6 +79,12 @@ const BrandProfileSchema = new Schema<IBrandProfile>(
     rejectionReason: { type: String, trim: true, maxlength: 500, default: "" },
     completedCampaigns: { type: Number, default: 0, min: 0 },
     displayPublicly: { type: Boolean, default: false, index: true },
+    termsAccepted: { type: Boolean, default: false },
+    termsAcceptedAt: { type: Date, default: null },
+    profileComplete: { type: Boolean, index: true },
+    completionPercentage: { type: Number, min: 0, max: 100, default: 0 },
+    completionMissingFields: [{ type: String }],
+    completionEvaluatedAt: { type: Date, default: null },
   },
   { timestamps: true },
 );

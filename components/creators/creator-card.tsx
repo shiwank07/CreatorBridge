@@ -123,18 +123,18 @@ export function CreatorCard({ creator, viewerState, viewerRole, initialSaved = f
         </div>
 
         <p className="mt-4 line-clamp-3 min-h-[4.5rem] text-sm leading-6 text-[var(--text-secondary)]">
-          {creator.bio || "This creator is still polishing their profile details."}
+          {creator.bio}
         </p>
 
         <div className="mt-5 grid grid-cols-2 gap-2">
           {[
-            { label: `Top ${audienceLabel}`, value: subscriberCount > 0 ? formatNumber(subscriberCount) : "Not added yet", muted: subscriberCount <= 0 },
-            { label: "Avg Views", value: averageViews > 0 ? formatNumber(averageViews) : "Stats pending", muted: averageViews <= 0 },
-            { label: "Engagement", value: engagement > 0 ? `${engagement.toFixed(1)}%` : "Complete profile", muted: engagement <= 0 },
-            { label: "Starting Price", value: creator.sponsorshipRate && creator.sponsorshipRate > 0 ? formatINR(creator.sponsorshipRate) : "Pricing not set", muted: !creator.sponsorshipRate },
+            { label: `Top ${audienceLabel}`, value: formatNumber(subscriberCount) },
+            ...(averageViews > 0 ? [{ label: "Avg Views", value: formatNumber(averageViews) }] : []),
+            ...(engagement > 0 ? [{ label: "Engagement", value: `${engagement.toFixed(1)}%` }] : []),
+            { label: creator.pricingChoice === "contact_for_pricing" ? "Pricing" : "Starting Price", value: creator.pricingChoice === "contact_for_pricing" ? "Contact for pricing" : formatINR(creator.sponsorshipRate ?? 0) },
           ].map((stat) => (
             <div key={stat.label} className="min-w-0 rounded-[8px] bg-white/[0.04] p-3.5">
-              <p className={`${stat.muted ? "text-sm font-semibold leading-5 text-cyan-100" : "font-mono text-base font-bold text-white"} break-words`}>
+              <p className="break-words font-mono text-base font-bold text-white">
                 {stat.value}
               </p>
               <p className="mt-1 text-[11px] uppercase text-[var(--text-muted)]">{stat.label}</p>
@@ -145,11 +145,11 @@ export function CreatorCard({ creator, viewerState, viewerRole, initialSaved = f
         <div className="mt-4 grid gap-2 text-sm text-[var(--text-secondary)]">
           <div className="flex min-w-0 items-center gap-2">
             <Languages size={15} className="shrink-0 text-cyan-200" />
-            <span className="truncate">{creator.languages.length > 0 ? creator.languages.slice(0, 3).join(", ") : "Languages not listed"}</span>
+            <span className="truncate">{creator.languages.slice(0, 3).join(", ")}</span>
           </div>
           <div className="flex min-w-0 items-center gap-2">
             <Globe2 size={15} className="shrink-0 text-violet-200" />
-            <span className="truncate">{creator.country || "Country not listed"}</span>
+            <span className="truncate">{creator.country}</span>
           </div>
         </div>
 

@@ -13,15 +13,21 @@ import { Counter } from "@/lib/models/Counter";
 import { User } from "@/lib/models/User";
 import { notificationService } from "@/lib/notifications/notification-service";
 import { brandInquirySchema } from "@/lib/validators/brand-inquiry";
+import { evaluateBrandProfileCompleteness, evaluateCreatorProfileCompleteness } from "@/lib/profile-completion";
 
 export async function POST(req: Request) {
   try {
-    if (!hasMongoUri()) {
-      return NextResponse.json({ error: "MongoDB is not configured yet." }, { status: 503 });
-    }
-
     if (!hasClerkKeys()) {
       return NextResponse.json({ error: "Authentication is not configured yet." }, { status: 503 });
+    }
+
+    const { userId: clerkId } = await auth();
+    if (!clerkId) {
+      return NextResponse.json({ error: "Sign in with a brand account before starting a collaboration." }, { status: 401 });
+    }
+
+    if (!hasMongoUri()) {
+      return NextResponse.json({ error: "MongoDB is not configured yet." }, { status: 503 });
     }
 
     const body = await parseJsonBody(req);
@@ -31,11 +37,6 @@ export async function POST(req: Request) {
     }
 
     await connectDB();
-    const { userId: clerkId } = await auth();
-    if (!clerkId) {
-      return NextResponse.json({ error: "Sign in with a brand account before starting a collaboration." }, { status: 401 });
-    }
-
     const brandUser = await User.findOne({ clerkId });
     if (!brandUser?.onboardingComplete) {
       return NextResponse.json({ error: "Complete brand onboarding before starting a collaboration." }, { status: 403 });
@@ -49,6 +50,8 @@ export async function POST(req: Request) {
     if (!brandProfile) {
       return NextResponse.json({ error: "Create your brand profile before starting a collaboration." }, { status: 403 });
     }
+    const brandCompletion = evaluateBrandProfileCompleteness(brandProfile.toObject() as unknown as Record<string, unknown>, brandUser.toObject() as unknown as Record<string, unknown>);
+    if (!brandCompletion.isComplete) return NextResponse.json({ error: "Complete your brand profile before starting a new collaboration.", code: "PROFILE_INCOMPLETE", ...brandCompletion }, { status: 403 });
 
     if (!parsed.data.creatorUsername) {
       return NextResponse.json({ error: "Choose a creator before starting a collaboration." }, { status: 400 });
@@ -65,6 +68,8 @@ export async function POST(req: Request) {
     if (!creatorProfile) {
       return NextResponse.json({ error: "Creator profile not found." }, { status: 404 });
     }
+    const creatorCompletion = evaluateCreatorProfileCompleteness(creatorProfile.toObject() as unknown as Record<string, unknown>, creatorUser.toObject() as unknown as Record<string, unknown>);
+    if (!creatorCompletion.isComplete) return NextResponse.json({ error: "This creator is not currently eligible for new marketplace collaborations." }, { status: 404 });
 
     if (!canStartCreatorCollaboration(creatorProfile.availabilityStatus, Boolean(creatorProfile.isOpenToDeals))) {
       return NextResponse.json(

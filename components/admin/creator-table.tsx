@@ -236,7 +236,7 @@ export function CreatorTable({ creators }: CreatorTableProps) {
                     <span className="block truncate" title={creator.email} aria-label={`Email ${creator.email}`}>{creator.email}</span>
                   </td>
                   <td className="px-4 py-3">
-                    <div className="flex flex-wrap gap-1"><Badge tone={verificationTone(creator.verificationStatus)}>{creator.verificationStatus.replaceAll("_", " ")}</Badge>{creator.foundingCreator ? <Badge tone="yellow">Founding #{String(creator.foundingCreator.number).padStart(3, "0")} · {creator.foundingCreator.status}</Badge> : null}</div>
+                    <div className="flex flex-wrap gap-1"><Badge tone={creator.profileStatus === "complete" ? "green" : "yellow"}>{creator.profileStatus} profile</Badge><Badge tone={verificationTone(creator.verificationStatus)}>{creator.verificationStatus.replaceAll("_", " ")}</Badge>{creator.foundingCreator ? <Badge tone="yellow">Founding #{String(creator.foundingCreator.number).padStart(3, "0")} · {creator.foundingCreator.status}</Badge> : null}</div>
                   </td>
                   <td className="px-4 py-3">
                     <Badge tone={accountTone(creator.accountStatus)}>{creator.accountStatus}</Badge>
@@ -263,7 +263,7 @@ export function CreatorTable({ creators }: CreatorTableProps) {
                 </div>
               </div>
               <div className="mt-4 flex flex-wrap gap-2">
-                <Badge tone={verificationTone(creator.verificationStatus)}>{creator.verificationStatus.replaceAll("_", " ")}</Badge>{creator.foundingCreator ? <Badge tone="yellow">Founding #{String(creator.foundingCreator.number).padStart(3, "0")} · {creator.foundingCreator.status}</Badge> : null}
+                <Badge tone={creator.profileStatus === "complete" ? "green" : "yellow"}>{creator.profileStatus} profile</Badge><Badge tone={verificationTone(creator.verificationStatus)}>{creator.verificationStatus.replaceAll("_", " ")}</Badge>{creator.foundingCreator ? <Badge tone="yellow">Founding #{String(creator.foundingCreator.number).padStart(3, "0")} · {creator.foundingCreator.status}</Badge> : null}
                 <Badge tone={accountTone(creator.accountStatus)}>{creator.accountStatus}</Badge>
                 <Badge tone="neutral">{dateLabel(creator.joinedDate)}</Badge>
               </div>

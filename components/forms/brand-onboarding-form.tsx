@@ -10,21 +10,25 @@ import { submitOnboardingWithBusyRetry } from "@/lib/onboarding-request";
 type BrandOnboardingFormProps = {
   initialContactName: string;
   initialEmail: string;
+  initialUsername: string;
   initialLogo?: string;
   initialValues?: {
     companyName?: string;
+    username?: string;
     contactName?: string;
     contactRole?: string;
     contactEmail?: string;
     phoneNumber?: string;
     logo?: string;
     website?: string;
+    businessSocialUrl?: string;
     industry?: string;
     companySize?: string;
     country?: string;
     companyRegistrationText?: string;
     notes?: string;
     displayPublicly?: boolean;
+    termsAccepted?: boolean;
   };
   redirectHref?: string | null;
   submitLabel?: string;
@@ -33,18 +37,21 @@ type BrandOnboardingFormProps = {
 
 type FormState = {
   companyName: string;
+  username: string;
   contactName: string;
   contactRole: string;
   contactEmail: string;
   phoneNumber: string;
   logo: string;
   website: string;
+  businessSocialUrl: string;
   industry: string;
   companySize: string;
   country: string;
   companyRegistrationText: string;
   notes: string;
   displayPublicly: boolean;
+  termsAccepted: boolean;
 };
 
 const COMPANY_SIZES = ["1-10", "11-50", "51-200", "201-1000", "1000+"] as const;
@@ -52,6 +59,7 @@ const COMPANY_SIZES = ["1-10", "11-50", "51-200", "201-1000", "1000+"] as const;
 export function BrandOnboardingForm({
   initialContactName,
   initialEmail,
+  initialUsername,
   initialLogo = "",
   initialValues,
   redirectHref = "/dashboard/brand",
@@ -62,21 +70,25 @@ export function BrandOnboardingForm({
   const { user } = useUser();
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState("");
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string[]>>({});
   const [success, setSuccess] = useState("");
   const [form, setForm] = useState<FormState>({
     companyName: initialValues?.companyName ?? "",
+    username: initialValues?.username ?? initialUsername,
     contactName: initialValues?.contactName ?? initialContactName,
     contactRole: initialValues?.contactRole ?? "",
     contactEmail: initialValues?.contactEmail ?? initialEmail,
     phoneNumber: initialValues?.phoneNumber ?? "",
     logo: initialValues?.logo ?? initialLogo,
     website: initialValues?.website ?? "",
+    businessSocialUrl: initialValues?.businessSocialUrl ?? "",
     industry: initialValues?.industry ?? "",
     companySize: initialValues?.companySize ?? COMPANY_SIZES[1],
     country: initialValues?.country ?? "India",
     companyRegistrationText: initialValues?.companyRegistrationText ?? "",
     notes: initialValues?.notes ?? "",
     displayPublicly: initialValues?.displayPublicly ?? false,
+    termsAccepted: initialValues?.termsAccepted ?? false,
   });
 
   function setField<K extends keyof FormState>(key: K, value: FormState[K]) {
@@ -86,6 +98,7 @@ export function BrandOnboardingForm({
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError("");
+    setFieldErrors({});
     setSuccess("");
     setIsSaving(true);
 
@@ -94,6 +107,9 @@ export function BrandOnboardingForm({
 
       if (!response.ok) {
         setError(result.error ?? "Could not save your brand profile.");
+        setFieldErrors(result.fieldErrors ?? {});
+        const firstField = Object.keys(result.fieldErrors ?? {})[0];
+        if (firstField) window.requestAnimationFrame(() => document.querySelector<HTMLElement>(`[name="${firstField}"]`)?.focus());
         return;
       }
 
@@ -111,8 +127,9 @@ export function BrandOnboardingForm({
   return (
     <form onSubmit={onSubmit} aria-busy={isSaving} className="space-y-6">
       {error ? (
-        <div role="alert" className="rounded-[8px] border border-red-900 bg-red-950/40 px-4 py-3 text-sm text-red-200">
-          {error}
+        <div role="alert" aria-live="assertive" className="rounded-[8px] border border-red-900 bg-red-950/40 px-4 py-3 text-sm text-red-200">
+          <p className="font-semibold">{error}</p>
+          {Object.keys(fieldErrors).length ? <ul className="mt-2 list-disc space-y-1 pl-5">{Object.entries(fieldErrors).flatMap(([key, messages]) => messages.map((message) => <li key={`${key}-${message}`}>{message}</li>))}</ul> : null}
         </div>
       ) : null}
       {success ? (
@@ -127,19 +144,21 @@ export function BrandOnboardingForm({
         <div className="mt-5 grid gap-4 lg:grid-cols-2">
           <label>
             <span className="bridge-label">Company name</span>
-            <input value={form.companyName} onChange={(event) => setField("companyName", event.target.value)} className="bridge-input mt-2" required />
+            <input name="companyName" value={form.companyName} onChange={(event) => setField("companyName", event.target.value)} className="bridge-input mt-2" required />
           </label>
+          <label><span className="bridge-label">Public username *</span><input name="username" required minLength={3} maxLength={24} pattern="[a-z0-9]+" value={form.username} onChange={(event) => setField("username", event.target.value.toLowerCase().replace(/[^a-z0-9]/g, ""))} className="bridge-input mt-2" /></label>
           <label>
             <span className="bridge-label">Industry</span>
-            <input value={form.industry} onChange={(event) => setField("industry", event.target.value)} className="bridge-input mt-2" placeholder="Consumer tech" required />
+            <input name="industry" value={form.industry} onChange={(event) => setField("industry", event.target.value)} className="bridge-input mt-2" placeholder="Consumer tech" required />
           </label>
           <label>
             <span className="bridge-label">Website</span>
-            <input value={form.website} onChange={(event) => setField("website", event.target.value)} className="bridge-input mt-2" placeholder="https://..." />
+            <input name="website" value={form.website} onChange={(event) => setField("website", event.target.value)} className="bridge-input mt-2" placeholder="https://..." />
           </label>
+          <label><span className="bridge-label">Business social profile</span><input type="url" value={form.businessSocialUrl} onChange={(event) => setField("businessSocialUrl", event.target.value)} className="bridge-input mt-2" placeholder="https://linkedin.com/company/..." /></label>
           <label>
             <span className="bridge-label">Company size</span>
-            <select value={form.companySize} onChange={(event) => setField("companySize", event.target.value)} className="bridge-input mt-2">
+            <select name="companySize" value={form.companySize} onChange={(event) => setField("companySize", event.target.value)} className="bridge-input mt-2">
               {COMPANY_SIZES.map((size) => (
                 <option key={size} value={size}>
                   {size}
@@ -149,7 +168,7 @@ export function BrandOnboardingForm({
           </label>
           <label className="lg:col-span-2">
             <span className="bridge-label">Country</span>
-            <input value={form.country} onChange={(event) => setField("country", event.target.value)} className="bridge-input mt-2" required />
+            <input name="country" value={form.country} onChange={(event) => setField("country", event.target.value)} className="bridge-input mt-2" required />
           </label>
           <ProfileImageUpload
             accountType="brand"
@@ -188,20 +207,21 @@ export function BrandOnboardingForm({
         <div className="mt-5 grid gap-4 lg:grid-cols-2">
           <label>
             <span className="bridge-label">Contact name</span>
-            <input value={form.contactName} onChange={(event) => setField("contactName", event.target.value)} className="bridge-input mt-2" required />
+            <input name="contactName" value={form.contactName} onChange={(event) => setField("contactName", event.target.value)} className="bridge-input mt-2" required />
           </label>
           <label>
-            <span className="bridge-label">Role</span>
-            <input value={form.contactRole} onChange={(event) => setField("contactRole", event.target.value)} className="bridge-input mt-2" placeholder="Growth lead" />
+            <span className="bridge-label">Role *</span>
+            <input name="contactRole" required value={form.contactRole} onChange={(event) => setField("contactRole", event.target.value)} className="bridge-input mt-2" placeholder="Growth lead" />
           </label>
           <label className="lg:col-span-2">
             <span className="bridge-label">Work email</span>
             <input type="email" value={form.contactEmail} onChange={(event) => setField("contactEmail", event.target.value)} className="bridge-input mt-2" required />
           </label>
           <label className="lg:col-span-2">
-            <span className="bridge-label">Notes</span>
-          <textarea value={form.notes} onChange={(event) => setField("notes", event.target.value)} className="bridge-input mt-2 min-h-28" placeholder="Creator categories, markets, or internal context." />
+            <span className="bridge-label">Brand description *</span>
+          <textarea name="notes" required minLength={50} maxLength={500} value={form.notes} onChange={(event) => setField("notes", event.target.value)} className="bridge-input mt-2 min-h-28" placeholder="Describe your company, audience, products, and creator partnership goals." />
         </label>
+        <label className="lg:col-span-2 flex items-start gap-3"><input name="termsAccepted" required type="checkbox" checked={form.termsAccepted} onChange={(event) => setField("termsAccepted", event.target.checked)} className="mt-1" /><span className="text-sm">I agree to the Branzzo terms and applicable marketplace policies.</span></label>
       </div>
       </section>
       </fieldset>

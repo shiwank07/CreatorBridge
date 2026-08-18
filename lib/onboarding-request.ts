@@ -1,4 +1,4 @@
-export type OnboardingResponse = { response: Response; result: { error?: string; code?: string; retryable?: boolean } };
+export type OnboardingResponse = { response: Response; result: { error?: string; code?: string; retryable?: boolean; fieldErrors?: Record<string, string[]> } };
 
 const pause = (ms: number) => new Promise<void>((resolve) => window.setTimeout(resolve, ms));
 

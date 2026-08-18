@@ -9,11 +9,11 @@ import { sendBrandWelcomeOnce } from "@/lib/email/welcome-emails";
 import { BrandProfile } from "@/lib/models/BrandProfile";
 import { User } from "@/lib/models/User";
 import { EmailNotification } from "@/lib/models/EmailNotification";
-import { ensureUniqueUsername } from "@/lib/queries/creators";
 import { brandOnboardingSchema } from "@/lib/validators/brand-profile";
 import { emailDomain, normalizeUrlDomain } from "@/lib/verification-helpers";
 import { onboardingRoleFilter } from "@/lib/onboarding-role";
 import { syncClerkNavigationMetadata } from "@/lib/clerk-navigation-metadata";
+import { completionWriteFields, evaluateBrandProfileCompleteness } from "@/lib/profile-completion";
 
 function getClerkEmail(user: Awaited<ReturnType<typeof currentUser>>) {
   return (
@@ -41,7 +41,7 @@ export async function POST(req: Request) {
     const body = await parseJsonBody(req);
     const parsed = brandOnboardingSchema.safeParse(body);
     if (!parsed.success) {
-      return NextResponse.json({ error: parsed.error.issues[0]?.message ?? "Invalid brand profile.", code: "VALIDATION_ERROR" }, { status: 400 });
+      return NextResponse.json({ error: parsed.error.issues[0]?.message ?? "Invalid brand profile.", code: "VALIDATION_ERROR", fieldErrors: parsed.error.flatten().fieldErrors }, { status: 422 });
     }
 
     return await withMongoRequest("brand-onboarding", async (connection) => {
@@ -60,9 +60,16 @@ export async function POST(req: Request) {
         code: "ACCOUNT_ALREADY_CREATOR", dashboardHref: "/dashboard/creator",
       }, { status: 409 });
     }
-    const username = existingUser?.username ?? (await ensureUniqueUsername(parsed.data.companyName, userId, ScopedUser));
+    const usernameOwner = await ScopedUser.findOne({ username: parsed.data.username, clerkId: { $ne: userId } });
+    if (usernameOwner) return NextResponse.json({ error: "That username is already taken.", code: "USERNAME_TAKEN" }, { status: 409 });
+    const username = parsed.data.username;
     const phoneVerified = Boolean(existingUser?.phoneVerified && (existingUser.phoneNumber ?? "") === parsed.data.phoneNumber);
     const phoneVerifiedAt = phoneVerified ? existingUser?.phoneVerifiedAt ?? null : null;
+    const completion = evaluateBrandProfileCompleteness(
+      { ...parsed.data, termsAcceptedAt: parsed.data.termsAccepted ? new Date() : null },
+      { username, avatar: clerkUser?.imageUrl ?? parsed.data.logo },
+    );
+    if (!completion.isComplete) return NextResponse.json({ error: "Complete all required brand profile fields.", code: "PROFILE_INCOMPLETE", ...completion }, { status: 422 });
 
     let user;
     try {
@@ -121,12 +128,16 @@ export async function POST(req: Request) {
           phoneVerified,
           phoneVerifiedAt,
           website: parsed.data.website,
+          businessSocialUrl: parsed.data.businessSocialUrl,
           industry: parsed.data.industry,
           companySize: parsed.data.companySize,
           country: parsed.data.country,
           companyRegistrationText: parsed.data.companyRegistrationText,
           notes: parsed.data.notes,
           displayPublicly: parsed.data.displayPublicly,
+          termsAccepted: true,
+          termsAcceptedAt: existingProfile?.termsAcceptedAt ?? new Date(),
+          ...completionWriteFields(completion),
           companyDomain,
           normalizedWebsiteDomain,
           verificationStatus: brandIdentityChanged ? "unverified" : existingProfile?.verificationStatus ?? "unverified",

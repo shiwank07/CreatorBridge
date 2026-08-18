@@ -54,21 +54,25 @@ export default async function BrandProfileEditPage() {
         <BrandOnboardingForm
           initialContactName={brand?.contactName ?? user.name}
           initialEmail={brand?.contactEmail ?? user.email}
+          initialUsername={user.username}
           initialLogo={brand?.avatar ?? ""}
           initialValues={{
             phoneNumber: user.phoneNumber,
             companyName: brand?.companyName ?? "",
+            username: user.username,
             contactName: brand?.contactName ?? user.name,
             contactRole: brand?.contactRole ?? "",
             contactEmail: brand?.contactEmail ?? user.email,
             logo: brand?.avatar ?? "",
             website: brand?.website ?? "",
+            businessSocialUrl: brand?.businessSocialUrl ?? "",
             industry: brand?.industry ?? "",
             companySize: brand?.companySize ?? "",
             country: brand?.country ?? "India",
             companyRegistrationText: brand?.companyRegistrationText ?? "",
             notes: brand?.notes ?? "",
             displayPublicly: brand?.displayPublicly ?? false,
+            termsAccepted: true,
           }}
           redirectHref={null}
           submitLabel="Save Brand Profile"
