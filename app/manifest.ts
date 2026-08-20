@@ -4,7 +4,7 @@ export default function manifest(): MetadataRoute.Manifest {
   return {
     name: "Branzzo",
     short_name: "Branzzo",
-    description: "A marketplace connecting brands with verified creators for paid collaborations.",
+    description: "Discover creators, compare professional profiles, send campaign briefs, and manage brand collaborations across Instagram, YouTube and more with Branzzo.",
     start_url: "/",
     display: "standalone",
     background_color: "#05050d",

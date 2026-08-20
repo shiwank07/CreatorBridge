@@ -4,7 +4,7 @@ import { ClerkProvider } from "@clerk/nextjs";
 
 import "@/app/globals.css";
 import { MouseGlow } from "@/components/shared/mouse-glow";
-import { GLOBAL_STRUCTURED_DATA, SITE_DESCRIPTION, SITE_NAME, SITE_TITLE, SITE_URL, SOCIAL_IMAGE } from "@/lib/seo";
+import { GLOBAL_STRUCTURED_DATA, SITE_DESCRIPTION, SITE_NAME, SITE_TITLE, SITE_URL, SOCIAL_IMAGE, SOCIAL_IMAGE_ALT } from "@/lib/seo";
 
 const outfit = Outfit({
   subsets: ["latin"],
@@ -31,6 +31,21 @@ export const metadata: Metadata = {
   publisher: SITE_NAME,
   title: { default: SITE_TITLE, template: "%s | Branzzo" },
   description: SITE_DESCRIPTION,
+  verification: {
+    other: {
+      "msvalidate.01": "C1B8F53E9DA3FD03CCEFE1B282195B2B",
+    },
+  },
+  keywords: [
+    "creator marketplace",
+    "influencer marketing",
+    "brand collaborations",
+    "creator partnerships",
+    "influencer platform India",
+    "fitness creators",
+    "Instagram creators",
+    "YouTube creators",
+  ],
   alternates: { canonical: "/" },
   robots: {
     index: true,
@@ -53,9 +68,9 @@ export const metadata: Metadata = {
     description: SITE_DESCRIPTION,
     url: "/",
     siteName: SITE_NAME,
-    locale: "en_US",
+    locale: "en_IN",
     type: "website",
-    images: [{ url: SOCIAL_IMAGE, width: 1200, height: 630, alt: "Branzzo creator marketplace for brands and creators" }],
+    images: [{ url: SOCIAL_IMAGE, width: 1200, height: 630, alt: SOCIAL_IMAGE_ALT }],
   },
   twitter: { card: "summary_large_image", title: SITE_TITLE, description: SITE_DESCRIPTION, images: [SOCIAL_IMAGE] },
   manifest: "/manifest.webmanifest",

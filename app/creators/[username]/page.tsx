@@ -23,7 +23,7 @@ import { calculateCreatorProfileCompletion } from "@/lib/profile-completion";
 import { getCreatorCollaborationHistorySummary } from "@/lib/queries/collaborations";
 import { getCreatorByUsername, getCreatorProfileViewerState, getSavedCreatorUsernames } from "@/lib/queries/creators";
 import { logServerTiming } from "@/lib/server-timing";
-import { SOCIAL_IMAGE } from "@/lib/seo";
+import { safeJsonLd, SITE_URL, SOCIAL_IMAGE } from "@/lib/seo";
 import {
   getPublicAverageViews,
   getPublicEngagementRate,
@@ -70,13 +70,16 @@ export async function generateMetadata({ params }: { params: CreatorProfileParam
   const { username } = await params;
   const creator = await getCachedCreatorByUsername(username);
   if (!creator) return { title: "Creator Not Found", robots: { index: false, follow: false } };
-  const title = `${creator.name} (@${creator.username}) — Creator Profile`;
-  const description = `View ${creator.name}'s verified creator profile, audience channels, niche, and paid collaboration availability on Branzzo.`;
+  const niche = creator.niche[0] || "Content";
+  const primaryPlatform = creator.topAudiencePlatform ? platformDisplayName(creator.topAudiencePlatform) : "creator";
+  const title = `${creator.name} — ${niche} ${primaryPlatform} Creator`;
+  const description = `Explore ${creator.name}'s public ${niche.toLowerCase()} creator profile, ${primaryPlatform} presence, and collaboration availability on Branzzo.`;
   const canonical = `/creators/${encodeURIComponent(creator.username)}`;
   return {
     title,
     description,
     alternates: { canonical },
+    robots: { index: true, follow: true },
     openGraph: {
       title,
       description,
@@ -135,7 +138,7 @@ export default async function CreatorProfilePage({ params }: { params: CreatorPr
     "@context": "https://schema.org",
     "@type": "Person",
     name: creator.name,
-    url: `${process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000"}/creators/${creator.username}`,
+    url: `${SITE_URL}/creators/${encodeURIComponent(creator.username)}`,
     jobTitle: `${creator.niche[0] ?? "Content"} Creator`,
     sameAs: platformLinks.map((platform) => platform.href),
   };
@@ -144,7 +147,7 @@ export default async function CreatorProfilePage({ params }: { params: CreatorPr
     <>
       {viewerRole ? <Navbar role={viewerRole} username={viewer?.username} /> : <MarketingNavbar />}
       <main>
-        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(schema) }} />
+        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: safeJsonLd(schema) }} />
         <CreatorProfileHeader creator={creator} viewerState={viewerState} />
 
         <div className="bridge-section grid items-start gap-6 py-8 sm:py-10 lg:grid-cols-[1fr_340px]">
